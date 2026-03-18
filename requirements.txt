@@ -1,0 +1,8 @@
+flask
+jinja2
+pillow
+python-pptx
+anthropic
+pyarrow
+PyMuPDF
+playwright
