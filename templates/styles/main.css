@@ -1,0 +1,930 @@
+/* ── MBR Report Design System ── */
+
+/* Google Fonts — loaded in HTML <link> */
+/* Playfair Display for headings, Inter for body */
+
+:root {
+  --purple: #4D1751;
+  --purple-light: #6B2D6E;
+  --gold: #B8933A;
+  --gold-light: #D4B060;
+  --pink: #C27BA0;
+  --red: #B53631;
+  --red-light: #E8D4D3;
+  --green: #2E7D32;
+  --green-light: #D4E8D5;
+  --cream: #FDF6EE;
+  --card-bg: #FFFFFF;
+  --card-inner: #F7F4F0;
+  --gray: #8C8580;
+  --gray-light: #D2CBC4;
+  --dark-text: #2D2A28;
+  --body-text: #4A4744;
+  --muted-text: #8C8580;
+  --track: #E8E3DE;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+  --shadow-md: 0 2px 8px rgba(0,0,0,0.08);
+  --radius: 8px;
+  --radius-lg: 12px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Inter', -apple-system, 'Segoe UI', Arial, sans-serif;
+  color: var(--dark-text);
+  background: var(--cream);
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+@page {
+  size: 8.5in 11in;
+  margin: 0;
+}
+
+/* ── Page Structure ── */
+.page {
+  width: 8.5in;
+  min-height: 11in;
+  height: 11in;
+  padding: 0.45in 0.5in 0.45in 0.5in;
+  page-break-after: always;
+  break-after: page;
+  position: relative;
+  overflow: visible;
+  background: var(--cream);
+}
+
+.page:last-child {
+  page-break-after: auto;
+  break-after: auto;
+}
+
+@media print {
+  .page {
+    page-break-after: always;
+    break-after: page;
+  }
+  .page:last-child {
+    page-break-after: auto;
+    break-after: auto;
+  }
+}
+
+/* ── Header ── */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.25in;
+  padding-bottom: 0.08in;
+  border-bottom: 2px solid var(--purple);
+}
+
+.header-title {
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  font-size: 10pt;
+  color: var(--purple);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.header-logo { height: 0.35in; }
+
+/* ── Copyright Footer ── */
+.footer {
+  position: absolute;
+  bottom: 0.2in;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 6.5pt;
+  color: var(--muted-text);
+}
+
+/* ── Typography ── */
+.section-title {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-weight: 700;
+  font-size: 20pt;
+  color: var(--purple);
+  margin-bottom: 0.15in;
+}
+
+.section-subtitle {
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  font-size: 11pt;
+  color: var(--dark-text);
+  margin-bottom: 0.1in;
+}
+
+/* ── Cards ── */
+.card {
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: 0.18in 0.22in;
+  position: relative;
+}
+
+.card-inner {
+  background: var(--card-inner);
+  border-radius: var(--radius);
+  padding: 0.12in 0.16in;
+}
+
+/* ── Cover Page ── */
+.cover {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  text-align: center;
+  padding: 1.5in 0.8in;
+}
+
+.cover-logo {
+  height: 0.6in;
+  margin-bottom: 0.8in;
+}
+
+.cover-practice {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 38pt;
+  font-weight: 700;
+  color: var(--purple);
+  line-height: 1.15;
+  margin-bottom: 0.35in;
+}
+
+.cover-type {
+  font-family: 'Inter', sans-serif;
+  font-size: 14pt;
+  font-weight: 500;
+  color: var(--gold);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-bottom: 0.12in;
+}
+
+.cover-period {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 18pt;
+  font-weight: 400;
+  color: var(--body-text);
+}
+
+.cover-divider {
+  width: 2in;
+  height: 2px;
+  background: var(--gold);
+  margin: 0.4in auto;
+}
+
+.cover-footer {
+  position: absolute;
+  bottom: 0.8in;
+  left: 0;
+  right: 0;
+  text-align: center;
+}
+
+.cover-footer-text {
+  font-size: 7.5pt;
+  color: var(--muted-text);
+}
+
+/* ── Executive Summary ── */
+.exec-summary {
+  background: var(--purple);
+  color: white;
+  border-radius: var(--radius-lg);
+  padding: 0.2in 0.28in;
+  margin-bottom: 0.18in;
+  font-size: 9.5pt;
+  line-height: 1.55;
+}
+
+/* ── Metric Cards Row ── */
+.metrics-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.12in;
+  margin-bottom: 0.18in;
+}
+
+.metric-card {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: 0.14in 0.16in;
+  border-top: 3px solid var(--purple);
+}
+
+.metric-label {
+  font-size: 7.5pt;
+  font-weight: 600;
+  color: var(--muted-text);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.06in;
+}
+
+.metric-value {
+  font-size: 18pt;
+  font-weight: 700;
+  color: var(--purple);
+  line-height: 1.1;
+}
+
+.metric-value.small { font-size: 15pt; }
+
+/* ── MoM Change Indicator ── */
+.mom-change {
+  font-size: 7pt;
+  font-weight: 600;
+  color: var(--muted-text);
+  margin-top: 0.04in;
+  letter-spacing: 0.02em;
+}
+
+.mom-change.positive {
+  color: #2E7D32;
+}
+
+.mom-change.negative {
+  color: #B53631;
+}
+
+/* ── Gauges ── */
+.gauges-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.08in;
+  margin-bottom: 0.18in;
+}
+
+.gauge-item {
+  text-align: center;
+}
+
+.gauge-wrap {
+  position: relative;
+  width: 0.95in;
+  height: 0.95in;
+  margin: 0 auto 0.06in;
+}
+
+.gauge-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.gauge-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 14pt;
+  font-weight: 700;
+  color: var(--purple);
+  line-height: 1;
+}
+
+.gauge-text .pct-symbol {
+  font-size: 9pt;
+  font-weight: 500;
+}
+
+.gauge-label {
+  font-size: 7pt;
+  font-weight: 500;
+  color: var(--muted-text);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+/* Gauge color coding */
+.gauge-warning .gauge-arc { stroke: var(--red); }
+.gauge-warning .gauge-text { color: var(--red); }
+.gauge-opportunity .gauge-arc { stroke: var(--gold); }
+.gauge-opportunity .gauge-text { color: var(--gold); }
+.gauge-strength .gauge-arc { stroke: var(--green); }
+.gauge-strength .gauge-text { color: var(--green); }
+.gauge-neutral .gauge-arc { stroke: var(--purple); }
+
+/* ── Bottom Row: Memberships + Client Mix ── */
+.bottom-row {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 0.12in;
+  margin-bottom: 0.18in;
+}
+
+/* Memberships */
+.membership-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.08in;
+  margin-top: 0.1in;
+}
+
+.membership-stat {
+  text-align: center;
+}
+
+.membership-stat .stat-value {
+  font-size: 17pt;
+  font-weight: 700;
+  color: var(--purple);
+  line-height: 1.2;
+}
+
+.membership-stat .stat-value.small-val { font-size: 14pt; }
+
+.membership-stat .stat-label {
+  font-size: 7pt;
+  color: var(--muted-text);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+/* Client Mix */
+.client-mix-bar {
+  display: flex;
+  height: 0.32in;
+  border-radius: 6px;
+  overflow: hidden;
+  margin: 0.12in 0 0.08in;
+}
+
+.client-mix-bar .existing {
+  background: var(--purple);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 8pt;
+  font-weight: 600;
+}
+
+.client-mix-bar .new {
+  background: var(--gold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 8pt;
+  font-weight: 600;
+}
+
+.client-mix-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 7.5pt;
+  color: var(--muted-text);
+}
+
+/* ── Reviews Table ── */
+.reviews-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.08in;
+}
+
+.reviews-table th {
+  background: var(--purple);
+  color: white;
+  font-size: 7.5pt;
+  font-weight: 600;
+  padding: 0.06in 0.1in;
+  text-align: left;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.reviews-table th:first-child { border-radius: 4px 0 0 4px; }
+.reviews-table th:last-child { border-radius: 0 4px 4px 0; }
+
+.reviews-table td {
+  font-size: 8.5pt;
+  padding: 0.06in 0.1in;
+  border-bottom: 1px solid var(--track);
+}
+
+/* ── Revenue Breakdown ── */
+.revenue-section { margin-bottom: 0.15in; }
+
+.revenue-bars { margin: 0.08in 0; }
+
+.revenue-bar-row {
+  display: grid;
+  grid-template-columns: 1.3in 1fr 0.75in;
+  align-items: center;
+  margin-bottom: 0.06in;
+  gap: 0.1in;
+}
+
+.revenue-bar-label {
+  font-size: 8pt;
+  color: var(--body-text);
+  text-align: right;
+}
+
+.revenue-bar-track {
+  height: 0.18in;
+  background: var(--track);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.revenue-bar-fill {
+  height: 100%;
+  background: var(--purple);
+  border-radius: 4px;
+  min-width: 2px;
+}
+
+.revenue-bar-value {
+  font-size: 8pt;
+  font-weight: 600;
+  color: var(--dark-text);
+}
+
+.revenue-total {
+  display: grid;
+  grid-template-columns: 1.3in 1fr 0.75in;
+  align-items: center;
+  gap: 0.1in;
+  padding-top: 0.06in;
+  border-top: 2px solid var(--purple);
+  margin-top: 0.04in;
+}
+
+.revenue-total .revenue-bar-label { font-weight: 700; color: var(--purple); }
+.revenue-total .revenue-bar-value { font-weight: 700; color: var(--purple); font-size: 9pt; }
+
+/* Adjustments cards */
+.adjustments-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.1in;
+  margin-top: 0.12in;
+}
+
+.adjustment-card {
+  background: var(--card-inner);
+  border-radius: var(--radius);
+  padding: 0.1in 0.14in;
+  text-align: center;
+}
+
+.adjustment-card .adj-label {
+  font-size: 7.5pt;
+  font-weight: 600;
+  color: var(--muted-text);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: 0.04in;
+}
+
+.adjustment-card .adj-value {
+  font-size: 14pt;
+  font-weight: 700;
+  color: var(--red);
+}
+
+.adjustment-card .adj-value.neutral { color: var(--body-text); }
+
+/* ── Staff Performance ── */
+.staff-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.1in;
+  margin-bottom: 0.12in;
+}
+
+.staff-card {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: 0.12in 0.14in;
+  border-left: 4px solid var(--purple);
+}
+
+.staff-header {
+  display: flex;
+  align-items: center;
+  gap: 0.1in;
+  margin-bottom: 0.08in;
+}
+
+.staff-avatar {
+  width: 0.3in;
+  height: 0.3in;
+  border-radius: 50%;
+  background: var(--purple);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9pt;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.staff-name {
+  font-size: 9pt;
+  font-weight: 600;
+  color: var(--dark-text);
+  line-height: 1.2;
+}
+
+.staff-revenue {
+  font-size: 7.5pt;
+  color: var(--muted-text);
+}
+
+.staff-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.05in;
+}
+
+.staff-metric {
+  background: var(--card-inner);
+  border-radius: 4px;
+  padding: 0.04in 0.05in;
+  text-align: center;
+}
+
+.staff-metric .sm-label {
+  font-size: 6pt;
+  color: var(--muted-text);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.staff-metric .sm-value {
+  font-size: 10pt;
+  font-weight: 700;
+  color: var(--purple);
+}
+
+/* Compact staff when many providers */
+.staff-grid.compact .staff-card { padding: 0.08in 0.1in; }
+.staff-grid.compact .staff-avatar { width: 0.25in; height: 0.25in; font-size: 7.5pt; }
+.staff-grid.compact .staff-name { font-size: 8pt; }
+.staff-grid.compact .staff-revenue { font-size: 7pt; }
+.staff-grid.compact .staff-metrics { grid-template-columns: repeat(4, 1fr); }
+.staff-grid.compact .staff-metric .sm-value { font-size: 8.5pt; }
+.staff-grid.compact .staff-metric .sm-label { font-size: 5pt; }
+
+/* Staff revenue contribution bar */
+.contribution-bar {
+  display: flex;
+  height: 0.22in;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 0.06in;
+}
+
+.contribution-bar .segment {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 6.5pt;
+  font-weight: 600;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/* Alternating staff colors */
+.contrib-0 { background: var(--purple); }
+.contrib-1 { background: var(--gold); }
+.contrib-2 { background: var(--pink); }
+.contrib-3 { background: var(--red); }
+.contrib-4 { background: #6B8E9B; }
+.contrib-5 { background: #8B7355; }
+.contrib-6 { background: #7B68AE; }
+.contrib-7 { background: #5B8C5A; }
+
+/* ── Service Mix ── */
+.top-services {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.12in;
+  margin-bottom: 0.18in;
+}
+
+.top-service-card {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: 0.14in;
+  text-align: center;
+  border-top: 3px solid var(--gold);
+}
+
+.top-service-rank {
+  font-size: 7pt;
+  font-weight: 600;
+  color: var(--muted-text);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.04in;
+}
+
+.top-service-name {
+  font-size: 10pt;
+  font-weight: 700;
+  color: var(--purple);
+  margin-bottom: 0.06in;
+  line-height: 1.2;
+}
+
+.top-service-pct {
+  font-size: 22pt;
+  font-weight: 700;
+  color: var(--gold);
+  line-height: 1;
+}
+
+.top-service-sub {
+  font-size: 7pt;
+  color: var(--muted-text);
+}
+
+/* Service bar chart */
+.service-bars { margin: 0.06in 0; }
+
+.service-bar-row {
+  display: grid;
+  grid-template-columns: 1.4in 1fr 0.5in;
+  align-items: center;
+  margin-bottom: 0.05in;
+  gap: 0.08in;
+}
+
+.service-bar-label {
+  font-size: 7.5pt;
+  color: var(--body-text);
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.service-bar-track {
+  height: 0.16in;
+  background: var(--track);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.service-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--purple), var(--purple-light));
+  border-radius: 3px;
+  min-width: 2px;
+}
+
+.service-bar-pct {
+  font-size: 7.5pt;
+  font-weight: 600;
+  color: var(--dark-text);
+}
+
+/* ── Assessment Cards ── */
+.assessments { margin-bottom: 0.2in; }
+
+.assessment-card {
+  display: flex;
+  align-items: stretch;
+  margin-bottom: 0.08in;
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.assessment-accent {
+  width: 4px;
+  flex-shrink: 0;
+}
+
+.assessment-accent.strength { background: var(--green); }
+.assessment-accent.opportunity { background: var(--gold); }
+.assessment-accent.warning { background: var(--red); }
+
+.assessment-content {
+  padding: 0.1in 0.16in;
+  flex: 1;
+}
+
+.assessment-badge {
+  display: inline-block;
+  font-size: 6.5pt;
+  font-weight: 700;
+  color: white;
+  padding: 1px 6px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-right: 0.08in;
+  vertical-align: middle;
+}
+
+.badge-strength { background: var(--green); }
+.badge-opportunity { background: var(--gold); }
+.badge-warning { background: var(--red); }
+
+.assessment-title {
+  display: inline;
+  font-size: 9.5pt;
+  font-weight: 700;
+  color: var(--dark-text);
+  vertical-align: middle;
+}
+
+.assessment-text {
+  font-size: 8.5pt;
+  color: var(--body-text);
+  margin-top: 0.04in;
+  line-height: 1.45;
+}
+
+/* ── PSM Feedback ── */
+.psm-card {
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: 0.22in 0.28in;
+}
+
+.psm-header {
+  display: flex;
+  align-items: center;
+  gap: 0.12in;
+  margin-bottom: 0.15in;
+  padding-bottom: 0.1in;
+  border-bottom: 1px solid var(--track);
+}
+
+.psm-icon {
+  width: 0.35in;
+  height: 0.35in;
+  border-radius: 50%;
+  background: var(--purple);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14pt;
+  flex-shrink: 0;
+}
+
+.psm-title {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 12pt;
+  font-weight: 700;
+  color: var(--purple);
+}
+
+.psm-subtitle {
+  font-size: 7.5pt;
+  color: var(--muted-text);
+}
+
+.psm-body p {
+  font-size: 9pt;
+  line-height: 1.55;
+  color: var(--body-text);
+  margin-bottom: 0.1in;
+}
+
+.psm-body p:last-child { margin-bottom: 0; }
+
+.psm-body strong {
+  color: var(--purple);
+  font-weight: 700;
+}
+
+/* ── Launches Page ── */
+.launches-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.15in;
+}
+
+.launch-card {
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: 0.25in;
+}
+
+.launch-card h3 {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 12pt;
+  font-weight: 700;
+  color: var(--purple);
+  margin-bottom: 0.1in;
+}
+
+.launch-card p {
+  font-size: 8.5pt;
+  color: var(--body-text);
+  line-height: 1.5;
+}
+
+/* ── Partnerships Page ── */
+.partnerships-heading {
+  text-align: center;
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 22pt;
+  font-weight: 700;
+  color: var(--purple);
+  margin: 0.6in 0 0.1in;
+}
+
+.partnerships-sub {
+  text-align: center;
+  background: var(--purple);
+  color: white;
+  padding: 0.12in 0.3in;
+  border-radius: 6px;
+  font-size: 9pt;
+  line-height: 1.5;
+  margin: 0 auto 0.35in;
+  max-width: 5.5in;
+}
+
+.partner-logos {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.15in;
+}
+
+.partner-logo-card {
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 0.3in 0.2in;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 1.2in;
+}
+
+.partner-logo-card img {
+  max-width: 100%;
+  max-height: 0.7in;
+  object-fit: contain;
+}
+
+.partner-logo-card .and-more {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 14pt;
+  font-weight: 700;
+  color: var(--purple);
+}
+
+/* ── Marketing ── */
+.marketing-funnel {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.08in;
+  margin-top: 0.1in;
+}
+
+.funnel-step {
+  text-align: center;
+  padding: 0.08in;
+}
+
+.funnel-value {
+  font-size: 16pt;
+  font-weight: 700;
+  color: var(--purple);
+}
+
+.funnel-label {
+  font-size: 7pt;
+  color: var(--muted-text);
+  text-transform: uppercase;
+}
+
+/* ── Utility ── */
+.text-center { text-align: center; }
+.text-right { text-align: right; }
+.text-muted { color: var(--muted-text); }
+.mt-sm { margin-top: 0.08in; }
+.mt-md { margin-top: 0.15in; }
+.mb-sm { margin-bottom: 0.08in; }
+.mb-md { margin-bottom: 0.15in; }

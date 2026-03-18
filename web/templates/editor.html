@@ -1,0 +1,889 @@
+{% extends "layout.html" %}
+{% block title %}Edit Report — {{ data.practice_name }}{% endblock %}
+{% block head %}
+<style>
+  main { padding: 0; max-width: 100%; }
+  .editor-layout {
+    display: flex;
+    height: calc(100vh - 52px);
+  }
+  .sidebar {
+    width: 400px;
+    min-width: 400px;
+    background: #fff;
+    border-right: 1px solid #e5e0db;
+    overflow-y: auto;
+    padding: 20px;
+  }
+  .preview-pane {
+    flex: 1;
+    background: #e8e3de;
+    overflow: auto;
+    display: flex;
+    justify-content: center;
+    padding: 20px;
+  }
+  .preview-pane iframe {
+    width: 8.5in;
+    height: 100%;
+    min-height: 11in;
+    border: none;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.12);
+    background: white;
+  }
+  .sidebar h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 16px;
+    color: #4D1751;
+    margin: 0 0 4px;
+  }
+  .sidebar .practice-info {
+    font-size: 12px;
+    color: #8C8580;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #e5e0db;
+  }
+  .sidebar-section {
+    margin-bottom: 18px;
+  }
+  .sidebar-section label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: #4D1751;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 6px;
+  }
+  .sidebar-section textarea {
+    width: 100%;
+    border: 1px solid #d2cbc4;
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    line-height: 1.5;
+    resize: vertical;
+    color: #2D2A28;
+  }
+  .sidebar-section textarea:focus {
+    outline: none;
+    border-color: #4D1751;
+    box-shadow: 0 0 0 2px rgba(77,23,81,0.1);
+  }
+  .sidebar-section input[type="text"],
+  .sidebar-section input[type="number"] {
+    width: 100%;
+    border: 1px solid #d2cbc4;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    color: #2D2A28;
+  }
+  .sidebar-section input:focus {
+    outline: none;
+    border-color: #4D1751;
+    box-shadow: 0 0 0 2px rgba(77,23,81,0.1);
+  }
+  .assessment-item {
+    background: #f7f4f0;
+    border-radius: 6px;
+    padding: 8px 10px;
+    margin-bottom: 8px;
+  }
+  .assessment-item .a-row {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 4px;
+  }
+  .assessment-item select {
+    width: 110px;
+    font-size: 11px;
+    padding: 4px 6px;
+    border: 1px solid #d2cbc4;
+    border-radius: 4px;
+  }
+  .assessment-item input {
+    flex: 1;
+    font-size: 12px;
+    padding: 4px 6px;
+    border: 1px solid #d2cbc4;
+    border-radius: 4px;
+    font-family: 'Inter', sans-serif;
+  }
+  .assessment-item textarea {
+    font-size: 11px;
+    min-height: 40px;
+  }
+  .assessment-item .remove-btn {
+    font-size: 10px;
+    color: #B53631;
+    cursor: pointer;
+    float: right;
+    background: none;
+    border: none;
+    padding: 0;
+  }
+  .add-btn {
+    font-size: 12px;
+    color: #4D1751;
+    background: none;
+    border: 1px dashed #d2cbc4;
+    border-radius: 6px;
+    padding: 6px 12px;
+    cursor: pointer;
+    width: 100%;
+  }
+  .add-btn:hover { background: #f7f4f0; }
+  .export-bar {
+    padding: 12px 0;
+    border-top: 1px solid #e5e0db;
+    margin-top: 12px;
+    display: flex;
+    gap: 8px;
+  }
+  .save-indicator {
+    font-size: 11px;
+    color: #8C8580;
+    margin-top: 8px;
+    min-height: 16px;
+  }
+
+  /* Collapsible sections */
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    padding: 8px 0;
+    border-top: 1px solid #e5e0db;
+    margin-top: 4px;
+  }
+  .section-header label {
+    margin: 0;
+    cursor: pointer;
+    pointer-events: none;
+  }
+  .section-toggle {
+    font-size: 14px;
+    color: #8C8580;
+    transition: transform 0.2s;
+  }
+  .section-toggle.collapsed { transform: rotate(-90deg); }
+  .section-body { padding-top: 8px; }
+  .section-body.hidden { display: none; }
+
+  /* Marketing inputs grid */
+  .mkt-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .mkt-field label {
+    font-size: 10px;
+    margin-bottom: 3px;
+  }
+  .mkt-field input {
+    padding: 5px 8px;
+    font-size: 11px;
+  }
+
+  /* File upload */
+  .upload-zone {
+    border: 2px dashed #d2cbc4;
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+  }
+  .upload-zone:hover { border-color: #4D1751; background: #faf7f3; }
+  .upload-zone.has-file { border-color: #2E7D32; background: #f0f7f0; }
+  .upload-zone input[type="file"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+  .upload-zone .upload-text {
+    font-size: 12px;
+    color: #8C8580;
+  }
+  .upload-zone .upload-text strong { color: #4D1751; }
+  .upload-zone .file-name {
+    font-size: 11px;
+    color: #2E7D32;
+    font-weight: 600;
+    margin-top: 4px;
+  }
+  .upload-preview {
+    margin-top: 8px;
+    border-radius: 6px;
+    overflow: hidden;
+    max-height: 120px;
+  }
+  .upload-preview img {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 6px;
+  }
+  .remove-upload {
+    font-size: 10px;
+    color: #B53631;
+    cursor: pointer;
+    background: none;
+    border: none;
+    margin-top: 6px;
+  }
+
+  /* PSM section */
+  .psm-name-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .psm-name-row input {
+    flex: 1;
+  }
+  .formatting-hint {
+    font-size: 10px;
+    color: #8C8580;
+    margin-top: 4px;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="editor-layout">
+  <div class="sidebar">
+    <h2>{{ data.practice_name }}</h2>
+    <div class="practice-info">{{ data.month_name }} {{ data.year }} &middot; {{ "{:,}".format(data.total_appointments) }} appointments &middot; {{ "${:,.0f}".format(data.monthly_net_revenue) }} revenue</div>
+
+    {# ── Executive Summary ── #}
+    <div class="sidebar-section">
+      <label>Executive Summary</label>
+      <textarea id="exec-summary" rows="5" onchange="saveChanges()" oninput="debounceSave()">{{ data.executive_summary }}</textarea>
+    </div>
+
+    {# ── Assessment Cards ── #}
+    <div class="sidebar-section">
+      <label>Assessment Cards</label>
+      <div id="assessments-list">
+        {% for a in data.assessments %}
+        <div class="assessment-item" data-idx="{{ loop.index0 }}">
+          <button class="remove-btn" onclick="removeAssessment(this)">&times; remove</button>
+          <div class="a-row">
+            <select class="a-tag" onchange="debounceSave()">
+              <option value="STRENGTH" {% if a.tag == 'STRENGTH' %}selected{% endif %}>STRENGTH</option>
+              <option value="OPPORTUNITY" {% if a.tag == 'OPPORTUNITY' %}selected{% endif %}>OPPORTUNITY</option>
+              <option value="WARNING" {% if a.tag == 'WARNING' %}selected{% endif %}>WARNING</option>
+            </select>
+            <input class="a-title" value="{{ a.title }}" placeholder="Title" oninput="debounceSave()">
+          </div>
+          <textarea class="a-text" rows="2" oninput="debounceSave()">{{ a.text }}</textarea>
+        </div>
+        {% endfor %}
+      </div>
+      <button class="add-btn" onclick="addAssessment()">+ Add Assessment</button>
+    </div>
+
+    {# ── PSM Feedback ── #}
+    <div class="sidebar-section">
+      <label>PSM Feedback</label>
+      <div class="psm-name-row">
+        <input type="text" id="psm-name" placeholder="PSM name (optional)" value="{{ data.psm_name | default('', true) }}" oninput="debounceSave()">
+      </div>
+      <textarea id="psm-feedback" rows="10" onchange="saveChanges()" oninput="debounceSave()">{{ data.psm_feedback }}</textarea>
+      <div class="formatting-hint">Use **text** for bold. Separate paragraphs with a blank line.</div>
+    </div>
+
+    {# ── Reviews ── #}
+    <div class="sidebar-section">
+      <div class="section-header" onclick="toggleSection('reviews')">
+        <label>Ratings & Reviews</label>
+        <span class="section-toggle{% if not data.reviews %} collapsed{% endif %}" id="reviews-toggle">&#9662;</span>
+      </div>
+      <div class="section-body{% if not data.reviews %} hidden{% endif %}" id="reviews-body">
+        <div style="font-size: 11px; color: #8C8580; margin-bottom: 8px;">
+          Enter Google and Facebook review data for the month.
+        </div>
+        {% for platform in ["Google", "Facebook"] %}
+        {% set r = namespace(new_reviews='', avg_new_rating='', total_reviews='', overall_rating='') %}
+        {% for rev in data.reviews if rev.platform == platform %}
+          {% set r.new_reviews = rev.new_reviews if rev.new_reviews is not none else '' %}
+          {% set r.avg_new_rating = rev.avg_new_rating if rev.avg_new_rating is not none else '' %}
+          {% set r.total_reviews = rev.total_reviews if rev.total_reviews is not none else '' %}
+          {% set r.overall_rating = rev.overall_rating if rev.overall_rating is not none else '' %}
+        {% endfor %}
+        <div style="margin-bottom: 10px;">
+          <div style="font-size: 11px; font-weight: 600; color: #4D1751; margin-bottom: 4px;">{{ platform }}</div>
+          <div class="mkt-grid">
+            <div class="mkt-field">
+              <label>New Reviews</label>
+              <input type="number" class="review-field" data-platform="{{ platform }}" data-field="new_reviews" value="{{ r.new_reviews }}" oninput="debounceSave()">
+            </div>
+            <div class="mkt-field">
+              <label>Avg. Rating</label>
+              <input type="number" step="0.1" class="review-field" data-platform="{{ platform }}" data-field="avg_new_rating" value="{{ r.avg_new_rating }}" oninput="debounceSave()">
+            </div>
+            <div class="mkt-field">
+              <label>Total Reviews</label>
+              <input type="number" class="review-field" data-platform="{{ platform }}" data-field="total_reviews" value="{{ r.total_reviews }}" oninput="debounceSave()">
+            </div>
+            <div class="mkt-field">
+              <label>Overall Rating</label>
+              <input type="number" step="0.1" class="review-field" data-platform="{{ platform }}" data-field="overall_rating" value="{{ r.overall_rating }}" oninput="debounceSave()">
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    {# ── Marketing Performance ── #}
+    <div class="sidebar-section">
+      <div class="section-header" onclick="toggleSection('marketing')">
+        <label>Marketing Performance</label>
+        <span class="section-toggle collapsed" id="marketing-toggle">&#9662;</span>
+      </div>
+      <div class="section-body hidden" id="marketing-body">
+        <div style="font-size: 11px; color: #8C8580; margin-bottom: 8px;">
+          Upload a screenshot of the marketing report. AI will analyze it and generate recommendations.
+        </div>
+        <div class="upload-zone" id="marketing-zone">
+          <input type="file" accept="image/*,.pdf" onchange="handleMarketingUpload(this)">
+          <div class="upload-text" id="marketing-text">
+            <strong>Click to upload</strong> marketing screenshot<br>
+            PNG, JPG, or PDF
+          </div>
+        </div>
+        <div id="marketing-preview" class="upload-preview" style="display:none">
+          <img id="marketing-img" src="">
+          <button class="remove-upload" onclick="removeMarketing()">Remove image</button>
+        </div>
+        <div id="marketing-analysis" style="display:none; margin-top: 8px;">
+          <div id="marketing-metrics" style="margin-bottom: 8px;"></div>
+          <div id="marketing-kpis" style="display:none; margin-bottom: 8px;">
+            <label>Key Metrics (with targets)</label>
+          </div>
+          <label>ROI Headline</label>
+          <input type="text" id="marketing-roi" placeholder="For every $1 you spend..." oninput="debounceSave()" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:6px 10px; font-family:'Inter',sans-serif; font-size:11px; color:#2D2A28; margin-bottom: 8px;">
+          <label>Performance Summary</label>
+          <textarea id="marketing-summary-text" rows="2" oninput="debounceSave()" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:8px 10px; font-family:'Inter',sans-serif; font-size:11px; line-height:1.5; resize:vertical; color:#2D2A28; margin-bottom: 8px;"></textarea>
+          <label>Next Steps</label>
+          <div id="marketing-steps-list"></div>
+          <button class="add-btn" onclick="addMarketingStep()" style="margin-top: 4px;">+ Add Step</button>
+        </div>
+        <div id="marketing-recs" style="display:none; margin-top: 8px;">
+          <label>AI Recommendations</label>
+          <textarea id="marketing-recs-text" rows="6" oninput="debounceSave()" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:8px 10px; font-family:'Inter',sans-serif; font-size:11px; line-height:1.5; resize:vertical; color:#2D2A28;"></textarea>
+          <div class="formatting-hint">Edit the AI-generated recommendations. Use **text** for bold.</div>
+        </div>
+      </div>
+    </div>
+
+    {# ── Moxie Suite Launches ── #}
+    <div class="sidebar-section">
+      <div class="section-header" onclick="toggleSection('launches')">
+        <label>Moxie Suite Launches</label>
+        <span class="section-toggle collapsed" id="launches-toggle">&#9662;</span>
+      </div>
+      <div class="section-body hidden" id="launches-body">
+        <div style="font-size: 11px; color: #8C8580; margin-bottom: 8px;">
+          Sourced from monthly assets. <a href="/" style="color: #4D1751;">Edit on Dashboard</a> to change for all practices.
+        </div>
+        <div id="launches-items" style="margin-top: 8px;">
+          <div id="launches-list"></div>
+          <button class="add-btn" onclick="addLaunchItem()" style="margin-top: 4px;">+ Add Feature (this report only)</button>
+        </div>
+      </div>
+    </div>
+
+    {# ── Brand Bank ── #}
+    <div class="sidebar-section">
+      <div class="section-header" onclick="toggleSection('brand-bank')">
+        <label>Brand Bank</label>
+        <span class="section-toggle collapsed" id="brand-bank-toggle">&#9662;</span>
+      </div>
+      <div class="section-body hidden" id="brand-bank-body">
+        <div style="font-size: 11px; color: #8C8580; margin-bottom: 8px;">
+          Sourced from monthly assets. <a href="/" style="color: #4D1751;">Edit on Dashboard</a> to change for all practices.
+        </div>
+        <div id="brand-bank-items" style="margin-top: 8px;">
+          <div id="brand-bank-list"></div>
+          <button class="add-btn" onclick="addBrandBankItem()" style="margin-top: 4px;">+ Add Asset (this report only)</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="save-indicator" id="save-indicator"></div>
+
+    <div class="export-bar">
+      <button class="btn btn-primary" onclick="saveReport()" id="save-btn">Save</button>
+      <button class="btn btn-secondary" onclick="exportPDF()" id="export-btn">Export PDF</button>
+      <button class="btn btn-secondary" onclick="exportPPTX()" id="export-pptx-btn">Export PPTX</button>
+      <a href="/" class="btn btn-secondary">Back to Dashboard</a>
+    </div>
+  </div>
+
+  <div class="preview-pane">
+    <iframe id="preview-frame" src="/api/preview/{{ session_id }}"></iframe>
+  </div>
+</div>
+
+<script>
+const SESSION_ID = '{{ session_id }}';
+let saveTimeout = null;
+let updateController = null;
+
+// Pre-populate launches and brand bank from MBRData (injected at generation time)
+(function initMonthlyAssets() {
+  const launches = [
+    {% for l in data.launches %}
+    {title: {{ l.title | tojson }}, category: {{ l.category | tojson }}, description: {{ l.description | tojson }}, url: {{ l.url | tojson }}},
+    {% endfor %}
+  ];
+  const bbItems = [
+    {% for b in data.brand_bank_items %}
+    {title: {{ b.title | tojson }}, category: {{ b.category | tojson }}},
+    {% endfor %}
+  ];
+  if (launches.length > 0) {
+    setTimeout(() => showLaunchItems(launches), 0);
+  }
+  if (bbItems.length > 0) {
+    setTimeout(() => showBrandBankItems(bbItems), 0);
+  }
+})();
+
+function debounceSave() {
+  clearTimeout(saveTimeout);
+  document.getElementById('save-indicator').textContent = 'Unsaved changes...';
+  saveTimeout = setTimeout(saveChanges, 2000);
+}
+
+function toggleSection(id) {
+  const body = document.getElementById(id + '-body');
+  const toggle = document.getElementById(id + '-toggle');
+  body.classList.toggle('hidden');
+  toggle.classList.toggle('collapsed');
+}
+
+function collectData() {
+  const assessments = [];
+  document.querySelectorAll('#assessments-list .assessment-item').forEach(el => {
+    const tag = el.querySelector('.a-tag');
+    const title = el.querySelector('.a-title');
+    const text = el.querySelector('.a-text');
+    if (tag && title && text) {
+      assessments.push({
+        tag: tag.value,
+        title: title.value,
+        text: text.value,
+      });
+    }
+  });
+
+  // Collect reviews data
+  const reviews = [];
+  ['Google', 'Facebook'].forEach(platform => {
+    const fields = document.querySelectorAll(`.review-field[data-platform="${platform}"]`);
+    const review = { platform: platform };
+    fields.forEach(f => { review[f.dataset.field] = f.value || null; });
+    reviews.push(review);
+  });
+
+  // Collect marketing recommendations (editable text from AI analysis)
+  const mktRecsEl = document.getElementById('marketing-recs-text');
+  const marketing_recommendations = mktRecsEl ? mktRecsEl.value : '';
+
+  // Collect structured marketing analysis if available
+  const marketing_analysis = collectMarketingAnalysis();
+
+  // Collect launches
+  const launches = [];
+  document.querySelectorAll('.launch-title').forEach((el, i) => {
+    if (el.value.trim()) {
+      launches.push({
+        title: el.value.trim(),
+        category: (document.querySelectorAll('.launch-category')[i] || {}).value || '',
+        description: (document.querySelectorAll('.launch-desc')[i] || {}).value || '',
+        url: (document.querySelectorAll('.launch-url')[i] || {}).value || '',
+      });
+    }
+  });
+
+  // Collect brand bank items
+  const brand_bank_items = [];
+  document.querySelectorAll('.bb-title').forEach((el, i) => {
+    if (el.value.trim()) {
+      brand_bank_items.push({
+        title: el.value.trim(),
+        category: (document.querySelectorAll('.bb-category')[i] || {}).value || '',
+      });
+    }
+  });
+
+  return {
+    executive_summary: document.getElementById('exec-summary').value,
+    psm_feedback: document.getElementById('psm-feedback').value,
+    psm_name: document.getElementById('psm-name').value,
+    assessments: assessments,
+    reviews: reviews,
+    marketing_recommendations: marketing_recommendations,
+    marketing_analysis: marketing_analysis,
+    launches: launches,
+    brand_bank_items: brand_bank_items,
+  };
+}
+
+function saveChanges() {
+  // Cancel any in-flight update request
+  if (updateController) updateController.abort();
+  updateController = new AbortController();
+
+  const data = collectData();
+  document.getElementById('save-indicator').textContent = 'Saving...';
+
+  fetch('/api/update/' + SESSION_ID, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(data),
+    signal: updateController.signal,
+  })
+  .then(r => r.json())
+  .then(resp => {
+    if (resp.ok) {
+      document.getElementById('save-indicator').textContent = 'Saved — preview updated';
+      document.getElementById('preview-frame').src = '/api/preview/' + SESSION_ID + '?t=' + Date.now();
+      setTimeout(() => {
+        document.getElementById('save-indicator').textContent = '';
+      }, 2000);
+    }
+  })
+  .catch(err => {
+    if (err.name === 'AbortError') return; // cancelled by newer request
+    document.getElementById('save-indicator').textContent = 'Save failed: ' + err.message;
+  });
+}
+
+function addAssessment() {
+  const list = document.getElementById('assessments-list');
+  const div = document.createElement('div');
+  div.className = 'assessment-item';
+  div.innerHTML = `
+    <button class="remove-btn" onclick="removeAssessment(this)">&times; remove</button>
+    <div class="a-row">
+      <select class="a-tag" onchange="debounceSave()">
+        <option value="STRENGTH">STRENGTH</option>
+        <option value="OPPORTUNITY" selected>OPPORTUNITY</option>
+        <option value="WARNING">WARNING</option>
+      </select>
+      <input class="a-title" value="" placeholder="Title" oninput="debounceSave()">
+    </div>
+    <textarea class="a-text" rows="2" placeholder="Assessment text..." oninput="debounceSave()"></textarea>
+  `;
+  list.appendChild(div);
+  debounceSave();
+}
+
+function removeAssessment(btn) {
+  btn.closest('.assessment-item').remove();
+  debounceSave();
+}
+
+function handleMarketingUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  const formData = new FormData();
+  formData.append('marketing_image', file);
+
+  document.getElementById('save-indicator').textContent = 'Uploading & analyzing marketing image...';
+
+  fetch('/api/upload-marketing/' + SESSION_ID, {
+    method: 'POST',
+    body: formData,
+  })
+  .then(r => r.json())
+  .then(resp => {
+    if (resp.ok) {
+      const reader = new FileReader();
+      reader.onload = e => {
+        document.getElementById('marketing-img').src = e.target.result;
+        document.getElementById('marketing-preview').style.display = 'block';
+        document.getElementById('marketing-zone').classList.add('has-file');
+        document.getElementById('marketing-text').innerHTML = '<strong>' + file.name + '</strong>';
+      };
+      reader.readAsDataURL(file);
+
+      // Show structured analysis or fallback to text
+      if (resp.analysis && (resp.analysis.funnel?.length > 0 || resp.analysis.kpis?.length > 0 || resp.analysis.metrics?.length > 0)) {
+        showMarketingAnalysis(resp.analysis);
+      } else if (resp.recommendations) {
+        document.getElementById('marketing-recs').style.display = 'block';
+        document.getElementById('marketing-recs-text').value = resp.recommendations;
+      }
+
+      document.getElementById('save-indicator').textContent = 'Marketing analyzed — preview updated';
+      document.getElementById('preview-frame').src = '/api/preview/' + SESSION_ID + '?t=' + Date.now();
+      setTimeout(() => { document.getElementById('save-indicator').textContent = ''; }, 3000);
+    }
+  })
+  .catch(err => {
+    document.getElementById('save-indicator').textContent = 'Upload failed: ' + err.message;
+  });
+}
+
+function removeMarketing() {
+  fetch('/api/remove-marketing/' + SESSION_ID, { method: 'POST' })
+    .then(r => r.json())
+    .then(resp => {
+      if (resp.ok) {
+        document.getElementById('marketing-preview').style.display = 'none';
+        document.getElementById('marketing-recs').style.display = 'none';
+        document.getElementById('marketing-recs-text').value = '';
+        document.getElementById('marketing-analysis').style.display = 'none';
+        document.getElementById('marketing-zone').classList.remove('has-file');
+        document.getElementById('marketing-text').innerHTML = '<strong>Click to upload</strong> marketing screenshot<br>PNG, JPG, or PDF';
+        document.getElementById('preview-frame').src = '/api/preview/' + SESSION_ID + '?t=' + Date.now();
+      }
+    });
+}
+
+function showLaunchItems(launches) {
+  const list = document.getElementById('launches-list');
+  list.innerHTML = launches.map(l => `
+    <div class="assessment-item" style="margin-bottom: 6px; padding: 6px 8px;">
+      <button class="remove-btn" onclick="this.closest('.assessment-item').remove(); debounceSave();">&times;</button>
+      <input type="text" class="launch-title" value="${(l.title||'').replace(/"/g, '&quot;')}" placeholder="Feature name" oninput="debounceSave()" style="width:100%; font-size:11px; font-weight:600; border:1px solid #d2cbc4; border-radius:4px; padding:4px 6px; margin-bottom:3px;">
+      <input type="text" class="launch-category" value="${(l.category||'').replace(/"/g, '&quot;')}" placeholder="Category tag" oninput="debounceSave()" style="width:100%; font-size:10px; border:1px solid #d2cbc4; border-radius:4px; padding:3px 6px; margin-bottom:3px;">
+      <textarea class="launch-desc" rows="2" placeholder="Description..." oninput="debounceSave()" style="width:100%; font-size:10px; border:1px solid #d2cbc4; border-radius:4px; padding:4px 6px; resize:vertical;">${(l.description||'').replace(/"/g, '&quot;')}</textarea>
+      <input type="text" class="launch-url" value="${(l.url||'').replace(/"/g, '&quot;')}" placeholder="URL (optional)" oninput="debounceSave()" style="width:100%; font-size:10px; border:1px solid #d2cbc4; border-radius:4px; padding:3px 6px; margin-top:3px; color:#666;">
+    </div>
+  `).join('');
+}
+
+function addLaunchItem() {
+  const list = document.getElementById('launches-list');
+  const div = document.createElement('div');
+  div.className = 'assessment-item';
+  div.style = 'margin-bottom: 6px; padding: 6px 8px;';
+  div.innerHTML = `
+    <button class="remove-btn" onclick="this.closest('.assessment-item').remove(); debounceSave();">&times;</button>
+    <input type="text" class="launch-title" value="" placeholder="Feature name" oninput="debounceSave()" style="width:100%; font-size:11px; font-weight:600; border:1px solid #d2cbc4; border-radius:4px; padding:4px 6px; margin-bottom:3px;">
+    <input type="text" class="launch-category" value="" placeholder="Category tag" oninput="debounceSave()" style="width:100%; font-size:10px; border:1px solid #d2cbc4; border-radius:4px; padding:3px 6px; margin-bottom:3px;">
+    <textarea class="launch-desc" rows="2" placeholder="Description..." oninput="debounceSave()" style="width:100%; font-size:10px; border:1px solid #d2cbc4; border-radius:4px; padding:4px 6px; resize:vertical;"></textarea>
+    <input type="text" class="launch-url" value="" placeholder="URL (optional)" oninput="debounceSave()" style="width:100%; font-size:10px; border:1px solid #d2cbc4; border-radius:4px; padding:3px 6px; margin-top:3px; color:#666;">
+  `;
+  list.appendChild(div);
+  debounceSave();
+}
+
+function showMarketingAnalysis(analysis) {
+  document.getElementById('marketing-analysis').style.display = 'block';
+  document.getElementById('marketing-recs').style.display = 'none';
+
+  const metricsDiv = document.getElementById('marketing-metrics');
+
+  // Funnel metrics
+  const funnel = analysis.funnel || analysis.metrics || [];
+  let html = '<label>Funnel Metrics</label><div class="mkt-grid">';
+  funnel.forEach((m, i) => {
+    html += `<div class="mkt-field">
+      <label>${m.label}</label>
+      <input type="text" class="mkt-funnel-val" data-idx="${i}" value="${m.value}" oninput="debounceSave()">
+    </div>`;
+  });
+  html += '</div>';
+  metricsDiv.innerHTML = html;
+  metricsDiv.dataset.funnel = JSON.stringify(funnel.map(m => ({label: m.label, subtitle: m.subtitle || ''})));
+
+  // KPIs
+  const kpisDiv = document.getElementById('marketing-kpis');
+  const kpis = analysis.kpis || [];
+  if (kpis.length > 0) {
+    let khtml = '';
+    kpis.forEach((k, i) => {
+      khtml += `<div class="assessment-item" style="margin-bottom: 6px; padding: 6px 8px;">
+        <div style="display:flex; gap:4px; margin-bottom:4px;">
+          <input type="text" class="mkt-kpi-label" value="${k.label}" placeholder="Label" oninput="debounceSave()" style="flex:1; font-size:11px; border:1px solid #d2cbc4; border-radius:4px; padding:3px 6px;">
+          <input type="text" class="mkt-kpi-value" value="${k.value}" placeholder="Value" oninput="debounceSave()" style="width:70px; font-size:11px; border:1px solid #d2cbc4; border-radius:4px; padding:3px 6px;">
+        </div>
+        <div style="display:flex; gap:4px;">
+          <input type="text" class="mkt-kpi-goal" value="${k.goal || ''}" placeholder="Goal: 3x" oninput="debounceSave()" style="flex:1; font-size:10px; border:1px solid #d2cbc4; border-radius:4px; padding:3px 6px;">
+          <select class="mkt-kpi-status" onchange="debounceSave()" style="font-size:10px; border:1px solid #d2cbc4; border-radius:4px; padding:3px 4px;">
+            <option value="On Track" ${k.status === 'On Track' ? 'selected' : ''}>On Track</option>
+            <option value="Above Target" ${k.status === 'Above Target' ? 'selected' : ''}>Above Target</option>
+            <option value="Below Target" ${k.status === 'Below Target' ? 'selected' : ''}>Below Target</option>
+          </select>
+        </div>
+      </div>`;
+    });
+    kpisDiv.innerHTML = khtml;
+    kpisDiv.style.display = 'block';
+  }
+
+  // ROI headline
+  document.getElementById('marketing-roi').value = analysis.roi_headline || '';
+
+  // Summary
+  document.getElementById('marketing-summary-text').value = analysis.summary || '';
+
+  // Next steps (with title + description)
+  const stepsList = document.getElementById('marketing-steps-list');
+  const steps = analysis.next_steps || [];
+  stepsList.innerHTML = steps.map(s => {
+    const title = typeof s === 'string' ? s : (s.title || '');
+    const desc = typeof s === 'string' ? '' : (s.description || '');
+    return `<div class="assessment-item" style="margin-bottom: 6px; padding: 6px 8px;">
+      <button class="remove-btn" onclick="this.closest('.assessment-item').remove(); debounceSave();">&times;</button>
+      <input type="text" class="mkt-step-title" value="${title.replace(/"/g, '&quot;')}" placeholder="Action title" oninput="debounceSave()" style="width:100%; font-size:11px; font-weight:600; border:1px solid #d2cbc4; border-radius:4px; padding:4px 6px; margin-bottom:3px;">
+      <textarea class="mkt-step-desc" rows="2" placeholder="Description..." oninput="debounceSave()" style="width:100%; font-size:10px; border:1px solid #d2cbc4; border-radius:4px; padding:4px 6px; resize:vertical;">${desc.replace(/"/g, '&quot;')}</textarea>
+    </div>`;
+  }).join('');
+}
+
+function addMarketingStep() {
+  const stepsList = document.getElementById('marketing-steps-list');
+  const div = document.createElement('div');
+  div.className = 'assessment-item';
+  div.style = 'margin-bottom: 6px; padding: 6px 8px;';
+  div.innerHTML = `
+    <button class="remove-btn" onclick="this.closest('.assessment-item').remove(); debounceSave();">&times;</button>
+    <input type="text" class="mkt-step-title" value="" placeholder="Action title" oninput="debounceSave()" style="width:100%; font-size:11px; font-weight:600; border:1px solid #d2cbc4; border-radius:4px; padding:4px 6px; margin-bottom:3px;">
+    <textarea class="mkt-step-desc" rows="2" placeholder="Description..." oninput="debounceSave()" style="width:100%; font-size:10px; border:1px solid #d2cbc4; border-radius:4px; padding:4px 6px; resize:vertical;"></textarea>
+  `;
+  stepsList.appendChild(div);
+  debounceSave();
+}
+
+function collectMarketingAnalysis() {
+  const analysisDiv = document.getElementById('marketing-analysis');
+  if (analysisDiv.style.display === 'none') return null;
+
+  // Funnel
+  const metricsDiv = document.getElementById('marketing-metrics');
+  const funnelMeta = JSON.parse(metricsDiv.dataset.funnel || '[]');
+  const funnelVals = document.querySelectorAll('.mkt-funnel-val');
+  const funnel = [];
+  funnelVals.forEach((v, i) => {
+    funnel.push({ label: funnelMeta[i]?.label || '', value: v.value, subtitle: funnelMeta[i]?.subtitle || '' });
+  });
+
+  // KPIs
+  const kpis = [];
+  const kpiLabels = document.querySelectorAll('.mkt-kpi-label');
+  const kpiValues = document.querySelectorAll('.mkt-kpi-value');
+  const kpiGoals = document.querySelectorAll('.mkt-kpi-goal');
+  const kpiStatuses = document.querySelectorAll('.mkt-kpi-status');
+  kpiLabels.forEach((el, i) => {
+    kpis.push({
+      label: el.value,
+      value: kpiValues[i]?.value || '',
+      goal: kpiGoals[i]?.value || '',
+      status: kpiStatuses[i]?.value || '',
+    });
+  });
+
+  const roi_headline = document.getElementById('marketing-roi').value;
+  const summary = document.getElementById('marketing-summary-text').value;
+
+  // Next steps
+  const next_steps = [];
+  document.querySelectorAll('.mkt-step-title').forEach((el, i) => {
+    const descEl = document.querySelectorAll('.mkt-step-desc')[i];
+    if (el.value.trim()) {
+      next_steps.push({ title: el.value.trim(), description: descEl ? descEl.value.trim() : '' });
+    }
+  });
+
+  return { funnel, kpis, roi_headline, summary, next_steps, metrics: funnel };
+}
+
+function showBrandBankItems(items) {
+  document.getElementById('brand-bank-items').style.display = 'block';
+  const list = document.getElementById('brand-bank-list');
+  list.innerHTML = items.map(b => `
+    <div class="assessment-item" style="margin-bottom: 4px; padding: 6px 8px;">
+      <button class="remove-btn" onclick="this.closest('.assessment-item').remove(); debounceSave();">&times;</button>
+      <div style="display:flex; gap:4px;">
+        <input type="text" class="bb-title" value="${(b.title||'').replace(/"/g, '&quot;')}" placeholder="Asset title" oninput="debounceSave()" style="flex:2; font-size:11px; border:1px solid #d2cbc4; border-radius:4px; padding:4px 6px;">
+        <input type="text" class="bb-category" value="${(b.category||'').replace(/"/g, '&quot;')}" placeholder="Type" oninput="debounceSave()" style="flex:1; font-size:10px; border:1px solid #d2cbc4; border-radius:4px; padding:4px 6px;">
+      </div>
+    </div>
+  `).join('');
+}
+
+function addBrandBankItem() {
+  const list = document.getElementById('brand-bank-list');
+  const div = document.createElement('div');
+  div.className = 'assessment-item';
+  div.style = 'margin-bottom: 4px; padding: 6px 8px;';
+  div.innerHTML = `
+    <button class="remove-btn" onclick="this.closest('.assessment-item').remove(); debounceSave();">&times;</button>
+    <div style="display:flex; gap:4px;">
+      <input type="text" class="bb-title" value="" placeholder="Asset title" oninput="debounceSave()" style="flex:2; font-size:11px; border:1px solid #d2cbc4; border-radius:4px; padding:4px 6px;">
+      <input type="text" class="bb-category" value="" placeholder="Type" oninput="debounceSave()" style="flex:1; font-size:10px; border:1px solid #d2cbc4; border-radius:4px; padding:4px 6px;">
+    </div>
+  `;
+  list.appendChild(div);
+  debounceSave();
+}
+
+function exportPDF() {
+  const btn = document.getElementById('export-btn');
+  btn.disabled = true;
+  btn.textContent = 'Generating PDF...';
+  window.location.href = '/api/export/' + SESSION_ID;
+  setTimeout(() => {
+    btn.disabled = false;
+    btn.textContent = 'Export PDF';
+  }, 5000);
+}
+
+function exportPPTX() {
+  const btn = document.getElementById('export-pptx-btn');
+  btn.disabled = true;
+  btn.textContent = 'Generating PPTX...';
+  window.location.href = '/api/export-pptx/' + SESSION_ID;
+  setTimeout(() => {
+    btn.disabled = false;
+    btn.textContent = 'Export PPTX';
+  }, 5000);
+}
+
+function saveReport() {
+  const btn = document.getElementById('save-btn');
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+
+  const data = collectData();
+  fetch('/api/save/' + SESSION_ID, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(data),
+  })
+  .then(r => r.json())
+  .then(resp => {
+    btn.disabled = false;
+    if (resp.ok) {
+      btn.textContent = 'Saved!';
+      setTimeout(() => { btn.textContent = 'Save'; }, 2000);
+    } else {
+      btn.textContent = 'Save';
+      document.getElementById('save-indicator').textContent = 'Save failed: ' + (resp.error || 'unknown');
+    }
+  })
+  .catch(err => {
+    btn.disabled = false;
+    btn.textContent = 'Save';
+    document.getElementById('save-indicator').textContent = 'Save failed: ' + err.message;
+  });
+}
+</script>
+{% endblock %}

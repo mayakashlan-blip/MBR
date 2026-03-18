@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}MBR Generator{% endblock %}</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+{% block head %}{% endblock %}
+</head>
+<body>
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="/" class="nav-brand">
+      <span class="nav-logo">Moxie</span>
+      <span class="nav-sep">|</span>
+      <span class="nav-title">MBR Generator</span>
+    </a>
+    <div class="nav-links">
+      <a href="/" class="nav-link{% if request.path == '/' %} active{% endif %}">Dashboard</a>
+      <a href="/batch" class="nav-link{% if request.path == '/batch' %} active{% endif %}">Batch Export</a>
+    </div>
+  </div>
+</nav>
+<main>
+{% block content %}{% endblock %}
+</main>
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,29 @@
+# Output / generated files
+output/
+output_omni/
+output_v2/
+
+# Data files (may contain client info)
+*.csv
+
+# Uploaded temp files
+/tmp/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.env
+
+# OS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Claude Code local settings
+.claude/
+
+# Reference PPTX (large binary)
+Epitome_of_Youth_MBR_January_2026.pptx
