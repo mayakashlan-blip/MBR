@@ -12,7 +12,18 @@ from datetime import datetime
 from pathlib import Path
 
 # Add project root to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+PROJECT_ROOT = Path(__file__).parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
+# Load .env file if present
+env_path = PROJECT_ROOT / ".env"
+if env_path.exists():
+    with open(env_path) as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                key, val = line.split("=", 1)
+                os.environ.setdefault(key.strip(), val.strip())
 
 from flask import (Flask, render_template, request, jsonify, send_file,
                    redirect, url_for, Response)
@@ -1209,4 +1220,5 @@ if __name__ == "__main__":
     print(f"  Omni API key: {'configured' if OMNI_KEY else 'NOT SET (set OMNI_API_KEY)'}")
     print(f"  Open http://localhost:5001 in your browser")
     print()
-    app.run(debug=True, port=5001)
+    port = int(os.environ.get("PORT", 5001))
+    app.run(host="0.0.0.0", port=port, debug=(port == 5001))
