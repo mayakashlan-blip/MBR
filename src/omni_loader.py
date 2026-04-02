@@ -115,6 +115,14 @@ def _val(result: dict, key_substring: str, default=0):
     return default
 
 
+def _safe_mom(current, previous, min_prev=0):
+    """Compute MoM % change, capped at +/-999%. Returns None if previous too small."""
+    if not previous or previous <= min_prev or not current:
+        return None
+    pct = (current - previous) / previous
+    return max(-9.99, min(9.99, pct))
+
+
 def _find_query(queries: dict, name: str) -> dict:
     """Find a query by name, with helpful error if missing."""
     if name in queries:
@@ -227,20 +235,17 @@ def load_from_omni(practice_name: str, month: int, year: int,
     prev_rev_r = run_prev_safe("KPI: Net Revenue")
     if prev_rev_r:
         prev_revenue = _val(prev_rev_r, "net_revenue_sum")
-        if prev_revenue and prev_revenue > 0:
-            data.revenue_mom_pct = (data.monthly_net_revenue - prev_revenue) / prev_revenue
+        data.revenue_mom_pct = _safe_mom(data.monthly_net_revenue, prev_revenue, 100)
 
     prev_appt_r = run_prev_safe("KPI: Paid Appointments")
     if prev_appt_r:
         prev_appointments = int(_val(prev_appt_r, "paid_appointments"))
-        if prev_appointments and prev_appointments > 0:
-            data.appointments_mom_pct = (data.total_appointments - prev_appointments) / prev_appointments
+        data.appointments_mom_pct = _safe_mom(data.total_appointments, prev_appointments, 5)
 
     prev_aov_r = run_prev_safe("KPI: AOV")
     if prev_aov_r:
         prev_aov = _val(prev_aov_r, "aov")
-        if prev_aov and prev_aov > 0:
-            data.aov_mom_pct = (data.aov - prev_aov) / prev_aov
+        data.aov_mom_pct = _safe_mom(data.aov, prev_aov, 20)
 
     # MoM for utilization
     prev_util_r = run_prev_safe("Utilization")
@@ -269,8 +274,8 @@ def load_from_omni(practice_name: str, month: int, year: int,
         data.utilization_rate = total_appt / total_avail if total_avail > 0 else 0
 
     # Utilization MoM
-    if prev_util_r and prev_util and prev_util > 0 and data.utilization_rate > 0:
-        data.utilization_mom_pct = (data.utilization_rate - prev_util) / prev_util
+    if prev_util_r and prev_util:
+        data.utilization_mom_pct = _safe_mom(data.utilization_rate, prev_util, 0.05)
 
     # Client Counts
     r = run("Client Counts")
@@ -652,25 +657,14 @@ def load_from_omni(practice_name: str, month: int, year: int,
 
             # Apply MoM to each staff member
             for s in data.staff:
-                prev_rev = prev_rev_lookup.get(s.name)
-                if prev_rev and prev_rev > 0 and s.gross_revenue > 0:
-                    s.revenue_mom_pct = (s.gross_revenue - prev_rev) / prev_rev
-                prev_aov = prev_aov_lookup.get(s.name)
-                if prev_aov and prev_aov > 0 and s.aov > 0:
-                    s.aov_mom_pct = (s.aov - prev_aov) / prev_aov
-                prev_util = prev_util_lookup.get(s.name)
-                if prev_util and prev_util > 0 and s.utilization and s.utilization > 0:
-                    s.utilization_mom_pct = (s.utilization - prev_util) / prev_util
-                prev_rb = prev_rebook_lookup.get(s.name)
-                if prev_rb and prev_rb > 0 and s.rebooking_rate and s.rebooking_rate > 0:
-                    s.rebooking_mom_pct = (s.rebooking_rate - prev_rb) / prev_rb
-                # Rev/Hr MoM
+                s.revenue_mom_pct = _safe_mom(s.gross_revenue, prev_rev_lookup.get(s.name), 500)
+                s.aov_mom_pct = _safe_mom(s.aov, prev_aov_lookup.get(s.name), 50)
+                s.utilization_mom_pct = _safe_mom(s.utilization, prev_util_lookup.get(s.name), 0.05)
+                s.rebooking_mom_pct = _safe_mom(s.rebooking_rate, prev_rebook_lookup.get(s.name), 0.05)
                 prev_hrs = prev_hours_lookup.get(s.name)
                 prev_gr = prev_rev_lookup.get(s.name)
-                if prev_hrs and prev_hrs > 0 and prev_gr and prev_gr > 0 and s.rev_per_hour:
-                    prev_rph = prev_gr / prev_hrs
-                    if prev_rph > 0:
-                        s.rev_per_hour_mom_pct = (s.rev_per_hour - prev_rph) / prev_rph
+                if prev_hrs and prev_hrs > 0 and prev_gr and prev_gr > 500 and s.rev_per_hour:
+                    s.rev_per_hour_mom_pct = _safe_mom(s.rev_per_hour, prev_gr / prev_hrs, 10)
 
             print(f"  Staff MoM: loaded for {sum(1 for s in data.staff if s.revenue_mom_pct is not None)} providers")
         except Exception as e:
@@ -693,9 +687,10 @@ def load_from_omni(practice_name: str, month: int, year: int,
                         prev_rebook_lookup[s.name] * s.net_revenue
                         for s in data.staff if s.name in prev_rebook_lookup and prev_rebook_lookup[s.name] > 0
                     ) / prev_weight
-                    if prev_rebook_weighted > 0 and data.rebooking_rate > 0:
-                        data.rebooking_mom_pct = (data.rebooking_rate - prev_rebook_weighted) / prev_rebook_weighted
-                        print(f"  Rebooking MoM: {data.rebooking_rate:.3f} vs {prev_rebook_weighted:.3f} = {data.rebooking_mom_pct:+.1%}")
+                    if prev_rebook_weighted > 0.05 and data.rebooking_rate > 0:
+                        data.rebooking_mom_pct = _safe_mom(data.rebooking_rate, prev_rebook_weighted, 0.05)
+                        if data.rebooking_mom_pct is not None:
+                            print(f"  Rebooking MoM: {data.rebooking_rate:.3f} vs {prev_rebook_weighted:.3f} = {data.rebooking_mom_pct:+.1%}")
         except Exception as e:
             print(f"  Warning: Could not compute rebooking MoM: {e}")
 
@@ -737,8 +732,7 @@ def load_from_omni(practice_name: str, month: int, year: int,
                     }
             prev_ret_r = _run_query(prev_rq, api_key)
             prev_retention = _val(prev_ret_r, "pct_has_repeat_completed_appointments_180d")
-            if prev_retention and prev_retention > 0 and data.retention_180d > 0:
-                data.retention_mom_pct = (data.retention_180d - prev_retention) / prev_retention
+            data.retention_mom_pct = _safe_mom(data.retention_180d, prev_retention, 0.05)
         except Exception as e:
             print(f"  Warning: Could not load retention MoM: {e}")
     except Exception as e:
