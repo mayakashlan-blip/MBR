@@ -804,6 +804,10 @@ def load_from_omni(practice_name: str, month: int, year: int,
                 "left_side": start_date, "right_side": "1 months",
                 "is_negative": False,
             }
+            # Add revenue field (not in the base dashboard query)
+            rev_field = "dbt__marketing_medspa_performance_daily_mart.meta_new_clients_completed_appointment_revenue_sum"
+            if rev_field not in mq.get("fields", []):
+                mq.setdefault("fields", []).append(rev_field)
             mkt_r = _run_query(mq, api_key)
 
             # Find the practice row (skip totals row where name is None)
@@ -821,11 +825,13 @@ def load_from_omni(practice_name: str, month: int, year: int,
                 leads = int(mkt_val("meta_leads_sum"))
                 booked = int(mkt_val("meta_new_clients_booked_appointment_sum"))
                 completed = int(mkt_val("meta_new_clients_completed_appointment_sum"))
-                roi = mkt_val("meta_roi")
                 cpl = mkt_val("total_meta_cost_per_lead")
 
-                # Revenue = ROI × spend (ROI is revenue/spend ratio from Omni)
-                revenue = roi * ad_spend if roi and ad_spend else 0
+                # Revenue comes directly from Omni (net revenue from new clients)
+                revenue = mkt_val("meta_new_clients_completed_appointment_revenue_sum")
+
+                # ROI = revenue / spend (New Client ROI)
+                roi = revenue / ad_spend if ad_spend > 0 and revenue > 0 else 0
 
                 if ad_spend > 0:
                     data.marketing = MarketingData(
@@ -834,13 +840,13 @@ def load_from_omni(practice_name: str, month: int, year: int,
                         booked=booked,
                         completed=completed,
                         revenue=round(revenue, 2),
-                        first_visit_roi=roi if roi else None,
+                        first_visit_roi=round(roi, 2) if roi else None,
                         lead_to_booking_rate=booked / leads if leads > 0 else None,
                         first_visit_aov=revenue / completed if completed > 0 else None,
                     )
                     print(f"  Marketing: spend=${ad_spend:,.0f}, leads={leads}, "
                           f"booked={booked}, completed={completed}, "
-                          f"ROI={roi:.1f}x, revenue=${revenue:,.0f}")
+                          f"revenue=${revenue:,.0f}, ROI={roi:.1f}x")
                 else:
                     print("  Marketing: no ad spend for this month")
             else:
