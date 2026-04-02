@@ -39,7 +39,7 @@
   <div class="exec-summary">{{ data.executive_summary }}</div>
   {% endif %}
 
-  {# Key Metrics #}
+  {# Key Metrics — top row #}
   <div class="metrics-row">
     <div class="metric-card">
       <div class="metric-label">Monthly Net Revenue</div>
@@ -75,9 +75,9 @@
       </div>
     </div>
     <div class="metric-card">
-      <div class="metric-label">Quarter to Date</div>
-      <div class="metric-value{% if not data.quarter_to_date %} small{% endif %}">
-        {% if data.quarter_to_date %}{{ data.quarter_to_date | dollar }}{% else %}N/A{% endif %}
+      <div class="metric-label">Avg Patient LTV</div>
+      <div class="metric-value{% if not data.avg_patient_ltv %} small{% endif %}">
+        {% if data.avg_patient_ltv %}{{ data.avg_patient_ltv | dollar }}{% else %}N/A{% endif %}
       </div>
     </div>
   </div>
@@ -97,44 +97,17 @@
         <div class="gauge-text">{{ g.display }}<span class="pct-symbol">%</span></div>
       </div>
       <div class="gauge-label">{{ g.label }}</div>
+      {% if g.mom_pct is not none %}
+      <div class="mom-change{% if g.mom_pct >= 0 %} positive{% else %} negative{% endif %}" style="font-size: 6.5pt; margin-top: 0.02in;">
+        {{ "▲" if g.mom_pct >= 0 else "▼" }} {{ "%.1f"|format((g.mom_pct * 100)|abs) }}% MoM
+      </div>
+      {% endif %}
     </div>
     {% endfor %}
   </div>
 
-  {# Memberships + Client Mix #}
-  <div class="bottom-row">
-    <div class="card">
-      <div class="section-subtitle">Memberships</div>
-      <div class="membership-grid">
-        <div class="membership-stat">
-          <div class="stat-value">{{ "{:,}".format(data.memberships_active) }}</div>
-          <div class="stat-label">Active</div>
-        </div>
-        <div class="membership-stat">
-          <div class="stat-value">{{ "{:,}".format(data.memberships_new) }}</div>
-          <div class="stat-label">New</div>
-        </div>
-        <div class="membership-stat">
-          <div class="stat-value">{{ "{:,}".format(data.memberships_cancelled) }}</div>
-          <div class="stat-label">Cancelled</div>
-        </div>
-        <div class="membership-stat">
-          <div class="stat-value{% if data.mrr >= 10000 %} small-val{% endif %}">{{ data.mrr | dollar(False) }}</div>
-          <div class="stat-label">MRR</div>
-        </div>
-      </div>
-      <div style="display: flex; gap: 0.12in; margin-top: 0.1in; padding-top: 0.08in; border-top: 1px solid #e8e3de;">
-        <div style="flex: 1; text-align: center;">
-          <div style="font-size: 13pt; font-weight: 700; color: {% if data.net_new_members >= 0 %}#2E7D32{% else %}#B53631{% endif %};">{{ "%+d"|format(data.net_new_members) }}</div>
-          <div style="font-size: 6.5pt; color: var(--muted-text); text-transform: uppercase; letter-spacing: 0.03em;">Net New</div>
-        </div>
-        <div style="flex: 1; text-align: center;">
-          <div style="font-size: 13pt; font-weight: 700; color: var(--purple);">{{ "%.0f"|format(data.membership_conversion_rate) }}%</div>
-          <div style="font-size: 6.5pt; color: var(--muted-text); text-transform: uppercase; letter-spacing: 0.03em;">Conversion</div>
-        </div>
-      </div>
-    </div>
-
+  {# Bottom section — Client Mix + Reviews #}
+  <div style="display: grid; grid-template-columns: {% if data.reviews %}1fr 1fr{% else %}1fr{% endif %}; gap: 0.14in;">
     <div class="card">
       <div class="section-subtitle">Client Mix</div>
       {% set total_clients = data.new_clients + data.existing_clients %}
@@ -149,69 +122,51 @@
           <span>Existing ({{ data.existing_clients }})</span>
           <span>New ({{ data.new_clients }})</span>
         </div>
-        <div style="margin-top: 0.08in; padding-top: 0.08in; border-top: 1px solid #e8e3de; text-align: center;">
-          <div style="font-size: 13pt; font-weight: 700; color: var(--purple);">{{ data.revenue_per_client | dollar(False) }}</div>
-          <div style="font-size: 6.5pt; color: var(--muted-text); text-transform: uppercase; letter-spacing: 0.03em;">Revenue per Client</div>
+        <div style="margin-top: 0.1in; padding-top: 0.08in; border-top: 1px solid #e8e3de; display: flex; justify-content: center; gap: 0.4in;">
+          <div style="text-align: center;">
+            <div style="font-size: 14pt; font-weight: 700; color: var(--purple);">{{ data.revenue_per_client | dollar(False) }}</div>
+            <div style="font-size: 6.5pt; color: var(--muted-text); text-transform: uppercase; letter-spacing: 0.03em;">Revenue / Client</div>
+          </div>
+          <div style="text-align: center;">
+            <div style="font-size: 14pt; font-weight: 700; color: var(--purple);">{{ "{:,}".format(total_clients) }}</div>
+            <div style="font-size: 6.5pt; color: var(--muted-text); text-transform: uppercase; letter-spacing: 0.03em;">Total Clients</div>
+          </div>
         </div>
       {% else %}
-        <div style="text-align: center; padding: 0.15in; color: var(--muted-text); font-size: 8.5pt;">
+        <div style="text-align: center; padding: 0.2in; color: var(--muted-text); font-size: 8.5pt;">
           No client data available
         </div>
       {% endif %}
     </div>
-  </div>
 
-  {# Supplies Savings — only if data exists #}
-  {% if data.supplies_total_savings > 0 %}
-  <div class="card" style="margin-top: 0.12in;">
-    <div style="display: flex; align-items: center; justify-content: space-between;">
-      <div>
-        <div class="section-subtitle" style="margin-bottom: 0.02in;">Moxie Supplies Savings</div>
-        <div style="font-size: 7.5pt; color: var(--muted-text);">Total saved this month through Moxie purchasing</div>
-      </div>
-      <div style="font-size: 22pt; font-weight: 700; color: #2E7D32;">{{ data.supplies_total_savings | dollar(False) }}</div>
-    </div>
-    {% if data.supplies_by_brand %}
-    <div style="display: flex; gap: 0.12in; margin-top: 0.1in; flex-wrap: wrap;">
-      {% for item in data.supplies_by_brand %}
-      <div style="flex: 1; min-width: 1.2in; text-align: center; background: #F0FFF0; border-radius: 6px; padding: 0.06in 0.1in;">
-        <div style="font-size: 10pt; font-weight: 700; color: #2E7D32;">{{ "${:,.0f}".format(item.savings) }}</div>
-        <div style="font-size: 6.5pt; color: var(--muted-text); text-transform: uppercase; letter-spacing: 0.03em;">{{ item.brand }}</div>
-      </div>
-      {% endfor %}
+    {% if data.reviews %}
+    <div class="card">
+      <div class="section-subtitle">Ratings & Reviews</div>
+      <table class="reviews-table">
+        <tr>
+          <th>Platform</th><th>New</th><th>Avg</th><th>Total</th><th>Overall</th>
+        </tr>
+        {% for r in data.reviews %}
+        <tr>
+          <td>{{ r.platform }}</td>
+          <td>{{ r.new_reviews if r.new_reviews is not none else "—" }}</td>
+          <td>{{ "%.1f" | format(r.avg_new_rating) if r.avg_new_rating else "—" }}</td>
+          <td>{{ r.total_reviews if r.total_reviews is not none else "—" }}</td>
+          <td>{{ "%.1f" | format(r.overall_rating) if r.overall_rating else "—" }}</td>
+        </tr>
+        {% endfor %}
+      </table>
     </div>
     {% endif %}
   </div>
-  {% endif %}
-
-  {# Reviews — only if data exists #}
-  {% if data.reviews %}
-  <div class="card">
-    <div class="section-subtitle">Ratings & Reviews</div>
-    <table class="reviews-table">
-      <tr>
-        <th>Platform</th><th>New Reviews</th><th>Avg. Rating</th><th>Total</th><th>Overall</th>
-      </tr>
-      {% for r in data.reviews %}
-      <tr>
-        <td>{{ r.platform }}</td>
-        <td>{{ r.new_reviews if r.new_reviews is not none else "—" }}</td>
-        <td>{{ "%.1f" | format(r.avg_new_rating) if r.avg_new_rating else "—" }}</td>
-        <td>{{ r.total_reviews if r.total_reviews is not none else "—" }}</td>
-        <td>{{ "%.1f" | format(r.overall_rating) if r.overall_rating else "—" }}</td>
-      </tr>
-      {% endfor %}
-    </table>
-  </div>
-  {% endif %}
 
   <div class="footer">Moxie Partners, Inc. Copyright &copy;2025. Private and confidential.</div>
 </section>
 
 {# ════════════════════════════════════════════════════════════════════
-   PAGE 3 — REVENUE BREAKDOWN + STAFF PERFORMANCE
+   PAGE 3 — REVENUE BREAKDOWN + STAFF + MEMBERSHIPS
    ════════════════════════════════════════════════════════════════════ #}
-<section class="page">
+<section class="page page-flow">
   {% include "components/header.html.j2" %}
   <div class="section-title">Revenue Breakdown</div>
 
@@ -242,6 +197,10 @@
         <div class="adj-value">{{ data.discounts | dollar(False, True) }}</div>
       </div>
       <div class="adjustment-card">
+        <div class="adj-label">Discount % of Gross</div>
+        <div class="adj-value">{% if data.total_gross > 0 %}{{ "%.1f" | format(data.discounts / data.total_gross * 100) }}%{% else %}—{% endif %}</div>
+      </div>
+      <div class="adjustment-card">
         <div class="adj-label">Redemptions</div>
         <div class="adj-value neutral">{{ data.redemptions | dollar(False) }}</div>
       </div>
@@ -261,7 +220,7 @@
 
   {# Staff Performance #}
   {% if data.staff %}
-  <div class="section-title" style="font-size: 16pt;">Staff Performance</div>
+  <div class="section-title" style="font-size: 16pt; margin-top: 0.25in;">Staff Performance</div>
   <div class="staff-grid{% if data.staff | length > 4 %} compact{% endif %}">
     {% for s in data.staff %}
     <div class="staff-card">
@@ -269,34 +228,52 @@
         <div class="staff-avatar">{{ s.initials }}</div>
         <div>
           <div class="staff-name">{{ s.name }}</div>
-          <div class="staff-revenue">{{ s.gross_revenue | dollar(False) }} gross revenue</div>
         </div>
       </div>
-      <div class="staff-metrics">
+      <div class="staff-metrics" style="grid-template-columns: repeat(5, 1fr);">
+        <div class="staff-metric">
+          <div class="sm-label">Gross Rev</div>
+          <div class="sm-value">{{ s.gross_revenue | dollar(False) }}</div>
+          {% if s.revenue_mom_pct is not none %}
+          <div class="sm-mom{% if s.revenue_mom_pct >= 0 %} positive{% else %} negative{% endif %}">{{ "▲" if s.revenue_mom_pct >= 0 else "▼" }} {{ "%.0f"|format((s.revenue_mom_pct * 100)|abs) }}%</div>
+          {% endif %}
+        </div>
         <div class="staff-metric">
           <div class="sm-label">AOV</div>
           <div class="sm-value">{{ s.aov | dollar(False) }}</div>
+          {% if s.aov_mom_pct is not none %}
+          <div class="sm-mom{% if s.aov_mom_pct >= 0 %} positive{% else %} negative{% endif %}">{{ "▲" if s.aov_mom_pct >= 0 else "▼" }} {{ "%.0f"|format((s.aov_mom_pct * 100)|abs) }}%</div>
+          {% endif %}
         </div>
         <div class="staff-metric">
           <div class="sm-label">Utilization</div>
           <div class="sm-value">{% if s.utilization is not none %}{{ "%.0f" | format(s.utilization * 100) }}%{% else %}—{% endif %}</div>
+          {% if s.utilization_mom_pct is not none %}
+          <div class="sm-mom{% if s.utilization_mom_pct >= 0 %} positive{% else %} negative{% endif %}">{{ "▲" if s.utilization_mom_pct >= 0 else "▼" }} {{ "%.0f"|format((s.utilization_mom_pct * 100)|abs) }}%</div>
+          {% endif %}
         </div>
         <div class="staff-metric">
           <div class="sm-label">Rebooking</div>
           <div class="sm-value">{% if s.rebooking_rate %}{{ "%.0f" | format(s.rebooking_rate * 100) }}%{% else %}—{% endif %}</div>
+          {% if s.rebooking_mom_pct is not none %}
+          <div class="sm-mom{% if s.rebooking_mom_pct >= 0 %} positive{% else %} negative{% endif %}">{{ "▲" if s.rebooking_mom_pct >= 0 else "▼" }} {{ "%.0f"|format((s.rebooking_mom_pct * 100)|abs) }}%</div>
+          {% endif %}
         </div>
         <div class="staff-metric">
           <div class="sm-label">Rev/Hr</div>
           <div class="sm-value">{% if s.rev_per_hour is not none %}{{ s.rev_per_hour | dollar(False) }}{% else %}—{% endif %}</div>
+          {% if s.rev_per_hour_mom_pct is not none %}
+          <div class="sm-mom{% if s.rev_per_hour_mom_pct >= 0 %} positive{% else %} negative{% endif %}">{{ "▲" if s.rev_per_hour_mom_pct >= 0 else "▼" }} {{ "%.0f"|format((s.rev_per_hour_mom_pct * 100)|abs) }}%</div>
+          {% endif %}
         </div>
       </div>
     </div>
     {% endfor %}
   </div>
 
-  {# Revenue contribution bar #}
+  {# Revenue contribution bar — hide for sole providers #}
   {% set total_staff_rev = data.staff | sum(attribute='gross_revenue') %}
-  {% if total_staff_rev > 0 %}
+  {% if total_staff_rev > 0 and data.staff | length > 1 %}
   <div style="margin-top: 0.04in;">
     <div style="font-size: 7.5pt; font-weight: 600; color: var(--muted-text); margin-bottom: 0.04in; text-transform: uppercase; letter-spacing: 0.03em;">Revenue Contribution</div>
     <div class="contribution-bar">
@@ -309,6 +286,82 @@
         {% endif %}
       {% endfor %}
     </div>
+  </div>
+  {% endif %}
+  {% endif %}
+
+  {# ── Membership Performance ── #}
+  {% if data.memberships_active > 0 or data.memberships_new > 0 or data.memberships_cancelled > 0 or data.mrr > 0 %}
+  <div class="section-title" style="font-size: 16pt; margin-top: 0.25in;">Membership Performance</div>
+
+  <div class="card" style="margin-bottom: 0.15in; padding: 0.15in 0.2in;">
+    <div class="membership-grid">
+      <div class="membership-stat">
+        <div class="stat-value">{{ "{:,}".format(data.memberships_active) }}</div>
+        <div class="stat-label">Active</div>
+      </div>
+      <div class="membership-stat">
+        <div class="stat-value">{{ "{:,}".format(data.memberships_new) }}</div>
+        <div class="stat-label">New</div>
+      </div>
+      <div class="membership-stat">
+        <div class="stat-value">{{ "{:,}".format(data.memberships_cancelled) }}</div>
+        <div class="stat-label">Cancelled</div>
+      </div>
+      <div class="membership-stat">
+        <div class="stat-value{% if data.mrr >= 10000 %} small-val{% endif %}">{{ data.mrr | dollar(False) }}</div>
+        <div class="stat-label">MRR</div>
+      </div>
+    </div>
+    <div style="display: flex; gap: 0.12in; margin-top: 0.1in; padding-top: 0.08in; border-top: 1px solid #e8e3de;">
+      <div style="flex: 1; text-align: center;">
+        <div style="font-size: 13pt; font-weight: 700; color: {% if data.net_new_members >= 0 %}#2E7D32{% else %}#B53631{% endif %};">{{ "%+d"|format(data.net_new_members) }}</div>
+        <div style="font-size: 6.5pt; color: var(--muted-text); text-transform: uppercase; letter-spacing: 0.03em;">Net New</div>
+      </div>
+      <div style="flex: 1; text-align: center;">
+        <div style="font-size: 13pt; font-weight: 700; color: var(--purple);">{{ "%.0f"|format(data.membership_conversion_rate) }}%</div>
+        <div style="font-size: 6.5pt; color: var(--muted-text); text-transform: uppercase; letter-spacing: 0.03em;">Conversion</div>
+      </div>
+    </div>
+  </div>
+
+  {% if data.membership_types %}
+  <div class="card" style="padding: 0.15in 0.2in;">
+    <div class="section-subtitle" style="margin-bottom: 0.1in;">Breakdown by Type</div>
+    <table style="width: 100%; border-collapse: collapse; font-size: 8.5pt;">
+      <thead>
+        <tr style="border-bottom: 2px solid var(--purple); text-align: left;">
+          <th style="padding: 4px 6px; font-weight: 600; color: var(--purple);">Membership</th>
+          <th style="padding: 4px 6px; font-weight: 600; color: var(--purple); text-align: center;">Active</th>
+          <th style="padding: 4px 6px; font-weight: 600; color: var(--purple); text-align: center;">New</th>
+          <th style="padding: 4px 6px; font-weight: 600; color: var(--purple); text-align: center;">Churned</th>
+          <th style="padding: 4px 6px; font-weight: 600; color: var(--purple); text-align: center;">Net New</th>
+          <th style="padding: 4px 6px; font-weight: 600; color: var(--purple); text-align: right;">MRR</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in data.membership_types %}
+        <tr style="border-bottom: 1px solid #e8e3de;">
+          <td style="padding: 5px 6px; font-weight: 500;">{{ m.name }}</td>
+          <td style="padding: 5px 6px; text-align: center;">{{ "{:,}".format(m.active) }}</td>
+          <td style="padding: 5px 6px; text-align: center; color: #2e7d32;">{% if m.new > 0 %}+{{ m.new }}{% else %}{{ m.new }}{% endif %}</td>
+          <td style="padding: 5px 6px; text-align: center; color: #c62828;">{% if m.churned > 0 %}-{{ m.churned }}{% else %}0{% endif %}</td>
+          <td style="padding: 5px 6px; text-align: center; font-weight: 600; color: {% if m.net_new > 0 %}#2e7d32{% elif m.net_new < 0 %}#c62828{% else %}var(--muted-text){% endif %};">{% if m.net_new > 0 %}+{{ m.net_new }}{% else %}{{ m.net_new }}{% endif %}</td>
+          <td style="padding: 5px 6px; text-align: right;">{{ "${:,.0f}".format(m.mrr) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr style="border-top: 2px solid var(--purple); font-weight: 700;">
+          <td style="padding: 5px 6px;">Total</td>
+          <td style="padding: 5px 6px; text-align: center;">{{ "{:,}".format(data.memberships_active) }}</td>
+          <td style="padding: 5px 6px; text-align: center; color: #2e7d32;">+{{ data.memberships_new }}</td>
+          <td style="padding: 5px 6px; text-align: center; color: #c62828;">-{{ data.memberships_cancelled }}</td>
+          <td style="padding: 5px 6px; text-align: center; color: {% if data.net_new_members > 0 %}#2e7d32{% elif data.net_new_members < 0 %}#c62828{% else %}var(--muted-text){% endif %};">{% if data.net_new_members > 0 %}+{{ data.net_new_members }}{% else %}{{ data.net_new_members }}{% endif %}</td>
+          <td style="padding: 5px 6px; text-align: right;">{{ "${:,.0f}".format(data.mrr) }}</td>
+        </tr>
+      </tfoot>
+    </table>
   </div>
   {% endif %}
   {% endif %}
@@ -359,93 +412,211 @@
 </section>
 
 {# ════════════════════════════════════════════════════════════════════
-   PAGE 4b — MARKETING PERFORMANCE (only if image uploaded)
+   PAGE 4b — MARKETING PERFORMANCE (if marketing data exists)
    ════════════════════════════════════════════════════════════════════ #}
-{% if marketing_image_uri %}
+{% if not data.marketing or data.marketing.ad_spend <= 20 %}
 <section class="page">
   {% include "components/header.html.j2" %}
   <div class="section-title">Marketing Performance</div>
 
-  {% if data.marketing_analysis and (data.marketing_analysis.funnel or data.marketing_analysis.metrics) %}
-
-  {# ── ROI Headline ── #}
-  {% if data.marketing_analysis.roi_headline %}
-  <div style="background: linear-gradient(135deg, #4D1751 0%, #6B2D6E 100%); color: white; border-radius: 10px; padding: 0.14in 0.2in; margin-bottom: 0.15in; text-align: center;">
-    <div style="font-size: 10pt; line-height: 1.5;">{{ data.marketing_analysis.roi_headline }}</div>
+  <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1.2in 0.8in; text-align: center;">
+    <div style="width: 0.8in; height: 0.8in; background: #F3EDF4; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 0.2in;">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#4D1751" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+      </svg>
+    </div>
+    <div style="font-family: 'Playfair Display', serif; font-size: 18pt; font-weight: 700; color: var(--purple); margin-bottom: 0.1in;">
+      Unlock Marketing Performance Insights
+    </div>
+    <div style="font-size: 10pt; line-height: 1.6; color: #5a5550; max-width: 5in;">
+      Get detailed campaign analytics including ROI tracking, lead-to-booking conversion rates, and data-driven recommendations to grow your practice.
+    </div>
+    <div style="margin-top: 0.25in; background: var(--purple); color: white; font-size: 10pt; font-weight: 600; padding: 0.1in 0.3in; border-radius: 8px;">
+      Speak to your Practice Success Manager to get started
+    </div>
   </div>
-  {% endif %}
 
-  {# ── Funnel Metrics ── #}
-  {% set funnel_items = data.marketing_analysis.funnel if data.marketing_analysis.funnel else data.marketing_analysis.metrics %}
-  {% if funnel_items %}
+  <div class="footer">Moxie Partners, Inc. Copyright &copy;2025. Private and confidential.</div>
+</section>
+{% else %}
+<section class="page page-flow">
+  {% include "components/header.html.j2" %}
+  <div class="section-title">Marketing Performance</div>
+
+  {# ── ROI Banner ── #}
+  {% set roi = data.marketing.first_visit_roi %}
+  <div style="background: linear-gradient(135deg, #4D1751 0%, #6B2D6E 100%); color: white; border-radius: 10px; padding: 0.16in 0.24in; margin-bottom: 0.18in; display: flex; align-items: center; justify-content: space-between;">
+    <div>
+      <div style="font-size: 8pt; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.8; margin-bottom: 0.03in;">First-Visit Campaign ROI</div>
+      <div style="font-size: 10pt; line-height: 1.5;">
+        For every <strong>$1</strong> spent on marketing, this practice generates
+        <strong>{{ "${:,.2f}".format(roi if roi else 0) }}</strong> in new patient revenue.
+      </div>
+    </div>
+    <div style="text-align: center; margin-left: 0.3in;">
+      <div style="font-size: 28pt; font-weight: 700; line-height: 1;">{{ "{:.1f}".format(roi if roi else 0) }}x</div>
+      <div style="font-size: 7pt; font-weight: 600; padding: 2px 10px; border-radius: 10px; margin-top: 0.04in;
+                  {% if roi and roi >= 3 %}background: rgba(46,125,50,0.25);{% elif roi and roi >= 2 %}background: rgba(184,147,58,0.25);{% else %}background: rgba(181,54,49,0.25);{% endif %}">
+        {% if roi and roi >= 3 %}Excellent{% elif roi and roi >= 2 %}Good{% else %}Below Goal{% endif %} <span style="opacity:0.7;">(Goal: 3x)</span>
+      </div>
+    </div>
+  </div>
+
+  {# ── Funnel ── #}
   <div style="display: flex; gap: 0; margin-bottom: 0.18in; align-items: stretch;">
-    {% for m in funnel_items %}
+    {% set funnel = [
+      ("Ad Spend", "${:,.0f}".format(data.marketing.ad_spend), "Monthly Budget"),
+      ("New Patient Leads", "{:,}".format(data.marketing.leads), "From Campaigns"),
+      ("Appts Booked", "{:,}".format(data.marketing.booked), "New Patients"),
+      ("Appts Completed", "{:,}".format(data.marketing.completed), "First Visits"),
+      ("New Patient Revenue", "${:,.0f}".format(data.marketing.revenue), "Attributed to Marketing"),
+    ] %}
+    {% for label, value, subtitle in funnel %}
     <div style="flex: 1; text-align: center; padding: 0.12in 0.06in; background: white; border: 1px solid #e5e0db;
                 {% if loop.first %}border-radius: 10px 0 0 10px;{% elif loop.last %}border-radius: 0 10px 10px 0;{% endif %}
                 {% if not loop.first %}border-left: none;{% endif %}
                 position: relative;">
-      <div style="font-size: 6.5pt; text-transform: uppercase; letter-spacing: 0.04em; color: #8C8580; margin-bottom: 0.02in;">{{ m.label }}</div>
-      <div style="font-size: 18pt; font-weight: 700; color: #4D1751; margin-bottom: 0.02in;">{{ m.value }}</div>
-      {% if m.subtitle %}<div style="font-size: 6.5pt; color: #918A85;">{{ m.subtitle }}</div>{% endif %}
+      <div style="font-size: 6.5pt; text-transform: uppercase; letter-spacing: 0.04em; color: #8C8580; margin-bottom: 0.02in;">{{ label }}</div>
+      <div style="font-size: 16pt; font-weight: 700; color: #4D1751; margin-bottom: 0.02in;">{{ value }}</div>
+      <div style="font-size: 6.5pt; color: #918A85;">{{ subtitle }}</div>
       {% if not loop.last %}<div style="position: absolute; right: -5px; top: 50%; transform: translateY(-50%); color: #d2cbc4; font-size: 12pt; z-index: 1;">&#9654;</div>{% endif %}
     </div>
     {% endfor %}
   </div>
-  {% endif %}
 
-  {# ── Key Metrics Scorecard ── #}
-  {% if data.marketing_analysis.kpis %}
+  {# ── Key Metrics ── #}
   <div class="card" style="margin-bottom: 0.15in;">
     <div class="section-subtitle">Key Metrics</div>
-    <div style="display: flex; gap: 0.15in; margin-top: 0.08in;">
-      {% for kpi in data.marketing_analysis.kpis %}
+    <div style="display: flex; gap: 0.12in; margin-top: 0.08in;">
       <div style="flex: 1; text-align: center; padding: 0.1in; border: 1px solid #e5e0db; border-radius: 8px;">
-        <div style="font-size: 7pt; text-transform: uppercase; letter-spacing: 0.03em; color: #8C8580; margin-bottom: 0.04in;">{{ kpi.label }}</div>
-        <div style="font-size: 20pt; font-weight: 700; color: #4D1751; margin-bottom: 0.04in;">{{ kpi.value }}</div>
-        {% if kpi.status %}
+        <div style="font-size: 7pt; text-transform: uppercase; letter-spacing: 0.03em; color: #8C8580; margin-bottom: 0.04in;">First-Visit ROI</div>
+        <div style="font-size: 20pt; font-weight: 700; color: #4D1751; margin-bottom: 0.04in;">{{ "{:.1f}".format(roi if roi else 0) }}x</div>
         <div style="display: inline-block; font-size: 7pt; font-weight: 600; padding: 2px 8px; border-radius: 10px;
-                    {% if kpi.status == 'On Track' or kpi.status == 'Above Target' %}background: #E8F5E9; color: #2E7D32;
-                    {% else %}background: #FDE8E7; color: #B53631;{% endif %}">
-          {{ kpi.status }}
+                    {% if roi and roi >= 3 %}background: #E8F5E9; color: #2E7D32;{% elif roi and roi >= 2 %}background: #FFF8E1; color: #B8933A;{% else %}background: #FDE8E7; color: #B53631;{% endif %}">
+          {% if roi and roi >= 3 %}Above Target{% elif roi and roi >= 2 %}On Track{% else %}Below Target{% endif %}
         </div>
-        {% endif %}
-        {% if kpi.goal %}<div style="font-size: 7pt; color: #918A85; margin-top: 0.03in;">{{ kpi.goal }}</div>{% endif %}
+        <div style="font-size: 7pt; color: #918A85; margin-top: 0.03in;">Goal: 3x</div>
       </div>
-      {% endfor %}
+      <div style="flex: 1; text-align: center; padding: 0.1in; border: 1px solid #e5e0db; border-radius: 8px;">
+        <div style="font-size: 7pt; text-transform: uppercase; letter-spacing: 0.03em; color: #8C8580; margin-bottom: 0.04in;">Lead → Booking Rate</div>
+        <div style="font-size: 20pt; font-weight: 700; color: #4D1751; margin-bottom: 0.04in;">{{ "{:.0f}".format(data.marketing.lead_to_booking_rate * 100 if data.marketing.lead_to_booking_rate else 0) }}%</div>
+        <div style="display: inline-block; font-size: 7pt; font-weight: 600; padding: 2px 8px; border-radius: 10px;
+                    {% if data.marketing.lead_to_booking_rate and data.marketing.lead_to_booking_rate >= 0.15 %}background: #E8F5E9; color: #2E7D32;{% else %}background: #FDE8E7; color: #B53631;{% endif %}">
+          {% if data.marketing.lead_to_booking_rate and data.marketing.lead_to_booking_rate >= 0.15 %}On Track{% else %}Below Target{% endif %}
+        </div>
+        <div style="font-size: 7pt; color: #918A85; margin-top: 0.03in;">Goal: 15%</div>
+      </div>
+      <div style="flex: 1; text-align: center; padding: 0.1in; border: 1px solid #e5e0db; border-radius: 8px;">
+        <div style="font-size: 7pt; text-transform: uppercase; letter-spacing: 0.03em; color: #8C8580; margin-bottom: 0.04in;">First-Visit AOV</div>
+        <div style="font-size: 20pt; font-weight: 700; color: #4D1751; margin-bottom: 0.04in;">{{ data.marketing.first_visit_aov | dollar(False) if data.marketing.first_visit_aov else "—" }}</div>
+        <div style="font-size: 7pt; color: #918A85; margin-top: 0.03in;">New patients from campaigns</div>
+      </div>
+      <div style="flex: 1; text-align: center; padding: 0.1in; border: 1px solid #e5e0db; border-radius: 8px;">
+        <div style="font-size: 7pt; text-transform: uppercase; letter-spacing: 0.03em; color: #8C8580; margin-bottom: 0.04in;">Cost per Lead</div>
+        <div style="font-size: 20pt; font-weight: 700; color: #4D1751; margin-bottom: 0.04in;">{% if data.marketing.leads > 0 %}{{ "${:,.0f}".format(data.marketing.ad_spend / data.marketing.leads) }}{% else %}—{% endif %}</div>
+        <div style="font-size: 7pt; color: #918A85; margin-top: 0.03in;">Ad spend / leads</div>
+      </div>
+    </div>
+  </div>
+
+  {# ── Funnel Conversion Analysis ── #}
+  {% if data.marketing.leads > 0 %}
+  <div class="card" style="margin-bottom: 0.15in;">
+    <div class="section-subtitle">Funnel Conversion Analysis</div>
+    {% set ltb = (data.marketing.booked / data.marketing.leads * 100) if data.marketing.leads > 0 else 0 %}
+    {% set btc = (data.marketing.completed / data.marketing.booked * 100) if data.marketing.booked > 0 else 0 %}
+    <div style="display: flex; gap: 0.12in; margin-top: 0.08in;">
+      <div style="flex: 1; text-align: center; padding: 0.1in; border-radius: 8px;
+                  {% if ltb >= 15 %}background: #E8F5E9; border: 1px solid #C8E6C9;{% elif ltb >= 10 %}background: #FFF8E1; border: 1px solid #FFE082;{% else %}background: #FDE8E7; border: 1px solid #FFCDD2;{% endif %}">
+        <div style="font-size: 7pt; text-transform: uppercase; letter-spacing: 0.03em; color: #8C8580; margin-bottom: 0.03in;">Lead → Booked</div>
+        <div style="font-size: 18pt; font-weight: 700; color: {% if ltb >= 15 %}#2E7D32{% elif ltb >= 10 %}#B8933A{% else %}#B53631{% endif %};">{{ "{:.0f}".format(ltb) }}%</div>
+        <div style="font-size: 7pt; color: #918A85; margin-top: 0.02in;">{{ data.marketing.leads }} leads → {{ data.marketing.booked }} booked</div>
+        {% if ltb < 15 %}
+        <div style="font-size: 6.5pt; color: #B53631; margin-top: 0.03in; font-weight: 600;">{{ data.marketing.leads - data.marketing.booked }} leads not converting</div>
+        {% endif %}
+      </div>
+      <div style="flex: 1; text-align: center; padding: 0.1in; border-radius: 8px;
+                  {% if btc >= 70 %}background: #E8F5E9; border: 1px solid #C8E6C9;{% elif btc >= 50 %}background: #FFF8E1; border: 1px solid #FFE082;{% else %}background: #FDE8E7; border: 1px solid #FFCDD2;{% endif %}">
+        <div style="font-size: 7pt; text-transform: uppercase; letter-spacing: 0.03em; color: #8C8580; margin-bottom: 0.03in;">Booked → Completed</div>
+        <div style="font-size: 18pt; font-weight: 700; color: {% if btc >= 70 %}#2E7D32{% elif btc >= 50 %}#B8933A{% else %}#B53631{% endif %};">{% if data.marketing.booked > 0 %}{{ "{:.0f}".format(btc) }}%{% else %}—{% endif %}</div>
+        <div style="font-size: 7pt; color: #918A85; margin-top: 0.02in;">{{ data.marketing.booked }} booked → {{ data.marketing.completed }} completed</div>
+        {% if data.marketing.booked > data.marketing.completed and data.marketing.booked > 0 %}
+        <div style="font-size: 6.5pt; color: #B53631; margin-top: 0.03in; font-weight: 600;">{{ data.marketing.booked - data.marketing.completed }} no-show / cancelled</div>
+        {% endif %}
+      </div>
+      <div style="flex: 1; text-align: center; padding: 0.1in; background: #F3EDF4; border: 1px solid #D4C5D6; border-radius: 8px;">
+        <div style="font-size: 7pt; text-transform: uppercase; letter-spacing: 0.03em; color: #8C8580; margin-bottom: 0.03in;">End-to-End</div>
+        <div style="font-size: 18pt; font-weight: 700; color: #4D1751;">{% if data.marketing.leads > 0 %}{{ "{:.1f}".format(data.marketing.completed / data.marketing.leads * 100) }}%{% else %}—{% endif %}</div>
+        <div style="font-size: 7pt; color: #918A85; margin-top: 0.02in;">{{ data.marketing.leads }} leads → {{ data.marketing.completed }} patients</div>
+      </div>
     </div>
   </div>
   {% endif %}
 
-  {# ── Next Steps ── #}
-  {% if data.marketing_analysis.next_steps %}
-  <div class="card">
-    <div class="section-subtitle">Next Steps</div>
-    {% for step in data.marketing_analysis.next_steps %}
-    <div style="margin-bottom: 0.1in; {% if not loop.last %}padding-bottom: 0.1in; border-bottom: 1px solid #f0ebe6;{% endif %}">
-      <div style="font-size: 9.5pt; font-weight: 700; color: #4D1751; margin-bottom: 0.02in;">{{ step.title }}</div>
-      {% if step.description %}<div style="font-size: 8.5pt; line-height: 1.5; color: #5a5550;">{{ step.description }}</div>{% endif %}
+  {# ── Budget Scaling Projection ── #}
+  {% if data.marketing.leads > 0 and (data.marketing.first_visit_roi or 0) > 0 %}
+  {% set proj_spend = (data.marketing.ad_spend * 1.5)|round(0)|int %}
+  {% set proj_leads = (data.marketing.leads * 1.5)|round(0)|int %}
+  {% set proj_rev = (data.marketing.revenue * 1.5)|round(0)|int %}
+  <div class="card" style="margin-bottom: 0.15in; background: #FAFAF7;">
+    <div class="section-subtitle">What If: Budget Scaling Projection</div>
+    <div style="font-size: 8.5pt; color: #5a5550; margin-top: 0.06in; margin-bottom: 0.1in;">
+      Based on current funnel efficiency, here's what scaling your budget could look like:
     </div>
-    {% endfor %}
+    <table style="width: 100%; border-collapse: collapse; font-size: 8.5pt;">
+      <thead>
+        <tr style="border-bottom: 2px solid var(--purple);">
+          <th style="padding: 4px 6px; text-align: left; color: var(--purple); font-weight: 600;"></th>
+          <th style="padding: 4px 6px; text-align: center; color: var(--purple); font-weight: 600;">Current</th>
+          <th style="padding: 4px 6px; text-align: center; color: var(--purple); font-weight: 600;">+25%</th>
+          <th style="padding: 4px 6px; text-align: center; color: var(--purple); font-weight: 600;">+50%</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-bottom: 1px solid #e8e3de;">
+          <td style="padding: 5px 6px; font-weight: 500;">Ad Spend</td>
+          <td style="padding: 5px 6px; text-align: center;">{{ "${:,.0f}".format(data.marketing.ad_spend) }}</td>
+          <td style="padding: 5px 6px; text-align: center;">{{ "${:,.0f}".format(data.marketing.ad_spend * 1.25) }}</td>
+          <td style="padding: 5px 6px; text-align: center;">{{ "${:,.0f}".format(data.marketing.ad_spend * 1.5) }}</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #e8e3de;">
+          <td style="padding: 5px 6px; font-weight: 500;">Est. Leads</td>
+          <td style="padding: 5px 6px; text-align: center;">{{ "{:,}".format(data.marketing.leads) }}</td>
+          <td style="padding: 5px 6px; text-align: center; color: #2E7D32;">{{ "{:,}".format((data.marketing.leads * 1.25)|round(0)|int) }}</td>
+          <td style="padding: 5px 6px; text-align: center; color: #2E7D32;">{{ "{:,}".format((data.marketing.leads * 1.5)|round(0)|int) }}</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #e8e3de;">
+          <td style="padding: 5px 6px; font-weight: 500;">Est. Revenue</td>
+          <td style="padding: 5px 6px; text-align: center;">{{ "${:,.0f}".format(data.marketing.revenue) }}</td>
+          <td style="padding: 5px 6px; text-align: center; color: #2E7D32;">{{ "${:,.0f}".format(data.marketing.revenue * 1.25) }}</td>
+          <td style="padding: 5px 6px; text-align: center; color: #2E7D32;">{{ "${:,.0f}".format(data.marketing.revenue * 1.5) }}</td>
+        </tr>
+        <tr>
+          <td style="padding: 5px 6px; font-weight: 500;">Est. ROI</td>
+          <td style="padding: 5px 6px; text-align: center;">{{ "{:.1f}".format(data.marketing.first_visit_roi or 0) }}x</td>
+          <td style="padding: 5px 6px; text-align: center;">{{ "{:.1f}".format(data.marketing.first_visit_roi or 0) }}x</td>
+          <td style="padding: 5px 6px; text-align: center;">{{ "{:.1f}".format(data.marketing.first_visit_roi or 0) }}x</td>
+        </tr>
+      </tbody>
+    </table>
+    <div style="font-size: 7pt; color: #918A85; margin-top: 0.06in; font-style: italic;">
+      *Projections assume similar conversion rates and cost-per-lead efficiency. Actual results may vary.
+    </div>
   </div>
   {% endif %}
 
-  {% else %}
-  {# Fallback: show raw image + text recommendations #}
-  <div class="card" style="padding: 0.1in; margin-bottom: 0.15in;">
-    <img src="{{ marketing_image_uri }}" style="width: 100%; height: auto; border-radius: 6px;">
-  </div>
+  {# ── Analysis & Recommendations ── #}
   {% if data.marketing_recommendations %}
   <div class="card">
-    <div class="section-subtitle">Recommendations & Next Steps</div>
-    <div class="psm-body" style="font-size: 9pt; line-height: 1.5;">
+    <div class="section-subtitle">Analysis & Recommendations</div>
+    <div style="font-size: 9pt; line-height: 1.6; color: #5a5550;">
       {% for para in data.marketing_recommendations.split('\n\n') %}
         {% if para.strip() %}
-        <p style="margin-bottom: 0.06in;">{{ para | render_bold }}</p>
+        <p style="margin-bottom: 0.08in;">{{ para | render_bold }}</p>
         {% endif %}
       {% endfor %}
     </div>
   </div>
-  {% endif %}
   {% endif %}
 
   <div class="footer">Moxie Partners, Inc. Copyright &copy;2025. Private and confidential.</div>

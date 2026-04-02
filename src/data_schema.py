@@ -15,6 +15,12 @@ class StaffMember:
     retail_revenue: float
     gross_revenue: float = 0.0  # gross revenue (before adjustments)
     hours_worked: Optional[float] = None  # appointment hours for the month
+    # MoM changes (per-provider)
+    revenue_mom_pct: Optional[float] = None
+    aov_mom_pct: Optional[float] = None
+    utilization_mom_pct: Optional[float] = None
+    rebooking_mom_pct: Optional[float] = None
+    rev_per_hour_mom_pct: Optional[float] = None
 
     @property
     def rev_per_hour(self) -> Optional[float]:
@@ -26,6 +32,19 @@ class StaffMember:
     def initials(self) -> str:
         parts = self.name.split()
         return "".join(p[0].upper() for p in parts if p)[:2]
+
+
+@dataclass
+class MembershipType:
+    name: str
+    active: int = 0
+    new: int = 0
+    churned: int = 0
+    mrr: float = 0.0
+
+    @property
+    def net_new(self) -> int:
+        return self.new - self.churned
 
 
 @dataclass
@@ -129,11 +148,22 @@ class MBRData:
     rebooking_rate: float = 0.0
     retention_180d: float = 0.0
 
+    # MoM changes for gauges
+    utilization_mom_pct: Optional[float] = None
+    rebooking_mom_pct: Optional[float] = None
+    retention_mom_pct: Optional[float] = None
+    new_to_second_visit_mom_pct: Optional[float] = None
+
+    # Additional metrics
+    avg_patient_ltv: Optional[float] = None
+    new_to_second_visit_rate: Optional[float] = None  # decimal e.g. 0.45 = 45%
+
     # Tile 3 - Memberships
     memberships_active: int = 0
     memberships_new: int = 0
     memberships_cancelled: int = 0
     mrr: float = 0.0
+    membership_types: list[MembershipType] = field(default_factory=list)
 
     # Tile 4 - Client Mix
     new_clients: int = 0

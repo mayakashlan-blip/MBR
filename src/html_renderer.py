@@ -38,7 +38,7 @@ def _render_bold(text):
     return re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', text)
 
 
-def _gauge_params(pct: float, label: str) -> dict:
+def _gauge_params(pct: float, label: str, mom_pct: float = None) -> dict:
     """Compute SVG gauge parameters."""
     circumference = 2 * math.pi * 40  # r=40
     capped = min(max(pct, 0), 1.0)
@@ -67,7 +67,7 @@ def _gauge_params(pct: float, label: str) -> dict:
             css_class = "gauge-opportunity"
         else:
             css_class = "gauge-warning"
-    elif "Retention" in label:
+    elif "Retention" in label or "2nd Visit" in label:
         if pct >= 0.30:
             css_class = "gauge-strength"
         elif pct >= 0.15:
@@ -83,6 +83,7 @@ def _gauge_params(pct: float, label: str) -> dict:
         "circ": f"{circumference:.2f}",
         "offset": f"{offset:.2f}",
         "css_class": css_class,
+        "mom_pct": mom_pct,
     }
 
 
@@ -156,9 +157,9 @@ def render_html(data: MBRData, brand_bank_path: str = None,
     gauges = [
         _gauge_params(data.pct_net_revenue_goal, "% of Net Revenue Goal"),
         _gauge_params(data.pct_aov_goal, "% of AOV Goal"),
-        _gauge_params(data.utilization_rate, "Utilization"),
-        _gauge_params(data.rebooking_rate, "Rebooking Rate"),
-        _gauge_params(data.retention_180d, "Retention (180D)"),
+        _gauge_params(data.utilization_rate, "Utilization", data.utilization_mom_pct),
+        _gauge_params(data.rebooking_rate, "Rebooking Rate", data.rebooking_mom_pct),
+        _gauge_params(data.retention_180d, "Retention (180D)", data.retention_mom_pct),
     ]
 
     # Build revenue items

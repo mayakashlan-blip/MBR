@@ -61,6 +61,10 @@ body {
   break-after: auto;
 }
 
+.page.page-flow {
+  height: auto;
+}
+
 @media print {
   .page {
     page-break-after: always;
@@ -264,7 +268,7 @@ body {
 .gauges-row {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 0.08in;
+  gap: 0.1in;
   margin-bottom: 0.18in;
 }
 
@@ -471,7 +475,7 @@ body {
 /* Adjustments cards */
 .adjustments-row {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 0.1in;
   margin-top: 0.12in;
 }
@@ -573,6 +577,17 @@ body {
   font-size: 10pt;
   font-weight: 700;
   color: var(--purple);
+  line-height: 1.2;
+}
+
+.sm-mom {
+  font-size: 5.5pt;
+  font-weight: 600;
+  color: var(--muted-text);
+  letter-spacing: 0.02em;
+}
+.sm-mom.positive { color: #2E7D32; }
+.sm-mom.negative { color: #B53631;
 }
 
 /* Compact staff when many providers */
@@ -580,7 +595,7 @@ body {
 .staff-grid.compact .staff-avatar { width: 0.25in; height: 0.25in; font-size: 7.5pt; }
 .staff-grid.compact .staff-name { font-size: 8pt; }
 .staff-grid.compact .staff-revenue { font-size: 7pt; }
-.staff-grid.compact .staff-metrics { grid-template-columns: repeat(4, 1fr); }
+.staff-grid.compact .staff-metrics { grid-template-columns: repeat(5, 1fr); }
 .staff-grid.compact .staff-metric .sm-value { font-size: 8.5pt; }
 .staff-grid.compact .staff-metric .sm-label { font-size: 5pt; }
 

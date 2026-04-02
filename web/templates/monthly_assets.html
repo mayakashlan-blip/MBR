@@ -1,0 +1,432 @@
+{% extends "layout.html" %}
+{% block title %}MBR Generator — Monthly Assets{% endblock %}
+
+{% block content %}
+<style>
+  .saved-assets-toggle {
+    display: flex; align-items: center; justify-content: space-between;
+    cursor: pointer; padding: 14px 18px; background: #F7F4F0;
+    border: 1px solid #e8e0d8; border-radius: 8px; user-select: none;
+  }
+  .saved-assets-toggle:hover { background: #f0ebe6; }
+  .saved-assets-toggle h3 { margin: 0; font-size: 15px; }
+  .saved-assets-toggle .arrow { font-size: 12px; color: #8C8580; transition: transform 0.2s; }
+  .saved-assets-toggle.open .arrow { transform: rotate(180deg); }
+  .saved-assets-body { display: none; padding: 12px 0 0 0; }
+  .saved-assets-body.open { display: block; }
+  .saved-month-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px; border: 1px solid #e8e0d8; border-radius: 8px;
+    margin-bottom: 8px; background: white;
+  }
+  .saved-month-label { font-weight: 600; font-size: 14px; }
+  .saved-month-details { font-size: 12px; color: #8C8580; margin-top: 2px; }
+  .saved-month-actions { display: flex; gap: 6px; }
+  .btn-delete {
+    background: none; border: 1px solid #e0d0d0; color: #B53631; border-radius: 6px;
+    padding: 4px 10px; font-size: 11px; cursor: pointer; font-weight: 500;
+  }
+  .btn-delete:hover { background: #FDE8E7; border-color: #B53631; }
+  .empty-saved { text-align: center; padding: 20px; color: #8C8580; font-size: 13px; }
+</style>
+
+<div class="container">
+  <div class="hero">
+    <h1>Monthly Assets</h1>
+    <p>Upload Launches and Brand Bank once per month — they'll be included in every MBR for that period.</p>
+  </div>
+
+  <div class="card">
+    <div class="form-row" style="margin-bottom: 20px;">
+      <div class="form-group">
+        <label for="asset-month">Month</label>
+        <select id="asset-month" onchange="loadMonthlyAssets()">
+          <option value="1">January</option>
+          <option value="2">February</option>
+          <option value="3">March</option>
+          <option value="4">April</option>
+          <option value="5">May</option>
+          <option value="6">June</option>
+          <option value="7">July</option>
+          <option value="8">August</option>
+          <option value="9">September</option>
+          <option value="10">October</option>
+          <option value="11">November</option>
+          <option value="12">December</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="asset-year">Year</label>
+        <select id="asset-year" onchange="loadMonthlyAssets()">
+          <option value="2026" selected>2026</option>
+          <option value="2025">2025</option>
+        </select>
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+      {# Launches #}
+      <div style="border: 1px solid #e8e0d8; border-radius: 8px; padding: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <label style="font-weight: 600; font-size: 14px;">Moxie Suite Launches</label>
+          <span id="launches-count" style="font-size: 12px; color: #8C8580;"></span>
+        </div>
+        <div id="launches-saved-file" style="display:none; font-size: 12px; color: #2E7D32; background: #E8F5E9; border-radius: 6px; padding: 8px 12px; margin-bottom: 10px;">
+          <span style="font-weight: 600;">Saved file:</span> <span id="launches-filename"></span>
+        </div>
+        <div style="font-size: 12px; color: #8C8580; margin-bottom: 10px;">
+          Upload as <strong>PDF</strong> to preserve hyperlinks.
+        </div>
+        <div class="upload-zone" id="monthly-launches-zone" style="margin-bottom: 10px;">
+          <input type="file" accept="image/*,.pdf" onchange="handleMonthlyLaunchesUpload(this)">
+          <div class="upload-text" id="monthly-launches-text">
+            <strong>Click to upload</strong> launches file<br>PDF (recommended) or image
+          </div>
+        </div>
+        <div id="monthly-launches-status" style="font-size: 12px; color: #8C8580;"></div>
+        <div id="monthly-launches-list" style="margin-top: 10px;"></div>
+        <button class="btn btn-secondary" onclick="addMonthlyLaunch()" id="add-monthly-launch-btn" style="display:none; margin-top: 8px; font-size: 12px; padding: 5px 12px;">+ Add Feature</button>
+      </div>
+
+      {# Brand Bank #}
+      <div style="border: 1px solid #e8e0d8; border-radius: 8px; padding: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <label style="font-weight: 600; font-size: 14px;">Brand Bank</label>
+          <span id="brand-bank-count" style="font-size: 12px; color: #8C8580;"></span>
+        </div>
+        <div id="bb-saved-file" style="display:none; font-size: 12px; color: #2E7D32; background: #E8F5E9; border-radius: 6px; padding: 8px 12px; margin-bottom: 10px;">
+          <span style="font-weight: 600;">Saved file:</span> <span id="bb-filename"></span>
+        </div>
+        <div class="upload-zone" id="monthly-bb-zone" style="margin-bottom: 10px;">
+          <input type="file" accept="image/*,.pdf" onchange="handleMonthlyBBUpload(this)">
+          <div class="upload-text" id="monthly-bb-text">
+            <strong>Click to upload</strong> brand bank image<br>PNG, JPG, or PDF
+          </div>
+        </div>
+        <div id="monthly-bb-status" style="font-size: 12px; color: #8C8580;"></div>
+        <div id="monthly-bb-list" style="margin-top: 10px;"></div>
+        <button class="btn btn-secondary" onclick="addMonthlyBB()" id="add-monthly-bb-btn" style="display:none; margin-top: 8px; font-size: 12px; padding: 5px 12px;">+ Add Asset</button>
+      </div>
+    </div>
+
+    <div style="margin-top: 16px; display: flex; align-items: center; gap: 12px;">
+      <button class="btn btn-primary" onclick="saveMonthlyAssets()" id="save-assets-btn">
+        Save Monthly Assets
+      </button>
+      <div id="assets-status" style="font-size: 13px; color: #8C8580;"></div>
+    </div>
+  </div>
+
+  {# ── Saved Assets Dropdown ── #}
+  <div class="card" style="margin-top: 24px;">
+    <div class="saved-assets-toggle" id="saved-toggle" onclick="toggleSavedAssets()">
+      <h3>Saved Assets <span id="saved-total-badge" style="font-size: 12px; font-weight: 400; color: #8C8580;"></span></h3>
+      <span class="arrow">&#9660;</span>
+    </div>
+    <div class="saved-assets-body" id="saved-body">
+      <div id="saved-list"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+function getAssetMonth() { return document.getElementById('asset-month').value; }
+function getAssetYear() { return document.getElementById('asset-year').value; }
+
+function loadMonthlyAssets() {
+  const month = getAssetMonth(), year = getAssetYear();
+  fetch(`/api/monthly-assets?month=${month}&year=${year}`)
+    .then(r => r.json())
+    .then(data => {
+      renderMonthlyLaunches(data.launches || []);
+      renderMonthlyBB(data.brand_bank_items || []);
+
+      if (data.launches_file) {
+        document.getElementById('launches-saved-file').style.display = 'block';
+        document.getElementById('launches-filename').textContent = data.launches_file;
+        document.getElementById('monthly-launches-text').innerHTML = '<strong>' + esc(data.launches_file) + '</strong> (saved)';
+      } else {
+        document.getElementById('launches-saved-file').style.display = 'none';
+        document.getElementById('monthly-launches-text').innerHTML = '<strong>Click to upload</strong> launches file<br>PDF (recommended) or image';
+      }
+
+      if (data.brand_bank_file) {
+        document.getElementById('bb-saved-file').style.display = 'block';
+        document.getElementById('bb-filename').textContent = data.brand_bank_file;
+        document.getElementById('monthly-bb-text').innerHTML = '<strong>' + esc(data.brand_bank_file) + '</strong> (saved)';
+      } else {
+        document.getElementById('bb-saved-file').style.display = 'none';
+        document.getElementById('monthly-bb-text').innerHTML = '<strong>Click to upload</strong> brand bank image<br>PNG, JPG, or PDF';
+      }
+    });
+}
+
+function renderMonthlyLaunches(launches) {
+  const list = document.getElementById('monthly-launches-list');
+  document.getElementById('launches-count').textContent = launches.length ? launches.length + ' features' : '';
+  document.getElementById('add-monthly-launch-btn').style.display = launches.length ? 'inline-block' : 'none';
+  if (!launches.length) { list.innerHTML = ''; return; }
+  list.innerHTML = launches.map((l, i) => `
+    <div class="monthly-item" data-idx="${i}" style="border:1px solid #e8e0d8; border-radius:6px; padding:8px; margin-bottom:6px; position:relative;">
+      <button onclick="this.parentElement.remove();" style="position:absolute; top:4px; right:6px; background:none; border:none; color:#999; cursor:pointer; font-size:14px;">&times;</button>
+      <input type="text" class="ml-title" value="${esc(l.title)}" placeholder="Feature name" style="width:calc(100% - 24px); font-size:12px; font-weight:600; border:1px solid #d2cbc4; border-radius:4px; padding:4px 6px; margin-bottom:4px;">
+      <input type="text" class="ml-category" value="${esc(l.category||'')}" placeholder="Category" style="width:100%; font-size:11px; border:1px solid #d2cbc4; border-radius:4px; padding:3px 6px; margin-bottom:4px;">
+      <textarea class="ml-desc" rows="2" placeholder="Description..." style="width:100%; font-size:11px; border:1px solid #d2cbc4; border-radius:4px; padding:4px 6px; resize:vertical;">${esc(l.description||'')}</textarea>
+      <input type="text" class="ml-url" value="${esc(l.url||'')}" placeholder="URL (optional)" style="width:100%; font-size:11px; border:1px solid #d2cbc4; border-radius:4px; padding:3px 6px; margin-top:4px; color:#666;">
+    </div>
+  `).join('');
+}
+
+function renderMonthlyBB(items) {
+  const list = document.getElementById('monthly-bb-list');
+  document.getElementById('brand-bank-count').textContent = items.length ? items.length + ' assets' : '';
+  document.getElementById('add-monthly-bb-btn').style.display = items.length ? 'inline-block' : 'none';
+  if (!items.length) { list.innerHTML = ''; return; }
+  list.innerHTML = items.map((b, i) => `
+    <div class="monthly-item" data-idx="${i}" style="border:1px solid #e8e0d8; border-radius:6px; padding:8px; margin-bottom:6px; position:relative;">
+      <button onclick="this.parentElement.remove();" style="position:absolute; top:4px; right:6px; background:none; border:none; color:#999; cursor:pointer; font-size:14px;">&times;</button>
+      <div style="display:flex; gap:6px;">
+        <input type="text" class="mb-title" value="${esc(b.title)}" placeholder="Asset title" style="flex:2; font-size:12px; border:1px solid #d2cbc4; border-radius:4px; padding:4px 6px;">
+        <input type="text" class="mb-category" value="${esc(b.category||'')}" placeholder="Type" style="flex:1; font-size:11px; border:1px solid #d2cbc4; border-radius:4px; padding:4px 6px;">
+      </div>
+    </div>
+  `).join('');
+}
+
+function esc(s) { return (s||'').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
+
+function addMonthlyLaunch() {
+  const list = document.getElementById('monthly-launches-list');
+  const div = document.createElement('div');
+  div.className = 'monthly-item';
+  div.style = 'border:1px solid #e8e0d8; border-radius:6px; padding:8px; margin-bottom:6px; position:relative;';
+  div.innerHTML = `
+    <button onclick="this.parentElement.remove();" style="position:absolute; top:4px; right:6px; background:none; border:none; color:#999; cursor:pointer; font-size:14px;">&times;</button>
+    <input type="text" class="ml-title" value="" placeholder="Feature name" style="width:calc(100% - 24px); font-size:12px; font-weight:600; border:1px solid #d2cbc4; border-radius:4px; padding:4px 6px; margin-bottom:4px;">
+    <input type="text" class="ml-category" value="" placeholder="Category" style="width:100%; font-size:11px; border:1px solid #d2cbc4; border-radius:4px; padding:3px 6px; margin-bottom:4px;">
+    <textarea class="ml-desc" rows="2" placeholder="Description..." style="width:100%; font-size:11px; border:1px solid #d2cbc4; border-radius:4px; padding:4px 6px; resize:vertical;"></textarea>
+    <input type="text" class="ml-url" value="" placeholder="URL (optional)" style="width:100%; font-size:11px; border:1px solid #d2cbc4; border-radius:4px; padding:3px 6px; margin-top:4px; color:#666;">
+  `;
+  list.appendChild(div);
+}
+
+function addMonthlyBB() {
+  const list = document.getElementById('monthly-bb-list');
+  const div = document.createElement('div');
+  div.className = 'monthly-item';
+  div.style = 'border:1px solid #e8e0d8; border-radius:6px; padding:8px; margin-bottom:6px; position:relative;';
+  div.innerHTML = `
+    <button onclick="this.parentElement.remove();" style="position:absolute; top:4px; right:6px; background:none; border:none; color:#999; cursor:pointer; font-size:14px;">&times;</button>
+    <div style="display:flex; gap:6px;">
+      <input type="text" class="mb-title" value="" placeholder="Asset title" style="flex:2; font-size:12px; border:1px solid #d2cbc4; border-radius:4px; padding:4px 6px;">
+      <input type="text" class="mb-category" value="" placeholder="Type" style="flex:1; font-size:11px; border:1px solid #d2cbc4; border-radius:4px; padding:4px 6px;">
+    </div>
+  `;
+  list.appendChild(div);
+}
+
+function collectMonthlyLaunches() {
+  const items = [];
+  document.querySelectorAll('#monthly-launches-list .monthly-item').forEach(el => {
+    const title = el.querySelector('.ml-title')?.value?.trim();
+    if (title) {
+      items.push({
+        title: title,
+        category: el.querySelector('.ml-category')?.value?.trim() || '',
+        description: el.querySelector('.ml-desc')?.value?.trim() || '',
+        url: el.querySelector('.ml-url')?.value?.trim() || '',
+      });
+    }
+  });
+  return items;
+}
+
+function collectMonthlyBB() {
+  const items = [];
+  document.querySelectorAll('#monthly-bb-list .monthly-item').forEach(el => {
+    const title = el.querySelector('.mb-title')?.value?.trim();
+    if (title) {
+      items.push({
+        title: title,
+        category: el.querySelector('.mb-category')?.value?.trim() || '',
+      });
+    }
+  });
+  return items;
+}
+
+function saveMonthlyAssets() {
+  const btn = document.getElementById('save-assets-btn');
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+
+  fetch('/api/monthly-assets', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      month: parseInt(getAssetMonth()),
+      year: parseInt(getAssetYear()),
+      launches: collectMonthlyLaunches(),
+      brand_bank_items: collectMonthlyBB(),
+    }),
+  })
+  .then(r => r.json())
+  .then(resp => {
+    btn.disabled = false;
+    if (resp.ok) {
+      btn.textContent = 'Saved!';
+      document.getElementById('assets-status').textContent = 'Monthly assets saved. All new MBRs for this month will include these.';
+      setTimeout(() => { btn.textContent = 'Save Monthly Assets'; }, 2000);
+      setTimeout(() => { document.getElementById('assets-status').textContent = ''; }, 5000);
+      loadSavedAssets();
+    } else {
+      btn.textContent = 'Save Monthly Assets';
+      document.getElementById('assets-status').textContent = 'Save failed: ' + (resp.error || 'unknown');
+    }
+  })
+  .catch(err => {
+    btn.disabled = false;
+    btn.textContent = 'Save Monthly Assets';
+    document.getElementById('assets-status').textContent = 'Save failed: ' + err.message;
+  });
+}
+
+function handleMonthlyLaunchesUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  const formData = new FormData();
+  formData.append('launches_image', file);
+  formData.append('month', getAssetMonth());
+  formData.append('year', getAssetYear());
+
+  document.getElementById('monthly-launches-status').textContent = 'Uploading & analyzing...';
+  document.getElementById('monthly-launches-text').innerHTML = '<strong>' + file.name + '</strong>';
+
+  fetch('/api/upload-monthly-launches', { method: 'POST', body: formData })
+    .then(r => r.json())
+    .then(resp => {
+      if (resp.ok) {
+        renderMonthlyLaunches(resp.launches || []);
+        document.getElementById('launches-saved-file').style.display = 'block';
+        document.getElementById('launches-filename').textContent = resp.filename || file.name;
+        document.getElementById('monthly-launches-text').innerHTML = '<strong>' + esc(file.name) + '</strong> (saved)';
+        document.getElementById('monthly-launches-status').textContent = (resp.launches?.length || 0) + ' features extracted & saved';
+        setTimeout(() => { document.getElementById('monthly-launches-status').textContent = ''; }, 4000);
+        loadSavedAssets();
+      } else {
+        document.getElementById('monthly-launches-status').textContent = 'Error: ' + resp.error;
+      }
+    })
+    .catch(err => {
+      document.getElementById('monthly-launches-status').textContent = 'Upload failed: ' + err.message;
+    });
+}
+
+function handleMonthlyBBUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  const formData = new FormData();
+  formData.append('brand_bank', file);
+  formData.append('month', getAssetMonth());
+  formData.append('year', getAssetYear());
+
+  document.getElementById('monthly-bb-status').textContent = 'Uploading & analyzing...';
+  document.getElementById('monthly-bb-text').innerHTML = '<strong>' + file.name + '</strong>';
+
+  fetch('/api/upload-monthly-brand-bank', { method: 'POST', body: formData })
+    .then(r => r.json())
+    .then(resp => {
+      if (resp.ok) {
+        renderMonthlyBB(resp.brand_bank_items || []);
+        document.getElementById('bb-saved-file').style.display = 'block';
+        document.getElementById('bb-filename').textContent = resp.filename || file.name;
+        document.getElementById('monthly-bb-text').innerHTML = '<strong>' + esc(file.name) + '</strong> (saved)';
+        document.getElementById('monthly-bb-status').textContent = (resp.brand_bank_items?.length || 0) + ' assets extracted & saved';
+        setTimeout(() => { document.getElementById('monthly-bb-status').textContent = ''; }, 4000);
+        loadSavedAssets();
+      } else {
+        document.getElementById('monthly-bb-status').textContent = 'Error: ' + resp.error;
+      }
+    })
+    .catch(err => {
+      document.getElementById('monthly-bb-status').textContent = 'Upload failed: ' + err.message;
+    });
+}
+
+// ── Saved Assets Dropdown ──
+
+function toggleSavedAssets() {
+  const toggle = document.getElementById('saved-toggle');
+  const body = document.getElementById('saved-body');
+  toggle.classList.toggle('open');
+  body.classList.toggle('open');
+}
+
+function loadSavedAssets() {
+  fetch('/api/monthly-assets/all')
+    .then(r => r.json())
+    .then(data => {
+      const months = data.months || [];
+      const badge = document.getElementById('saved-total-badge');
+      badge.textContent = months.length ? `(${months.length} month${months.length > 1 ? 's' : ''})` : '';
+
+      const list = document.getElementById('saved-list');
+      if (!months.length) {
+        list.innerHTML = '<div class="empty-saved">No saved assets yet. Upload launches or brand bank above to get started.</div>';
+        return;
+      }
+
+      list.innerHTML = months.map(m => {
+        const details = [];
+        if (m.launches_count) details.push(`${m.launches_count} launch${m.launches_count > 1 ? 'es' : ''}${m.launches_file ? ' (' + esc(m.launches_file) + ')' : ''}`);
+        if (m.brand_bank_count) details.push(`${m.brand_bank_count} brand bank asset${m.brand_bank_count > 1 ? 's' : ''}${m.brand_bank_file ? ' (' + esc(m.brand_bank_file) + ')' : ''}`);
+
+        return `
+          <div class="saved-month-row">
+            <div>
+              <div class="saved-month-label">${esc(m.label)}</div>
+              <div class="saved-month-details">${details.join(' &middot; ')}</div>
+            </div>
+            <div class="saved-month-actions">
+              ${m.launches_count ? `<button class="btn-delete" onclick="deleteAsset(${m.month}, ${m.year}, 'launches', this)">Delete Launches</button>` : ''}
+              ${m.brand_bank_count ? `<button class="btn-delete" onclick="deleteAsset(${m.month}, ${m.year}, 'brand_bank', this)">Delete Brand Bank</button>` : ''}
+              <button class="btn-delete" onclick="deleteAsset(${m.month}, ${m.year}, 'all', this)" style="border-color:#B53631;">Delete All</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    });
+}
+
+function deleteAsset(month, year, type, btn) {
+  const typeLabel = type === 'all' ? 'all assets' : type === 'launches' ? 'launches' : 'brand bank';
+  if (!confirm(`Delete ${typeLabel} for this month?`)) return;
+
+  btn.disabled = true;
+  btn.textContent = 'Deleting...';
+
+  fetch('/api/monthly-assets', {
+    method: 'DELETE',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ month, year, type }),
+  })
+  .then(r => r.json())
+  .then(resp => {
+    if (resp.ok) {
+      loadSavedAssets();
+      // Refresh the editor if we deleted the currently selected month
+      if (month == getAssetMonth() && year == getAssetYear()) {
+        loadMonthlyAssets();
+      }
+    }
+  })
+  .catch(() => { btn.disabled = false; btn.textContent = 'Retry'; });
+}
+
+// Load on page init
+loadMonthlyAssets();
+loadSavedAssets();
+</script>
+{% endblock %}

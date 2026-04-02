@@ -21,7 +21,7 @@ def _build_metrics_context(data: MBRData) -> str:
     membership_churn = (data.memberships_cancelled / data.memberships_active * 100
                         if data.memberships_active > 0 else 0)
 
-    return f"""Practice: {data.practice_name}
+    context = f"""Practice: {data.practice_name}
 Period: {data.month_name} {data.year}
 
 KEY METRICS:
@@ -72,6 +72,38 @@ BENCHMARKS FOR ASSESSMENT:
 | Retail-to-Service Ratio | <5% | 5-19% | 20%+ |
 | Membership Churn | >10% | 5-10% | <5% |
 """
+
+    # Append marketing context if available
+    if data.marketing and data.marketing.ad_spend > 0:
+        mkt = data.marketing
+        cpl = mkt.ad_spend / mkt.leads if mkt.leads > 0 else 0
+        ltb = mkt.booked / mkt.leads * 100 if mkt.leads > 0 else 0
+        btc = mkt.completed / mkt.booked * 100 if mkt.booked > 0 else 0
+        aov = mkt.revenue / mkt.completed if mkt.completed > 0 else 0
+        roi = mkt.first_visit_roi or 0
+
+        context += f"""
+MARKETING PERFORMANCE:
+- Ad Spend: ${mkt.ad_spend:,.0f}
+- New Patient Leads: {mkt.leads}
+- Cost per Lead: ${cpl:,.0f}
+- Appointments Booked: {mkt.booked}
+- Lead-to-Booking Rate: {ltb:.1f}% (Goal: 15%)
+- Appointments Completed: {mkt.completed}
+- Booking-to-Completion Rate: {btc:.1f}%
+- New Patient Revenue (attributed to marketing): ${mkt.revenue:,.0f}
+- First-Visit AOV: ${aov:,.0f}
+- First-Visit ROI: {roi:.1f}x (Goal: 3x)
+
+MARKETING BENCHMARKS:
+| Metric | Below Target | On Track | Excellent |
+| ROI | <2x | 2-3x | 3x+ |
+| Lead-to-Booking Rate | <10% | 10-15% | 15%+ |
+| Cost per Lead | >$30 | $15-30 | <$15 |
+| First-Visit AOV | <$300 | $300-575 | $575+ |
+"""
+
+    return context
 
 
 def generate_narratives(data: MBRData, api_key: str = None):
@@ -187,6 +219,10 @@ Each paragraph should be separated by a blank line.
     )
     data.psm_feedback = psm_response.content[0].text.strip()
 
+    # Generate marketing recommendations if marketing data exists
+    if data.marketing and data.marketing.ad_spend > 0:
+        _generate_marketing_recommendations(data, client, context)
+
     return data
 
 
@@ -260,6 +296,11 @@ def _generate_rule_based(data: MBRData):
         )
 
     data.psm_feedback = "\n\n".join(paragraphs)
+
+    # Marketing recommendations (rule-based)
+    if data.marketing and data.marketing.ad_spend > 0:
+        _generate_rule_based_marketing(data)
+
     return data
 
 
@@ -372,3 +413,138 @@ def _generate_rule_based_assessments(data: MBRData):
         })
 
     data.assessments = assessments
+
+
+def _generate_marketing_recommendations(data: MBRData, client=None, context: str = ""):
+    """Generate marketing analysis and recommendations. Uses AI if client provided, else rule-based."""
+    if client:
+        try:
+            mkt_response = client.messages.create(
+                model="claude-sonnet-4-20250514",
+                max_tokens=1000,
+                messages=[{
+                    "role": "user",
+                    "content": f"""You are a marketing strategist analyzing a medspa's paid advertising performance for their Monthly Business Review.
+
+Write a concise marketing analysis with 3-4 paragraphs. Use **bold** for key phrases.
+
+Structure:
+1. **Performance summary** — How is the campaign doing? Reference the ROI, spend, leads, and revenue. Compare to the 3x ROI goal.
+2. **Funnel analysis** — Where is the biggest drop-off? (leads→booked, booked→completed). Quantify the gap and what closing it would mean in revenue.
+3. **Budget scaling insight** — Based on current efficiency, project what a 25% or 50% budget increase would yield in leads and revenue. Be specific with numbers.
+4. **Actionable recommendations** — 2-3 specific things the practice can do to improve. Examples: faster lead follow-up, online booking links, offer optimization, retargeting. Tie each to a projected impact.
+
+TONE: Data-driven but accessible. Like a smart marketing consultant who explains things clearly. Be specific with dollar amounts and percentages. Do NOT use alarming language — frame everything as growth opportunities.
+
+Each paragraph should be separated by a blank line.
+
+{context}"""
+                }]
+            )
+            data.marketing_recommendations = mkt_response.content[0].text.strip()
+            return
+        except Exception as e:
+            print(f"  Warning: Marketing AI generation failed: {e}")
+
+    # Rule-based fallback
+    _generate_rule_based_marketing(data)
+
+
+def _generate_rule_based_marketing(data: MBRData):
+    """Generate marketing recommendations from rules."""
+    mkt = data.marketing
+    if not mkt or mkt.ad_spend <= 0:
+        return
+
+    roi = mkt.first_visit_roi or 0
+    leads = mkt.leads
+    booked = mkt.booked
+    completed = mkt.completed
+    revenue = mkt.revenue
+    spend = mkt.ad_spend
+    cpl = spend / leads if leads > 0 else 0
+    ltb = booked / leads if leads > 0 else 0
+    btc = completed / booked if booked > 0 else 0
+    aov = revenue / completed if completed > 0 else 0
+
+    paras = []
+
+    # Performance summary
+    if roi >= 3:
+        paras.append(
+            f"**Campaign ROI of {roi:.1f}x exceeds the 3x target** — a strong result. "
+            f"The practice invested ${spend:,.0f} in ad spend and generated ${revenue:,.0f} in new patient revenue "
+            f"from {completed} completed first visits. At ${cpl:,.0f} per lead, the acquisition cost is efficient "
+            f"and the funnel is converting effectively."
+        )
+    elif roi >= 2:
+        paras.append(
+            f"**Campaign ROI of {roi:.1f}x is approaching the 3x goal.** "
+            f"From ${spend:,.0f} in ad spend, the practice generated {leads} leads and ${revenue:,.0f} in attributed revenue. "
+            f"The foundation is solid — the focus should be on converting more leads to booked appointments "
+            f"and maximizing first-visit value to close the gap to 3x."
+        )
+    else:
+        gap_rev = spend * 3 - revenue
+        paras.append(
+            f"**Campaign ROI of {roi:.1f}x is below the 3x target**, with ${revenue:,.0f} in revenue against ${spend:,.0f} in spend. "
+            f"Closing the gap to 3x requires an additional ~${gap_rev:,.0f} in attributed revenue. "
+            f"The biggest lever is improving funnel conversion — getting more leads to show up and spend more on their first visit."
+        )
+
+    # Funnel analysis
+    if leads > 0 and ltb < 0.15:
+        target_booked = round(leads * 0.15)
+        addl_booked = target_booked - booked
+        addl_rev = round(addl_booked * btc * aov) if btc > 0 and aov > 0 else 0
+        paras.append(
+            f"**The biggest opportunity is lead-to-booking conversion**, currently at {ltb*100:.0f}% vs. the 15% benchmark. "
+            f"Of {leads} leads generated, only {booked} booked an appointment. "
+            f"Reaching 15% would mean {target_booked} bookings (+{addl_booked}), which at current completion rates "
+            f"could add approximately ${addl_rev:,.0f} in new patient revenue. "
+            f"Speed of follow-up is critical — leads contacted within 5 minutes are 10x more likely to book."
+        )
+    elif booked > 0 and btc < 0.70:
+        target_completed = round(booked * 0.70)
+        addl_completed = target_completed - completed
+        addl_rev = round(addl_completed * aov) if aov > 0 else 0
+        paras.append(
+            f"**The booking-to-completion rate of {btc*100:.0f}% has room to improve.** "
+            f"Of {booked} booked appointments, {completed} were completed — meaning {booked - completed} no-showed or cancelled. "
+            f"Reducing no-shows to a 70% completion rate could add {addl_completed} more first visits "
+            f"and approximately ${addl_rev:,.0f} in revenue. "
+            f"Consider appointment reminders, deposit requirements, or same-week confirmation calls."
+        )
+    elif leads > 0:
+        paras.append(
+            f"**The marketing funnel is converting well** — {ltb*100:.0f}% of leads book and "
+            f"{btc*100:.0f}% of bookings complete. Focus on maintaining this efficiency while scaling volume."
+        )
+
+    # Budget scaling
+    if roi > 0 and leads > 0:
+        proj_50_spend = spend * 1.5
+        proj_50_leads = round(leads * 1.5)
+        proj_50_rev = round(revenue * 1.5)
+        paras.append(
+            f"**Scaling opportunity:** At current efficiency (${cpl:,.0f}/lead, {roi:.1f}x ROI), "
+            f"increasing budget by 50% to ${proj_50_spend:,.0f}/month could generate approximately "
+            f"{proj_50_leads} leads and ${proj_50_rev:,.0f} in new patient revenue. "
+            f"A conservative first step would be a 25% increase to ${spend * 1.25:,.0f}, "
+            f"yielding an estimated {round(leads * 1.25)} leads and ${round(revenue * 1.25):,.0f} in revenue."
+        )
+
+    # AOV insight
+    if aov > 0 and aov < 400:
+        target_aov = 500
+        addl_per_patient = target_aov - aov
+        total_addl = round(addl_per_patient * completed)
+        paras.append(
+            f"**First-visit AOV of ${aov:,.0f} can be improved.** "
+            f"If each new patient spent ${target_aov:,.0f} instead of ${aov:,.0f} on their first visit "
+            f"(+${addl_per_patient:,.0f} per patient), that's an additional ${total_addl:,.0f} in revenue "
+            f"from the same ad spend. Consider curated new-patient packages or bundled treatment offers "
+            f"to increase first-visit spend."
+        )
+
+    data.marketing_recommendations = "\n\n".join(paras)

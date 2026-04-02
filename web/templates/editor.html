@@ -351,38 +351,42 @@
         <span class="section-toggle collapsed" id="marketing-toggle">&#9662;</span>
       </div>
       <div class="section-body hidden" id="marketing-body">
-        <div style="font-size: 11px; color: #8C8580; margin-bottom: 8px;">
-          Upload a screenshot of the marketing report. AI will analyze it and generate recommendations.
+        <div style="font-size: 11px; color: #8C8580; margin-bottom: 10px;">
+          Enter the practice's marketing campaign data. ROI, conversion rates, and recommendations will be auto-calculated.
         </div>
-        <div class="upload-zone" id="marketing-zone">
-          <input type="file" accept="image/*,.pdf" onchange="handleMarketingUpload(this)">
-          <div class="upload-text" id="marketing-text">
-            <strong>Click to upload</strong> marketing screenshot<br>
-            PNG, JPG, or PDF
+        <div class="mkt-grid" style="grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 10px;">
+          <div>
+            <label style="font-size:10px;">Ad Spend ($)</label>
+            <input type="number" id="mkt-spend" value="{{ data.marketing.ad_spend if data.marketing else '' }}" placeholder="0" oninput="updateMarketingCalcs(); debounceSave();" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:5px 8px; font-size:11px;">
+          </div>
+          <div>
+            <label style="font-size:10px;">New Patient Leads</label>
+            <input type="number" id="mkt-leads" value="{{ data.marketing.leads if data.marketing else '' }}" placeholder="0" oninput="updateMarketingCalcs(); debounceSave();" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:5px 8px; font-size:11px;">
+          </div>
+          <div>
+            <label style="font-size:10px;">Appts Booked</label>
+            <input type="number" id="mkt-booked" value="{{ data.marketing.booked if data.marketing else '' }}" placeholder="0" oninput="updateMarketingCalcs(); debounceSave();" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:5px 8px; font-size:11px;">
+          </div>
+          <div>
+            <label style="font-size:10px;">Appts Completed</label>
+            <input type="number" id="mkt-completed" value="{{ data.marketing.completed if data.marketing else '' }}" placeholder="0" oninput="updateMarketingCalcs(); debounceSave();" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:5px 8px; font-size:11px;">
+          </div>
+          <div>
+            <label style="font-size:10px;">New Patient Revenue ($)</label>
+            <input type="number" id="mkt-revenue" value="{{ data.marketing.revenue if data.marketing else '' }}" placeholder="0" oninput="updateMarketingCalcs(); debounceSave();" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:5px 8px; font-size:11px;">
           </div>
         </div>
-        <div id="marketing-preview" class="upload-preview" style="display:none">
-          <img id="marketing-img" src="">
-          <button class="remove-upload" onclick="removeMarketing()">Remove image</button>
+        <div id="mkt-computed" style="background: #F7F4F0; border-radius: 6px; padding: 8px 10px; margin-bottom: 10px; font-size: 11px; color: #4A4744;">
+          <div style="display:flex; justify-content:space-between; margin-bottom:3px;"><span>ROI:</span> <strong id="mkt-roi-display">—</strong></div>
+          <div style="display:flex; justify-content:space-between; margin-bottom:3px;"><span>Lead → Booking:</span> <strong id="mkt-conv-display">—</strong></div>
+          <div style="display:flex; justify-content:space-between; margin-bottom:3px;"><span>First-Visit AOV:</span> <strong id="mkt-aov-display">—</strong></div>
+          <div style="display:flex; justify-content:space-between;"><span>Cost per Lead:</span> <strong id="mkt-cpl-display">—</strong></div>
         </div>
-        <div id="marketing-analysis" style="display:none; margin-top: 8px;">
-          <div id="marketing-metrics" style="margin-bottom: 8px;"></div>
-          <div id="marketing-kpis" style="display:none; margin-bottom: 8px;">
-            <label>Key Metrics (with targets)</label>
-          </div>
-          <label>ROI Headline</label>
-          <input type="text" id="marketing-roi" placeholder="For every $1 you spend..." oninput="debounceSave()" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:6px 10px; font-family:'Inter',sans-serif; font-size:11px; color:#2D2A28; margin-bottom: 8px;">
-          <label>Performance Summary</label>
-          <textarea id="marketing-summary-text" rows="2" oninput="debounceSave()" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:8px 10px; font-family:'Inter',sans-serif; font-size:11px; line-height:1.5; resize:vertical; color:#2D2A28; margin-bottom: 8px;"></textarea>
-          <label>Next Steps</label>
-          <div id="marketing-steps-list"></div>
-          <button class="add-btn" onclick="addMarketingStep()" style="margin-top: 4px;">+ Add Step</button>
-        </div>
-        <div id="marketing-recs" style="display:none; margin-top: 8px;">
-          <label>AI Recommendations</label>
-          <textarea id="marketing-recs-text" rows="6" oninput="debounceSave()" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:8px 10px; font-family:'Inter',sans-serif; font-size:11px; line-height:1.5; resize:vertical; color:#2D2A28;"></textarea>
-          <div class="formatting-hint">Edit the AI-generated recommendations. Use **text** for bold.</div>
-        </div>
+        <label>Summary & Recommendations</label>
+        <textarea id="marketing-recs-text" rows="5" oninput="debounceSave()" placeholder="AI-generated recommendations will appear here, or type your own..." style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:8px 10px; font-family:'Inter',sans-serif; font-size:11px; line-height:1.5; resize:vertical; color:#2D2A28;">{{ data.marketing_recommendations or '' }}</textarea>
+        <div class="formatting-hint">Use **text** for bold. Leave empty to auto-generate.</div>
+        <button class="btn btn-secondary" onclick="generateMarketingRecs()" id="gen-mkt-recs-btn" style="margin-top: 6px; font-size: 11px; padding: 4px 10px;">Generate Recommendations</button>
+        <div id="mkt-recs-status" style="font-size: 11px; color: #8C8580; margin-top: 4px;"></div>
       </div>
     </div>
 
@@ -497,11 +501,27 @@ function collectData() {
     reviews.push(review);
   });
 
-  // Collect marketing recommendations (editable text from AI analysis)
+  // Collect marketing data
   const mktRecsEl = document.getElementById('marketing-recs-text');
   const marketing_recommendations = mktRecsEl ? mktRecsEl.value : '';
 
-  // Collect structured marketing analysis if available
+  const mktSpend = parseFloat(document.getElementById('mkt-spend')?.value) || 0;
+  const mktLeads = parseInt(document.getElementById('mkt-leads')?.value) || 0;
+  const mktBooked = parseInt(document.getElementById('mkt-booked')?.value) || 0;
+  const mktCompleted = parseInt(document.getElementById('mkt-completed')?.value) || 0;
+  const mktRevenue = parseFloat(document.getElementById('mkt-revenue')?.value) || 0;
+  const marketing = mktSpend > 0 ? {
+    ad_spend: mktSpend,
+    leads: mktLeads,
+    booked: mktBooked,
+    completed: mktCompleted,
+    revenue: mktRevenue,
+    first_visit_roi: mktSpend > 0 ? mktRevenue / mktSpend : null,
+    lead_to_booking_rate: mktLeads > 0 ? mktBooked / mktLeads : null,
+    first_visit_aov: mktCompleted > 0 ? mktRevenue / mktCompleted : null,
+  } : null;
+
+  // Legacy — keep for backward compat
   const marketing_analysis = collectMarketingAnalysis();
 
   // Collect launches
@@ -534,6 +554,7 @@ function collectData() {
     psm_name: document.getElementById('psm-name').value,
     assessments: assessments,
     reviews: reviews,
+    marketing: marketing,
     marketing_recommendations: marketing_recommendations,
     marketing_analysis: marketing_analysis,
     launches: launches,
@@ -885,5 +906,86 @@ function saveReport() {
     document.getElementById('save-indicator').textContent = 'Save failed: ' + err.message;
   });
 }
+
+// ── Marketing Calculations ──
+function updateMarketingCalcs() {
+  const spend = parseFloat(document.getElementById('mkt-spend')?.value) || 0;
+  const leads = parseInt(document.getElementById('mkt-leads')?.value) || 0;
+  const booked = parseInt(document.getElementById('mkt-booked')?.value) || 0;
+  const completed = parseInt(document.getElementById('mkt-completed')?.value) || 0;
+  const revenue = parseFloat(document.getElementById('mkt-revenue')?.value) || 0;
+
+  const roi = spend > 0 ? revenue / spend : 0;
+  const conv = leads > 0 ? (booked / leads * 100) : 0;
+  const aov = completed > 0 ? revenue / completed : 0;
+  const cpl = leads > 0 ? spend / leads : 0;
+
+  document.getElementById('mkt-roi-display').textContent = roi > 0 ? roi.toFixed(1) + 'x' : '—';
+  document.getElementById('mkt-roi-display').style.color = roi >= 3 ? '#2E7D32' : roi >= 2 ? '#B8933A' : '#B53631';
+  document.getElementById('mkt-conv-display').textContent = conv > 0 ? conv.toFixed(0) + '%' : '—';
+  document.getElementById('mkt-aov-display').textContent = aov > 0 ? '$' + aov.toFixed(0) : '—';
+  document.getElementById('mkt-cpl-display').textContent = cpl > 0 ? '$' + cpl.toFixed(0) : '—';
+}
+
+function generateMarketingRecs() {
+  const spend = parseFloat(document.getElementById('mkt-spend')?.value) || 0;
+  const leads = parseInt(document.getElementById('mkt-leads')?.value) || 0;
+  const booked = parseInt(document.getElementById('mkt-booked')?.value) || 0;
+  const completed = parseInt(document.getElementById('mkt-completed')?.value) || 0;
+  const revenue = parseFloat(document.getElementById('mkt-revenue')?.value) || 0;
+
+  if (spend <= 0) {
+    document.getElementById('mkt-recs-status').textContent = 'Enter ad spend first.';
+    return;
+  }
+
+  const roi = revenue / spend;
+  const conv = leads > 0 ? booked / leads : 0;
+  const aov = completed > 0 ? revenue / completed : 0;
+  const cpl = leads > 0 ? spend / leads : 0;
+  const bookToComplete = booked > 0 ? completed / booked : 0;
+
+  let recs = [];
+
+  // ROI summary
+  if (roi >= 3) {
+    recs.push(`**Strong ROI of ${roi.toFixed(1)}x** — this campaign is performing above the 3x goal. The practice is generating $${revenue.toLocaleString()} in new patient revenue from a $${spend.toLocaleString()} investment.`);
+  } else if (roi >= 2) {
+    recs.push(`**ROI of ${roi.toFixed(1)}x is approaching the 3x goal.** The campaign generated $${revenue.toLocaleString()} from $${spend.toLocaleString()} in ad spend. There's room to optimize for stronger returns.`);
+  } else {
+    recs.push(`**ROI of ${roi.toFixed(1)}x is below the 3x target.** The campaign generated $${revenue.toLocaleString()} from $${spend.toLocaleString()} in ad spend. Focus on improving conversion rates and patient value to close the gap.`);
+  }
+
+  // Budget scaling projection
+  if (roi > 0 && leads > 0) {
+    const projSpend = spend * 1.25;
+    const projLeads = Math.round(leads * 1.25);
+    const projRevenue = Math.round(revenue * 1.25);
+    recs.push(`**Budget scaling opportunity:** Increasing monthly spend by 25% to $${projSpend.toLocaleString()} could yield approximately ${projLeads} leads and $${projRevenue.toLocaleString()} in incremental new patient revenue, assuming similar conversion rates.`);
+  }
+
+  // Conversion rate
+  if (conv < 0.15 && leads > 0) {
+    const targetBookings = Math.round(leads * 0.15);
+    const addlBookings = targetBookings - booked;
+    const addlRev = Math.round(addlBookings * bookToComplete * aov);
+    recs.push(`**Improve lead-to-booking conversion** (currently ${(conv*100).toFixed(0)}%, goal: 15%). Reaching 15% would mean ${targetBookings} bookings (+${addlBookings}), potentially adding ~$${addlRev.toLocaleString()} in revenue. Consider faster lead follow-up and online booking links in outreach.`);
+  } else if (conv >= 0.15) {
+    recs.push(`**Lead-to-booking conversion is strong at ${(conv*100).toFixed(0)}%** (above the 15% benchmark). Continue current follow-up processes.`);
+  }
+
+  // AOV
+  if (aov > 0 && aov < 400) {
+    recs.push(`**First-visit AOV of $${aov.toFixed(0)} could be improved.** Consider offering curated new-patient packages or bundled treatments to increase first-visit spend.`);
+  }
+
+  document.getElementById('marketing-recs-text').value = recs.join('\n\n');
+  document.getElementById('mkt-recs-status').textContent = 'Recommendations generated.';
+  setTimeout(() => { document.getElementById('mkt-recs-status').textContent = ''; }, 3000);
+  debounceSave();
+}
+
+// Init marketing calcs on page load
+updateMarketingCalcs();
 </script>
 {% endblock %}

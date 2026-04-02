@@ -72,6 +72,14 @@ def _save_monthly_assets(month: int, year: int, assets: dict):
         json.dump(assets, f, default=str)
 
 
+def _save_monthly_upload(month: int, year: int, asset_type: str, src_path: str, original_filename: str) -> Path:
+    """Copy an uploaded file to persistent monthly storage. Returns the persistent path."""
+    suffix = Path(original_filename).suffix.lower() or Path(src_path).suffix.lower() or ".png"
+    dest = MONTHLY_DIR / f"{_monthly_key(month, year)}_{asset_type}{suffix}"
+    shutil.copy2(src_path, dest)
+    return dest
+
+
 def _serialize_data(data) -> dict:
     """Serialize MBRData to a JSON-safe dict."""
     from dataclasses import asdict
@@ -82,12 +90,13 @@ def _serialize_data(data) -> dict:
 def _deserialize_data(d: dict):
     """Restore MBRData from a JSON dict."""
     from src.data_schema import (MBRData, StaffMember, ServiceItem, ReviewsPlatform,
-                                  MarketingData, LaunchFeature, BrandBankItem)
+                                  MarketingData, LaunchFeature, BrandBankItem, MembershipType)
     staff = [StaffMember(**s) for s in d.pop("staff", [])]
     services = [ServiceItem(**s) for s in d.pop("services", [])]
     reviews = [ReviewsPlatform(**r) for r in d.pop("reviews", [])]
     launches = [LaunchFeature(**l) for l in d.pop("launches", [])]
     brand_bank_items = [BrandBankItem(**b) for b in d.pop("brand_bank_items", [])]
+    membership_types = [MembershipType(**m) for m in d.pop("membership_types", [])]
     mkt = d.pop("marketing", None)
     marketing = MarketingData(**mkt) if mkt else None
     ma = d.pop("marketing_analysis", None)
@@ -96,7 +105,8 @@ def _deserialize_data(d: dict):
         marketing_analysis = _build_marketing_analysis(ma)
     return MBRData(**d, staff=staff, services=services, reviews=reviews,
                    marketing=marketing, marketing_analysis=marketing_analysis,
-                   launches=launches, brand_bank_items=brand_bank_items)
+                   launches=launches, brand_bank_items=brand_bank_items,
+                   membership_types=membership_types)
 
 
 def _save_session(session_id: str, sess: dict):
@@ -178,6 +188,11 @@ def editor(session_id):
                            data=sess["data"])
 
 
+@app.route("/monthly-assets")
+def monthly_assets_page():
+    return render_template("monthly_assets.html")
+
+
 @app.route("/batch")
 def batch_page():
     return render_template("batch.html", omni_key_set=bool(_get_omni_key()))
@@ -235,7 +250,83 @@ def api_get_monthly_assets():
     month = int(request.args.get("month", 1))
     year = int(request.args.get("year", 2026))
     assets = _load_monthly_assets(month, year)
-    return jsonify(assets)
+    # Include saved file info
+    resp = {
+        "launches": assets.get("launches", []),
+        "brand_bank_items": assets.get("brand_bank_items", []),
+        "launches_file": assets.get("launches_file"),
+        "brand_bank_file": assets.get("brand_bank_file"),
+    }
+    return jsonify(resp)
+
+
+@app.route("/api/monthly-assets/all", methods=["GET"])
+def api_list_all_monthly_assets():
+    """List all months that have saved assets."""
+    month_names = ["", "January", "February", "March", "April", "May", "June",
+                   "July", "August", "September", "October", "November", "December"]
+    results = []
+    for f in sorted(MONTHLY_DIR.glob("*.json"), reverse=True):
+        key = f.stem  # e.g. "2026-03"
+        parts = key.split("-")
+        if len(parts) != 2:
+            continue
+        year, month = int(parts[0]), int(parts[1])
+        assets = _load_monthly_assets(month, year)
+        launches = assets.get("launches", [])
+        bb_items = assets.get("brand_bank_items", [])
+        if not launches and not bb_items:
+            continue
+        results.append({
+            "month": month,
+            "year": year,
+            "label": f"{month_names[month]} {year}",
+            "launches_count": len(launches),
+            "brand_bank_count": len(bb_items),
+            "launches_file": assets.get("launches_file"),
+            "brand_bank_file": assets.get("brand_bank_file"),
+        })
+    return jsonify({"months": results})
+
+
+@app.route("/api/monthly-assets", methods=["DELETE"])
+def api_delete_monthly_assets():
+    """Delete specific monthly assets (launches, brand_bank, or both)."""
+    month = int(request.json.get("month", 1))
+    year = int(request.json.get("year", 2026))
+    delete_type = request.json.get("type", "all")  # "launches", "brand_bank", or "all"
+
+    assets = _load_monthly_assets(month, year)
+    key = _monthly_key(month, year)
+
+    if delete_type in ("launches", "all"):
+        assets["launches"] = []
+        assets.pop("launches_file", None)
+        assets.pop("launches_path", None)
+        # Remove persisted file
+        for ext in (".pdf", ".png", ".jpg", ".jpeg"):
+            p = MONTHLY_DIR / f"{key}_launches{ext}"
+            if p.exists():
+                p.unlink()
+
+    if delete_type in ("brand_bank", "all"):
+        assets["brand_bank_items"] = []
+        assets.pop("brand_bank_file", None)
+        assets.pop("brand_bank_path", None)
+        for ext in (".pdf", ".png", ".jpg", ".jpeg"):
+            p = MONTHLY_DIR / f"{key}_brand_bank{ext}"
+            if p.exists():
+                p.unlink()
+
+    # If everything is empty, remove the JSON file too
+    if not assets.get("launches") and not assets.get("brand_bank_items"):
+        json_path = MONTHLY_DIR / f"{key}.json"
+        if json_path.exists():
+            json_path.unlink()
+    else:
+        _save_monthly_assets(month, year, assets)
+
+    return jsonify({"ok": True})
 
 
 @app.route("/api/monthly-assets", methods=["POST"])
@@ -270,9 +361,12 @@ def api_upload_monthly_launches():
     except Exception as e:
         return jsonify({"error": f"Failed to process file: {e}"}), 400
 
+    # Save upload persistently to monthly dir
+    persistent_path = _save_monthly_upload(month, year, "launches", image_path, file.filename)
+
     # AI extraction
     try:
-        items = _analyze_launches_image(image_path)
+        items = _analyze_launches_image(persistent_path)
     except Exception as e:
         print(f"  Warning: Could not analyze launches: {e}")
         items = []
@@ -280,9 +374,11 @@ def api_upload_monthly_launches():
     # Save to monthly assets
     assets = _load_monthly_assets(month, year)
     assets["launches"] = items
+    assets["launches_file"] = file.filename
+    assets["launches_path"] = str(persistent_path)
     _save_monthly_assets(month, year, assets)
 
-    return jsonify({"ok": True, "launches": items})
+    return jsonify({"ok": True, "launches": items, "filename": file.filename})
 
 
 @app.route("/api/upload-monthly-brand-bank", methods=["POST"])
@@ -304,9 +400,12 @@ def api_upload_monthly_brand_bank():
     except Exception as e:
         return jsonify({"error": f"Failed to process file: {e}"}), 400
 
+    # Save upload persistently to monthly dir
+    persistent_path = _save_monthly_upload(month, year, "brand_bank", image_path, file.filename)
+
     # AI extraction
     try:
-        items = _analyze_brand_bank_image(image_path, month_names[month])
+        items = _analyze_brand_bank_image(str(persistent_path), month_names[month])
     except Exception as e:
         print(f"  Warning: Could not analyze brand bank: {e}")
         items = []
@@ -314,9 +413,11 @@ def api_upload_monthly_brand_bank():
     # Save to monthly assets
     assets = _load_monthly_assets(month, year)
     assets["brand_bank_items"] = items
+    assets["brand_bank_file"] = file.filename
+    assets["brand_bank_path"] = str(persistent_path)
     _save_monthly_assets(month, year, assets)
 
-    return jsonify({"ok": True, "brand_bank_items": items})
+    return jsonify({"ok": True, "brand_bank_items": items, "filename": file.filename})
 
 
 @app.route("/api/generate", methods=["POST"])
@@ -483,6 +584,14 @@ def api_save(session_id):
         data.assessments = payload["assessments"]
     if "marketing_recommendations" in payload:
         data.marketing_recommendations = payload["marketing_recommendations"]
+
+    # Marketing data
+    if "marketing" in payload:
+        if payload["marketing"]:
+            from src.data_schema import MarketingData
+            data.marketing = MarketingData(**payload["marketing"])
+        else:
+            data.marketing = None
 
     # Update structured marketing analysis if provided
     if "marketing_analysis" in payload and payload["marketing_analysis"]:
