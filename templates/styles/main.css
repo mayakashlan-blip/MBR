@@ -216,8 +216,8 @@ body {
 /* ── Metric Cards Row ── */
 .metrics-row {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 0.12in;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.1in;
   margin-bottom: 0.18in;
 }
 

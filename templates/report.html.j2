@@ -80,6 +80,18 @@
         {% if data.avg_patient_ltv %}{{ data.avg_patient_ltv | dollar }}{% else %}N/A{% endif %}
       </div>
     </div>
+    <div class="metric-card">
+      <div class="metric-label">Quarter to Date</div>
+      <div class="metric-value{% if not data.quarter_to_date %} small{% endif %}">
+        {% if data.quarter_to_date %}{{ data.quarter_to_date | dollar }}{% else %}N/A{% endif %}
+      </div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Revenue per Client</div>
+      <div class="metric-value{% if data.total_clients == 0 %} small{% endif %}">
+        {% if data.total_clients > 0 %}{{ data.revenue_per_client | dollar }}{% else %}N/A{% endif %}
+      </div>
+    </div>
   </div>
 
   {# Performance Gauges #}
