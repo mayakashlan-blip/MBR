@@ -216,7 +216,7 @@ body {
 /* ── Metric Cards Row ── */
 .metrics-row {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 0.1in;
   margin-bottom: 0.18in;
 }
@@ -239,13 +239,13 @@ body {
 }
 
 .metric-value {
-  font-size: 18pt;
+  font-size: 16pt;
   font-weight: 700;
   color: var(--purple);
   line-height: 1.1;
 }
 
-.metric-value.small { font-size: 15pt; }
+.metric-value.small { font-size: 13pt; }
 
 /* ── MoM Change Indicator ── */
 .mom-change {
