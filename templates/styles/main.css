@@ -47,7 +47,7 @@ body {
 .page {
   width: 8.5in;
   min-height: 11in;
-  height: 11in;
+  height: auto;
   padding: 0.45in 0.5in 0.45in 0.5in;
   page-break-after: always;
   break-after: page;
@@ -61,10 +61,6 @@ body {
   break-after: auto;
 }
 
-.page.page-flow {
-  height: auto;
-}
-
 @media print {
   .page {
     page-break-after: always;
@@ -74,6 +70,34 @@ body {
     page-break-after: auto;
     break-after: auto;
   }
+}
+
+/* Prevent cards and sections from splitting across pages */
+.card,
+.metric-card,
+.staff-card,
+.assessment-card,
+.top-service-card,
+.partner-logo-card,
+.psm-card,
+.membership-grid,
+.gauges-row,
+.metrics-row,
+.staff-grid,
+.contribution-bar {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+/* Keep section titles with their content */
+.section-title {
+  break-after: avoid;
+  page-break-after: avoid;
+}
+
+.section-subtitle {
+  break-after: avoid;
+  page-break-after: avoid;
 }
 
 /* ── Header ── */
