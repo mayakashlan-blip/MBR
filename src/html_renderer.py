@@ -194,29 +194,30 @@ def render_pdf(data: MBRData, output_path: str, brand_bank_path: str = None,
 
 
 def html_to_pdf(html: str, output_path: str) -> str:
-    """Convert pre-rendered HTML to PDF via Playwright Chromium."""
+    """Convert pre-rendered HTML to PDF via Playwright Chromium (async-safe)."""
     import asyncio
-    # Ensure clean event loop for Playwright sync API (avoids conflict with Flask async)
-    try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            asyncio.set_event_loop(asyncio.new_event_loop())
-    except RuntimeError:
-        asyncio.set_event_loop(asyncio.new_event_loop())
 
-    from playwright.sync_api import sync_playwright
-    with sync_playwright() as p:
-        browser = p.chromium.launch()
-        page = browser.new_page()
-        page.set_content(html, wait_until="networkidle")
-        page.pdf(
-            path=output_path,
-            format="Letter",
-            print_background=True,
-            prefer_css_page_size=True,
-            margin={"top": "0", "right": "0", "bottom": "0", "left": "0"},
-        )
-        browser.close()
+    async def _render():
+        from playwright.async_api import async_playwright
+        async with async_playwright() as p:
+            browser = await p.chromium.launch()
+            page = await browser.new_page()
+            await page.set_content(html, wait_until="networkidle")
+            await page.pdf(
+                path=output_path,
+                format="Letter",
+                print_background=True,
+                prefer_css_page_size=True,
+                margin={"top": "0", "right": "0", "bottom": "0", "left": "0"},
+            )
+            await browser.close()
+
+    # Run in a fresh event loop to avoid conflicts with any existing loop
+    loop = asyncio.new_event_loop()
+    try:
+        loop.run_until_complete(_render())
+    finally:
+        loop.close()
 
     return output_path
 

@@ -1272,36 +1272,23 @@ def api_batch_start():
     }
 
     def run_batch():
-        # Clear any inherited asyncio event loop so Playwright sync API works
         import asyncio
-        try:
-            asyncio.get_event_loop().close()
-        except Exception:
-            pass
-        asyncio.set_event_loop(asyncio.new_event_loop())
 
-        try:
+        async def _async_batch():
             key = _get_omni_key()
             out_dir = tempfile.mkdtemp(prefix="mbr_batch_")
 
             from src.omni_loader import load_from_omni
             from src.narrative import generate_narratives
-            from src.html_renderer import render_html, html_to_pdf
+            from src.html_renderer import render_html
             from src.data_schema import LaunchFeature, BrandBankItem
+            from playwright.async_api import async_playwright
 
             # Load shared monthly assets once
             assets = _load_monthly_assets(month, year)
 
-            # Try Playwright first, fall back to html_to_pdf (which uses Playwright internally)
-            pw = None
-            browser = None
-            try:
-                from playwright.sync_api import sync_playwright
-                pw = sync_playwright().start()
-                browser = pw.chromium.launch()
-            except Exception as e:
-                print(f"  Batch: Playwright browser launch failed: {e}")
-                print(f"  Batch: Will use html_to_pdf fallback for each report")
+            pw = await async_playwright().start()
+            browser = await pw.chromium.launch()
 
             for i, practice in enumerate(practices):
                 batch_jobs[job_id]["current"] = practice
@@ -1318,31 +1305,24 @@ def api_batch_start():
                     safe_name = practice.replace(" ", "_")
                     pdf_path = os.path.join(out_dir, f"{safe_name}_MBR_{data.month_name}_{year}.pdf")
 
-                    if browser:
-                        # Render PDF with shared browser
-                        page = browser.new_page()
-                        page.set_content(html, wait_until="networkidle")
-                        page.pdf(
-                            path=pdf_path,
-                            format="Letter",
-                            print_background=True,
-                            prefer_css_page_size=True,
-                            margin={"top": "0", "right": "0", "bottom": "0", "left": "0"},
-                        )
-                        page.close()
-                    else:
-                        # Fallback: use html_to_pdf which manages its own browser
-                        html_to_pdf(html, pdf_path)
+                    page = await browser.new_page()
+                    await page.set_content(html, wait_until="networkidle")
+                    await page.pdf(
+                        path=pdf_path,
+                        format="Letter",
+                        print_background=True,
+                        prefer_css_page_size=True,
+                        margin={"top": "0", "right": "0", "bottom": "0", "left": "0"},
+                    )
+                    await page.close()
 
                 except Exception as e:
                     batch_jobs[job_id]["errors"].append({"practice": practice, "error": str(e)})
 
                 batch_jobs[job_id]["completed"] = i + 1
 
-            if browser:
-                browser.close()
-            if pw:
-                pw.stop()
+            await browser.close()
+            await pw.stop()
 
             # Zip results
             zip_path = os.path.join(out_dir, "MBR_Reports")
@@ -1351,6 +1331,10 @@ def api_batch_start():
             batch_jobs[job_id]["status"] = "done"
             batch_jobs[job_id]["current"] = ""
 
+        try:
+            loop = asyncio.new_event_loop()
+            loop.run_until_complete(_async_batch())
+            loop.close()
         except Exception as e:
             # Top-level error — mark job as done with error so frontend doesn't hang
             batch_jobs[job_id]["status"] = "done"
