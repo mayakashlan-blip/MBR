@@ -372,17 +372,9 @@
   {% endif %}
   {% endif %}
 
-  <div class="footer">Moxie Partners, Inc. Copyright &copy;2025. Private and confidential.</div>
-</section>
+  {# ── Service Mix (flows directly after memberships) ── #}
+  <div class="section-title" style="font-size: 16pt; margin-top: 0.25in;">Service Mix</div>
 
-{# ════════════════════════════════════════════════════════════════════
-   PAGE 4 — SERVICE MIX (+ MARKETING if available)
-   ════════════════════════════════════════════════════════════════════ #}
-<section class="page">
-  {% include "components/header.html.j2" %}
-  <div class="section-title">Service Mix</div>
-
-  {# Top 3 Services #}
   {% if data.services | length >= 3 %}
   <div class="top-services">
     {% for rank, label in [(0, "1st"), (1, "2nd"), (2, "3rd")] %}
@@ -397,7 +389,6 @@
   </div>
   {% endif %}
 
-  {# Full service bar chart #}
   <div class="card" style="margin-bottom: 0.15in;">
     <div class="section-subtitle">Revenue by Service</div>
     <div class="service-bars">
