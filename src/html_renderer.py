@@ -195,6 +195,15 @@ def render_pdf(data: MBRData, output_path: str, brand_bank_path: str = None,
 
 def html_to_pdf(html: str, output_path: str) -> str:
     """Convert pre-rendered HTML to PDF via Playwright Chromium."""
+    import asyncio
+    # Ensure clean event loop for Playwright sync API (avoids conflict with Flask async)
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            asyncio.set_event_loop(asyncio.new_event_loop())
+    except RuntimeError:
+        asyncio.set_event_loop(asyncio.new_event_loop())
+
     from playwright.sync_api import sync_playwright
     with sync_playwright() as p:
         browser = p.chromium.launch()

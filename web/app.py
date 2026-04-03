@@ -1272,6 +1272,14 @@ def api_batch_start():
     }
 
     def run_batch():
+        # Clear any inherited asyncio event loop so Playwright sync API works
+        import asyncio
+        try:
+            asyncio.get_event_loop().close()
+        except Exception:
+            pass
+        asyncio.set_event_loop(asyncio.new_event_loop())
+
         try:
             key = _get_omni_key()
             out_dir = tempfile.mkdtemp(prefix="mbr_batch_")
