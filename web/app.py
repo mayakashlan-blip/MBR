@@ -1272,62 +1272,82 @@ def api_batch_start():
     }
 
     def run_batch():
-        key = _get_omni_key()
-        out_dir = tempfile.mkdtemp(prefix="mbr_batch_")
+        try:
+            key = _get_omni_key()
+            out_dir = tempfile.mkdtemp(prefix="mbr_batch_")
 
-        # Reuse single Playwright browser for speed
-        from playwright.sync_api import sync_playwright
-        from src.omni_loader import load_from_omni
-        from src.narrative import generate_narratives
-        from src.html_renderer import render_html
-        from src.data_schema import LaunchFeature, BrandBankItem
+            from src.omni_loader import load_from_omni
+            from src.narrative import generate_narratives
+            from src.html_renderer import render_html, html_to_pdf
+            from src.data_schema import LaunchFeature, BrandBankItem
 
-        # Load shared monthly assets once
-        assets = _load_monthly_assets(month, year)
+            # Load shared monthly assets once
+            assets = _load_monthly_assets(month, year)
 
-        pw = sync_playwright().start()
-        browser = pw.chromium.launch()
-
-        for i, practice in enumerate(practices):
-            batch_jobs[job_id]["current"] = practice
+            # Try Playwright first, fall back to html_to_pdf (which uses Playwright internally)
+            pw = None
+            browser = None
             try:
-                data = load_from_omni(practice, month, year, api_key=key)
-                # Inject monthly assets
-                if assets.get("launches"):
-                    data.launches = [LaunchFeature(**l) for l in assets["launches"]]
-                if assets.get("brand_bank_items"):
-                    data.brand_bank_items = [BrandBankItem(**b) for b in assets["brand_bank_items"]]
-                generate_narratives(data)
-                html = render_html(data)
-
-                # Render PDF with shared browser
-                page = browser.new_page()
-                page.set_content(html, wait_until="networkidle")
-                safe_name = practice.replace(" ", "_")
-                pdf_path = os.path.join(out_dir, f"{safe_name}_MBR_{data.month_name}_{year}.pdf")
-                page.pdf(
-                    path=pdf_path,
-                    format="Letter",
-                    print_background=True,
-                    prefer_css_page_size=True,
-                    margin={"top": "0", "right": "0", "bottom": "0", "left": "0"},
-                )
-                page.close()
-
+                from playwright.sync_api import sync_playwright
+                pw = sync_playwright().start()
+                browser = pw.chromium.launch()
             except Exception as e:
-                batch_jobs[job_id]["errors"].append({"practice": practice, "error": str(e)})
+                print(f"  Batch: Playwright browser launch failed: {e}")
+                print(f"  Batch: Will use html_to_pdf fallback for each report")
 
-            batch_jobs[job_id]["completed"] = i + 1
+            for i, practice in enumerate(practices):
+                batch_jobs[job_id]["current"] = practice
+                try:
+                    data = load_from_omni(practice, month, year, api_key=key)
+                    # Inject monthly assets
+                    if assets.get("launches"):
+                        data.launches = [LaunchFeature(**l) for l in assets["launches"]]
+                    if assets.get("brand_bank_items"):
+                        data.brand_bank_items = [BrandBankItem(**b) for b in assets["brand_bank_items"]]
+                    generate_narratives(data)
+                    html = render_html(data)
 
-        browser.close()
-        pw.stop()
+                    safe_name = practice.replace(" ", "_")
+                    pdf_path = os.path.join(out_dir, f"{safe_name}_MBR_{data.month_name}_{year}.pdf")
 
-        # Zip results
-        zip_path = os.path.join(out_dir, "MBR_Reports")
-        shutil.make_archive(zip_path, "zip", out_dir)
-        batch_jobs[job_id]["zip_path"] = zip_path + ".zip"
-        batch_jobs[job_id]["status"] = "done"
-        batch_jobs[job_id]["current"] = ""
+                    if browser:
+                        # Render PDF with shared browser
+                        page = browser.new_page()
+                        page.set_content(html, wait_until="networkidle")
+                        page.pdf(
+                            path=pdf_path,
+                            format="Letter",
+                            print_background=True,
+                            prefer_css_page_size=True,
+                            margin={"top": "0", "right": "0", "bottom": "0", "left": "0"},
+                        )
+                        page.close()
+                    else:
+                        # Fallback: use html_to_pdf which manages its own browser
+                        html_to_pdf(html, pdf_path)
+
+                except Exception as e:
+                    batch_jobs[job_id]["errors"].append({"practice": practice, "error": str(e)})
+
+                batch_jobs[job_id]["completed"] = i + 1
+
+            if browser:
+                browser.close()
+            if pw:
+                pw.stop()
+
+            # Zip results
+            zip_path = os.path.join(out_dir, "MBR_Reports")
+            shutil.make_archive(zip_path, "zip", out_dir)
+            batch_jobs[job_id]["zip_path"] = zip_path + ".zip"
+            batch_jobs[job_id]["status"] = "done"
+            batch_jobs[job_id]["current"] = ""
+
+        except Exception as e:
+            # Top-level error — mark job as done with error so frontend doesn't hang
+            batch_jobs[job_id]["status"] = "done"
+            batch_jobs[job_id]["current"] = ""
+            batch_jobs[job_id]["errors"].append({"practice": "(batch)", "error": str(e)})
 
     thread = threading.Thread(target=run_batch, daemon=True)
     thread.start()

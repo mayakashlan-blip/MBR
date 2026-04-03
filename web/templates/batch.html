@@ -157,22 +157,43 @@ function startBatch() {
   })
   .then(r => r.json())
   .then(data => {
-    if (data.error) { alert(data.error); return; }
+    if (data.error) {
+      alert(data.error);
+      document.getElementById('batch-btn').disabled = false;
+      document.getElementById('batch-btn').textContent = 'Export Selected as PDF';
+      return;
+    }
+    if (!data.job_id) {
+      alert('Failed to start batch job. Check server logs.');
+      document.getElementById('batch-btn').disabled = false;
+      document.getElementById('batch-btn').textContent = 'Export Selected as PDF';
+      return;
+    }
     pollBatch(data.job_id);
+  })
+  .catch(err => {
+    alert('Connection error: ' + err.message);
+    document.getElementById('batch-btn').disabled = false;
+    document.getElementById('batch-btn').textContent = 'Export Selected as PDF';
   });
 }
 
 function pollBatch(jobId) {
+  let failCount = 0;
   const interval = setInterval(() => {
     fetch('/api/batch/status/' + jobId)
-      .then(r => r.json())
+      .then(r => {
+        if (!r.ok) throw new Error('Status check failed: ' + r.status);
+        return r.json();
+      })
       .then(data => {
+        failCount = 0;
         const pct = data.total > 0 ? (data.completed / data.total * 100) : 0;
         document.getElementById('progress-fill').style.width = pct + '%';
         document.getElementById('progress-text').textContent = data.completed + ' / ' + data.total;
         document.getElementById('progress-current').textContent = data.current ? 'Processing: ' + data.current : '';
 
-        if (data.errors.length > 0) {
+        if (data.errors && data.errors.length > 0) {
           document.getElementById('progress-errors').innerHTML =
             '<div style="color:#B53631;font-size:12px;">' +
             data.errors.map(e => e.practice + ': ' + e.error).join('<br>') +
@@ -183,12 +204,26 @@ function pollBatch(jobId) {
           clearInterval(interval);
           document.getElementById('batch-btn').disabled = false;
           document.getElementById('batch-btn').textContent = 'Export Selected as PDF';
-          document.getElementById('download-link').classList.remove('hidden');
-          document.getElementById('download-btn').href = '/api/batch/download/' + jobId;
-          document.getElementById('progress-current').textContent = 'Complete!';
+          if (data.errors && data.errors.length < data.total) {
+            document.getElementById('download-link').classList.remove('hidden');
+            document.getElementById('download-btn').href = '/api/batch/download/' + jobId;
+          }
+          document.getElementById('progress-current').textContent =
+            data.errors && data.errors.length > 0
+              ? 'Completed with ' + data.errors.length + ' error(s)'
+              : 'Complete!';
+        }
+      })
+      .catch(err => {
+        failCount++;
+        if (failCount >= 5) {
+          clearInterval(interval);
+          document.getElementById('batch-btn').disabled = false;
+          document.getElementById('batch-btn').textContent = 'Export Selected as PDF';
+          document.getElementById('progress-current').textContent = 'Error: Lost connection to batch job';
         }
       });
-  }, 2000);
+  }, 3000);
 }
 </script>
 {% endblock %}
