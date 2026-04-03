@@ -181,7 +181,7 @@ function startBatch() {
 function pollBatch(jobId) {
   let failCount = 0;
   const interval = setInterval(() => {
-    fetch('/api/batch/status/' + jobId)
+    fetch('/api/batch/status/' + jobId, {signal: AbortSignal.timeout(10000)})
       .then(r => {
         if (!r.ok) throw new Error('Status check failed: ' + r.status);
         return r.json();
@@ -216,14 +216,15 @@ function pollBatch(jobId) {
       })
       .catch(err => {
         failCount++;
-        if (failCount >= 5) {
+        console.log('Poll fail #' + failCount + ': ' + err.message);
+        if (failCount >= 30) {
           clearInterval(interval);
           document.getElementById('batch-btn').disabled = false;
           document.getElementById('batch-btn').textContent = 'Export Selected as PDF';
           document.getElementById('progress-current').textContent = 'Error: Lost connection to batch job';
         }
       });
-  }, 3000);
+  }, 5000);
 }
 </script>
 {% endblock %}
