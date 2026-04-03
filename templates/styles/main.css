@@ -22,8 +22,8 @@
   --body-text: #4A4744;
   --muted-text: #8C8580;
   --track: #E8E3DE;
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
-  --shadow-md: 0 2px 8px rgba(0,0,0,0.08);
+  --shadow-sm: none;
+  --shadow-md: none;
   --radius: 8px;
   --radius-lg: 12px;
 }
