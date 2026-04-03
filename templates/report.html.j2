@@ -224,9 +224,14 @@
     {% endif %}
   </div>
 
-  {# Staff Performance #}
-  {% if data.staff %}
-  <div class="section-title" style="font-size: 16pt; margin-top: 0.25in;">Staff Performance</div>
+  <div class="footer">Moxie Partners, Inc. Copyright &copy;2025. Private and confidential.</div>
+</section>
+
+{# ── STAFF PERFORMANCE (continuous — no forced page break) ── #}
+{% if data.staff %}
+<section class="page continuous">
+  {% include "components/header.html.j2" %}
+  <div class="section-title" style="font-size: 16pt;">Staff Performance</div>
   <div class="staff-grid{% if data.staff | length > 4 %} compact{% endif %}">
     {% for s in data.staff %}
     <div class="staff-card">
@@ -294,11 +299,14 @@
     </div>
   </div>
   {% endif %}
-  {% endif %}
+</section>
+{% endif %}
 
-  {# ── Membership Performance ── #}
-  {% if data.memberships_active > 0 or data.memberships_new > 0 or data.memberships_cancelled > 0 or data.mrr > 0 %}
-  <div class="section-title" style="font-size: 16pt; margin-top: 0.25in;">Membership Performance</div>
+{# ── MEMBERSHIP PERFORMANCE (continuous) ── #}
+{% if data.memberships_active > 0 or data.memberships_new > 0 or data.memberships_cancelled > 0 or data.mrr > 0 %}
+<section class="page continuous">
+  {% include "components/header.html.j2" %}
+  <div class="section-title" style="font-size: 16pt;">Membership Performance</div>
 
   <div class="card" style="margin-bottom: 0.15in; padding: 0.15in 0.2in;">
     <div class="membership-grid">
@@ -370,10 +378,13 @@
     </table>
   </div>
   {% endif %}
-  {% endif %}
+</section>
+{% endif %}
 
-  {# ── Service Mix (flows directly after memberships) ── #}
-  <div class="section-title" style="font-size: 16pt; margin-top: 0.25in;">Service Mix</div>
+{# ── SERVICE MIX (continuous — flows after memberships) ── #}
+<section class="page continuous">
+  {% include "components/header.html.j2" %}
+  <div class="section-title" style="font-size: 16pt;">Service Mix</div>
 
   {% if data.services | length >= 3 %}
   <div class="top-services">
@@ -404,8 +415,6 @@
       {% endfor %}
     </div>
   </div>
-
-  <div class="footer">Moxie Partners, Inc. Copyright &copy;2025. Private and confidential.</div>
 </section>
 
 {# ════════════════════════════════════════════════════════════════════

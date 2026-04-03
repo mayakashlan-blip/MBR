@@ -65,6 +65,15 @@ body {
   break-after: auto;
 }
 
+/* Continuous section — has header but no forced page break before it */
+.page.continuous {
+  min-height: 0;
+  page-break-after: auto;
+  break-after: auto;
+  page-break-before: auto;
+  break-before: auto;
+}
+
 @media print {
   .page {
     page-break-after: always;
