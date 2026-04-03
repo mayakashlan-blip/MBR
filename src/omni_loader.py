@@ -860,27 +860,6 @@ def load_from_omni(practice_name: str, month: int, year: int,
     if implied_adjustments > 0 and data.discounts == 0:
         data.discounts = implied_adjustments
 
-    # ── Derived Metrics ──
-    # Average Patient LTV using retention-based model:
-    #   Monthly revenue per client = net_revenue / total_clients
-    #   Monthly churn rate = 1 - retention_180d (annualized to monthly)
-    #   LTV = monthly_rev_per_client / monthly_churn_rate
-    # Fallback: if no retention data, use simple annualized estimate
-    if data.total_clients > 0 and data.monthly_net_revenue > 0:
-        monthly_rev_per_client = data.monthly_net_revenue / data.total_clients
-        if data.retention_180d > 0:
-            # retention_180d = % with repeat visit in 180d
-            # Convert to monthly retention: monthly_retention ≈ retention_180d^(1/6)
-            monthly_retention = data.retention_180d ** (1/6)
-            monthly_churn = 1 - monthly_retention
-            if monthly_churn > 0.01:  # avoid division by near-zero
-                data.avg_patient_ltv = monthly_rev_per_client / monthly_churn
-            else:
-                data.avg_patient_ltv = monthly_rev_per_client * 60  # cap at 5 years
-        else:
-            # No retention data — simple 12-month estimate
-            data.avg_patient_ltv = monthly_rev_per_client * 12
-
     print(f"  Loaded: Net Rev ${data.monthly_net_revenue:,.2f}, "
           f"{data.total_appointments} appts, "
           f"{len(data.staff)} staff, "

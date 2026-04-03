@@ -544,17 +544,16 @@ def _generate_rule_based_marketing(data: MBRData):
             f"The focus should be on maintaining this efficiency while scaling volume."
         )
 
-    # Budget scaling
+    # Budget scaling (conservative — 80% of linear to account for diminishing returns)
     if roi > 0 and leads > 0:
         proj_25_spend = spend * 1.25
-        proj_25_leads = round(leads * 1.25)
-        proj_25_rev = round(revenue * 1.25)
+        proj_25_leads = round(leads * 1.20)  # conservative: 80% of linear scaling
+        proj_25_rev = round(revenue * 1.20)
         paras.append(
-            f"**Budget projection:** At the current cost per lead of ${cpl:,.0f}, "
-            f"a 25% budget increase to ${proj_25_spend:,.0f}/month would generate an estimated "
-            f"{proj_25_leads} leads and approximately ${proj_25_rev:,.0f} in new patient revenue, "
-            f"assuming similar conversion rates. These are estimates — actual results depend on "
-            f"market conditions and campaign optimization."
+            f"**Budget projection:** A 25% budget increase to ${proj_25_spend:,.0f}/month could "
+            f"conservatively generate around {proj_25_leads} leads and approximately ${proj_25_rev:,.0f} "
+            f"in new patient revenue. These estimates account for diminishing returns at higher spend levels "
+            f"and assume similar market conditions."
         )
 
     # AOV insight

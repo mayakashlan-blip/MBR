@@ -75,12 +75,6 @@
       </div>
     </div>
     <div class="metric-card">
-      <div class="metric-label">Avg Patient LTV</div>
-      <div class="metric-value{% if not data.avg_patient_ltv %} small{% endif %}">
-        {% if data.avg_patient_ltv %}{{ data.avg_patient_ltv | dollar }}{% else %}N/A{% endif %}
-      </div>
-    </div>
-    <div class="metric-card">
       <div class="metric-label">Quarter to Date</div>
       <div class="metric-value{% if not data.quarter_to_date %} small{% endif %}">
         {% if data.quarter_to_date %}{{ data.quarter_to_date | dollar }}{% else %}N/A{% endif %}
@@ -542,24 +536,18 @@
                   {% if ltb >= 15 %}background: #E8F5E9; border: 1px solid #C8E6C9;{% elif ltb >= 10 %}background: #FFF8E1; border: 1px solid #FFE082;{% else %}background: #FDE8E7; border: 1px solid #FFCDD2;{% endif %}">
         <div style="font-size: 7pt; text-transform: uppercase; letter-spacing: 0.03em; color: #8C8580; margin-bottom: 0.03in;">Lead → Booked</div>
         <div style="font-size: 18pt; font-weight: 700; color: {% if ltb >= 15 %}#2E7D32{% elif ltb >= 10 %}#B8933A{% else %}#B53631{% endif %};">{{ "{:.0f}".format(ltb) }}%</div>
-        <div style="font-size: 7pt; color: #918A85; margin-top: 0.02in;">{{ data.marketing.leads }} leads → {{ data.marketing.booked }} booked</div>
-        {% if ltb < 15 %}
-        <div style="font-size: 6.5pt; color: #B53631; margin-top: 0.03in; font-weight: 600;">{{ data.marketing.leads - data.marketing.booked }} leads not converting</div>
-        {% endif %}
+        <div style="font-size: 7pt; color: #918A85; margin-top: 0.02in;">{{ data.marketing.booked }} booked</div>
       </div>
       <div style="flex: 1; text-align: center; padding: 0.1in; border-radius: 8px;
                   {% if btc >= 70 %}background: #E8F5E9; border: 1px solid #C8E6C9;{% elif btc >= 50 %}background: #FFF8E1; border: 1px solid #FFE082;{% else %}background: #FDE8E7; border: 1px solid #FFCDD2;{% endif %}">
         <div style="font-size: 7pt; text-transform: uppercase; letter-spacing: 0.03em; color: #8C8580; margin-bottom: 0.03in;">Booked → Completed</div>
         <div style="font-size: 18pt; font-weight: 700; color: {% if btc >= 70 %}#2E7D32{% elif btc >= 50 %}#B8933A{% else %}#B53631{% endif %};">{% if data.marketing.booked > 0 %}{{ "{:.0f}".format(btc) }}%{% else %}—{% endif %}</div>
-        <div style="font-size: 7pt; color: #918A85; margin-top: 0.02in;">{{ data.marketing.booked }} booked → {{ data.marketing.completed }} completed</div>
-        {% if data.marketing.booked > data.marketing.completed and data.marketing.booked > 0 %}
-        <div style="font-size: 6.5pt; color: #B53631; margin-top: 0.03in; font-weight: 600;">{{ data.marketing.booked - data.marketing.completed }} no-show / cancelled</div>
-        {% endif %}
+        <div style="font-size: 7pt; color: #918A85; margin-top: 0.02in;">{{ data.marketing.completed }} completed</div>
       </div>
       <div style="flex: 1; text-align: center; padding: 0.1in; background: #F3EDF4; border: 1px solid #D4C5D6; border-radius: 8px;">
         <div style="font-size: 7pt; text-transform: uppercase; letter-spacing: 0.03em; color: #8C8580; margin-bottom: 0.03in;">End-to-End</div>
         <div style="font-size: 18pt; font-weight: 700; color: #4D1751;">{% if data.marketing.leads > 0 %}{{ "{:.1f}".format(data.marketing.completed / data.marketing.leads * 100) }}%{% else %}—{% endif %}</div>
-        <div style="font-size: 7pt; color: #918A85; margin-top: 0.02in;">{{ data.marketing.leads }} leads → {{ data.marketing.completed }} patients</div>
+        <div style="font-size: 7pt; color: #918A85; margin-top: 0.02in;">{{ data.marketing.completed }} patients</div>
       </div>
     </div>
   </div>
@@ -567,21 +555,18 @@
 
   {# ── Budget Scaling Projection ── #}
   {% if data.marketing.leads > 0 and (data.marketing.first_visit_roi or 0) > 0 %}
-  {% set proj_spend = (data.marketing.ad_spend * 1.5)|round(0)|int %}
-  {% set proj_leads = (data.marketing.leads * 1.5)|round(0)|int %}
-  {% set proj_rev = (data.marketing.revenue * 1.5)|round(0)|int %}
   <div class="card" style="margin-bottom: 0.15in; background: #FAFAF7;">
     <div class="section-subtitle">What If: Budget Scaling Projection</div>
     <div style="font-size: 8.5pt; color: #5a5550; margin-top: 0.06in; margin-bottom: 0.1in;">
-      Based on current funnel efficiency, here's what scaling your budget could look like:
+      Conservative estimates based on current funnel efficiency, adjusted for diminishing returns:
     </div>
     <table style="width: 100%; border-collapse: collapse; font-size: 8.5pt;">
       <thead>
         <tr style="border-bottom: 2px solid var(--purple);">
           <th style="padding: 4px 6px; text-align: left; color: var(--purple); font-weight: 600;"></th>
           <th style="padding: 4px 6px; text-align: center; color: var(--purple); font-weight: 600;">Current</th>
-          <th style="padding: 4px 6px; text-align: center; color: var(--purple); font-weight: 600;">+25%</th>
-          <th style="padding: 4px 6px; text-align: center; color: var(--purple); font-weight: 600;">+50%</th>
+          <th style="padding: 4px 6px; text-align: center; color: var(--purple); font-weight: 600;">+25% Budget</th>
+          <th style="padding: 4px 6px; text-align: center; color: var(--purple); font-weight: 600;">+50% Budget</th>
         </tr>
       </thead>
       <tbody>
@@ -594,14 +579,14 @@
         <tr style="border-bottom: 1px solid #e8e3de;">
           <td style="padding: 5px 6px; font-weight: 500;">Est. Leads</td>
           <td style="padding: 5px 6px; text-align: center;">{{ "{:,}".format(data.marketing.leads) }}</td>
-          <td style="padding: 5px 6px; text-align: center; color: #2E7D32;">{{ "{:,}".format((data.marketing.leads * 1.25)|round(0)|int) }}</td>
-          <td style="padding: 5px 6px; text-align: center; color: #2E7D32;">{{ "{:,}".format((data.marketing.leads * 1.5)|round(0)|int) }}</td>
+          <td style="padding: 5px 6px; text-align: center; color: #2E7D32;">{{ "{:,}".format((data.marketing.leads * 1.20)|round(0)|int) }}</td>
+          <td style="padding: 5px 6px; text-align: center; color: #2E7D32;">{{ "{:,}".format((data.marketing.leads * 1.35)|round(0)|int) }}</td>
         </tr>
         <tr style="border-bottom: 1px solid #e8e3de;">
           <td style="padding: 5px 6px; font-weight: 500;">Est. Revenue</td>
           <td style="padding: 5px 6px; text-align: center;">{{ "${:,.0f}".format(data.marketing.revenue) }}</td>
-          <td style="padding: 5px 6px; text-align: center; color: #2E7D32;">{{ "${:,.0f}".format(data.marketing.revenue * 1.25) }}</td>
-          <td style="padding: 5px 6px; text-align: center; color: #2E7D32;">{{ "${:,.0f}".format(data.marketing.revenue * 1.5) }}</td>
+          <td style="padding: 5px 6px; text-align: center; color: #2E7D32;">{{ "${:,.0f}".format(data.marketing.revenue * 1.20) }}</td>
+          <td style="padding: 5px 6px; text-align: center; color: #2E7D32;">{{ "${:,.0f}".format(data.marketing.revenue * 1.35) }}</td>
         </tr>
         <tr>
           <td style="padding: 5px 6px; font-weight: 500;">Est. ROI</td>
