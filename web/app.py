@@ -395,8 +395,9 @@ def api_upload_monthly_brand_bank():
     if not file.filename:
         return jsonify({"error": "No file selected"}), 400
 
+    suffix = Path(file.filename).suffix.lower()
     try:
-        image_path = _save_upload(file, "bb")
+        image_path = _save_upload(file, "bb", keep_pdf=(suffix == ".pdf"))
     except Exception as e:
         return jsonify({"error": f"Failed to process file: {e}"}), 400
 
@@ -672,8 +673,9 @@ def api_upload_brand_bank(session_id):
     if not file.filename:
         return jsonify({"error": "No file selected"}), 400
 
+    suffix = Path(file.filename).suffix.lower()
     try:
-        image_path = _save_upload(file, "bb")
+        image_path = _save_upload(file, "bb", keep_pdf=(suffix == ".pdf"))
     except Exception as e:
         return jsonify({"error": f"Failed to process file: {e}"}), 400
 
@@ -730,16 +732,36 @@ def api_remove_brand_bank(session_id):
 
 def _pdf_to_png(pdf_path: str) -> str:
     """Convert the first page of a PDF to a PNG image. Returns the PNG path."""
-    out_prefix = pdf_path.rsplit(".", 1)[0]
-    subprocess.run(
-        ["/opt/homebrew/bin/pdftoppm", "-png", "-f", "1", "-l", "1",
-         "-r", "200", "-singlefile", pdf_path, out_prefix],
-        check=True, capture_output=True,
-    )
-    png_path = out_prefix + ".png"
-    if os.path.exists(png_path):
-        return png_path
-    raise FileNotFoundError(f"PDF conversion failed — {png_path} not created")
+    png_path = pdf_path.rsplit(".", 1)[0] + ".png"
+
+    # Try PyMuPDF (fitz) first — works everywhere without system dependencies
+    try:
+        import fitz
+        doc = fitz.open(pdf_path)
+        page = doc[0]
+        pix = page.get_pixmap(dpi=200)
+        pix.save(png_path)
+        doc.close()
+        if os.path.exists(png_path):
+            return png_path
+    except ImportError:
+        pass  # fitz not available, try pdftoppm
+
+    # Fallback to pdftoppm (system tool)
+    for pdftoppm_path in ["/opt/homebrew/bin/pdftoppm", "/usr/bin/pdftoppm", "pdftoppm"]:
+        try:
+            out_prefix = pdf_path.rsplit(".", 1)[0]
+            subprocess.run(
+                [pdftoppm_path, "-png", "-f", "1", "-l", "1",
+                 "-r", "200", "-singlefile", pdf_path, out_prefix],
+                check=True, capture_output=True,
+            )
+            if os.path.exists(png_path):
+                return png_path
+        except (FileNotFoundError, subprocess.CalledProcessError):
+            continue
+
+    raise FileNotFoundError(f"PDF conversion failed — neither PyMuPDF nor pdftoppm available")
 
 
 def _save_upload(file_storage, prefix: str, keep_pdf: bool = False) -> str:
@@ -970,7 +992,7 @@ def _analyze_launches_image(image_path: str) -> list:
 
 
 def _analyze_brand_bank_image(image_path: str, month_name: str) -> list:
-    """Use Claude to extract brand bank items from an uploaded image."""
+    """Use Claude to extract brand bank items from an uploaded image or PDF."""
     import anthropic
     import base64
 
@@ -978,35 +1000,54 @@ def _analyze_brand_bank_image(image_path: str, month_name: str) -> list:
     if not api_key:
         return []
 
-    with open(image_path, "rb") as f:
-        img_data = base64.standard_b64encode(f.read()).decode()
-
     suffix = Path(image_path).suffix.lower()
-    media_type = "image/jpeg" if suffix in (".jpg", ".jpeg") else "image/png"
+    content = []
+
+    if suffix == ".pdf":
+        # Convert PDF pages to images using PyMuPDF
+        try:
+            import fitz
+            doc = fitz.open(image_path)
+            for page in doc:
+                pix = page.get_pixmap(dpi=150)
+                img_bytes = pix.tobytes("png")
+                img_b64 = base64.standard_b64encode(img_bytes).decode()
+                content.append({
+                    "type": "image",
+                    "source": {"type": "base64", "media_type": "image/png", "data": img_b64},
+                })
+            doc.close()
+        except ImportError:
+            print("  Warning: PyMuPDF (fitz) not available for PDF processing")
+            return []
+    else:
+        with open(image_path, "rb") as f:
+            img_data = base64.standard_b64encode(f.read()).decode()
+        media_type = "image/jpeg" if suffix in (".jpg", ".jpeg") else "image/png"
+        content.append({
+            "type": "image",
+            "source": {"type": "base64", "media_type": media_type, "data": img_data},
+        })
+
+    content.append({"type": "text", "text": (
+        f"This is a Brand Bank image for a medspa showing marketing assets for {month_name}. "
+        "Extract each marketing asset/item and return ONLY valid JSON (no markdown, no code fences):\n"
+        '[\n'
+        '  {"title": "Asset Title", "category": "Type of asset"},\n'
+        '  ...\n'
+        ']\n\n'
+        "IMPORTANT:\n"
+        "- Extract ALL items/assets shown in the image\n"
+        "- title: the asset name exactly as shown (e.g. 'Valentines/Galentines Promos')\n"
+        "- category: type like 'Socials Carousel', 'Print Flyer', 'Event Print & Socials', 'Social Post', etc.\n"
+        "- Return ONLY the JSON array"
+    )})
 
     client = anthropic.Anthropic(api_key=api_key)
     message = client.messages.create(
         model="claude-sonnet-4-20250514",
         max_tokens=2048,
-        messages=[{
-            "role": "user",
-            "content": [
-                {"type": "image", "source": {"type": "base64", "media_type": media_type, "data": img_data}},
-                {"type": "text", "text": (
-                    f"This is a Brand Bank image for a medspa showing marketing assets for {month_name}. "
-                    "Extract each marketing asset/item and return ONLY valid JSON (no markdown, no code fences):\n"
-                    '[\n'
-                    '  {"title": "Asset Title", "category": "Type of asset"},\n'
-                    '  ...\n'
-                    ']\n\n'
-                    "IMPORTANT:\n"
-                    "- Extract ALL items/assets shown in the image\n"
-                    "- title: the asset name exactly as shown (e.g. 'Valentines/Galentines Promos')\n"
-                    "- category: type like 'Socials Carousel', 'Print Flyer', 'Event Print & Socials', 'Social Post', etc.\n"
-                    "- Return ONLY the JSON array"
-                )},
-            ],
-        }],
+        messages=[{"role": "user", "content": content}],
     )
 
     raw = message.content[0].text.strip()
