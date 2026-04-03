@@ -1324,10 +1324,14 @@ def api_batch_start():
             await browser.close()
             await pw.stop()
 
-            # Zip results
-            zip_path = os.path.join(out_dir, "MBR_Reports")
-            shutil.make_archive(zip_path, "zip", out_dir)
-            batch_jobs[job_id]["zip_path"] = zip_path + ".zip"
+            # Zip results (use zipfile for ZIP64 support with large batches)
+            import zipfile
+            zip_path = os.path.join(out_dir, "MBR_Reports.zip")
+            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED, allowZip64=True) as zf:
+                for fname in os.listdir(out_dir):
+                    if fname.endswith('.pdf'):
+                        zf.write(os.path.join(out_dir, fname), fname)
+            batch_jobs[job_id]["zip_path"] = zip_path
             batch_jobs[job_id]["status"] = "done"
             batch_jobs[job_id]["current"] = ""
 
