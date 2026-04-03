@@ -553,51 +553,22 @@
   </div>
   {% endif %}
 
-  {# ── Budget Scaling Projection ── #}
-  {% if data.marketing.leads > 0 and (data.marketing.first_visit_roi or 0) > 0 %}
+  {# ── Budget Efficiency Context ── #}
+  {% if data.marketing.leads > 0 %}
+  {% set cpl = data.marketing.ad_spend / data.marketing.leads %}
   <div class="card" style="margin-bottom: 0.15in; background: #FAFAF7;">
-    <div class="section-subtitle">What If: Budget Scaling Projection</div>
-    <div style="font-size: 8.5pt; color: #5a5550; margin-top: 0.06in; margin-bottom: 0.1in;">
-      Conservative estimates based on current funnel efficiency, adjusted for diminishing returns:
-    </div>
-    <table style="width: 100%; border-collapse: collapse; font-size: 8.5pt;">
-      <thead>
-        <tr style="border-bottom: 2px solid var(--purple);">
-          <th style="padding: 4px 6px; text-align: left; color: var(--purple); font-weight: 600;"></th>
-          <th style="padding: 4px 6px; text-align: center; color: var(--purple); font-weight: 600;">Current</th>
-          <th style="padding: 4px 6px; text-align: center; color: var(--purple); font-weight: 600;">+25% Budget</th>
-          <th style="padding: 4px 6px; text-align: center; color: var(--purple); font-weight: 600;">+50% Budget</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr style="border-bottom: 1px solid #e8e3de;">
-          <td style="padding: 5px 6px; font-weight: 500;">Ad Spend</td>
-          <td style="padding: 5px 6px; text-align: center;">{{ "${:,.0f}".format(data.marketing.ad_spend) }}</td>
-          <td style="padding: 5px 6px; text-align: center;">{{ "${:,.0f}".format(data.marketing.ad_spend * 1.25) }}</td>
-          <td style="padding: 5px 6px; text-align: center;">{{ "${:,.0f}".format(data.marketing.ad_spend * 1.5) }}</td>
-        </tr>
-        <tr style="border-bottom: 1px solid #e8e3de;">
-          <td style="padding: 5px 6px; font-weight: 500;">Est. Leads</td>
-          <td style="padding: 5px 6px; text-align: center;">{{ "{:,}".format(data.marketing.leads) }}</td>
-          <td style="padding: 5px 6px; text-align: center; color: #2E7D32;">{{ "{:,}".format((data.marketing.leads * 1.20)|round(0)|int) }}</td>
-          <td style="padding: 5px 6px; text-align: center; color: #2E7D32;">{{ "{:,}".format((data.marketing.leads * 1.35)|round(0)|int) }}</td>
-        </tr>
-        <tr style="border-bottom: 1px solid #e8e3de;">
-          <td style="padding: 5px 6px; font-weight: 500;">Est. Revenue</td>
-          <td style="padding: 5px 6px; text-align: center;">{{ "${:,.0f}".format(data.marketing.revenue) }}</td>
-          <td style="padding: 5px 6px; text-align: center; color: #2E7D32;">{{ "${:,.0f}".format(data.marketing.revenue * 1.20) }}</td>
-          <td style="padding: 5px 6px; text-align: center; color: #2E7D32;">{{ "${:,.0f}".format(data.marketing.revenue * 1.35) }}</td>
-        </tr>
-        <tr>
-          <td style="padding: 5px 6px; font-weight: 500;">Est. ROI</td>
-          <td style="padding: 5px 6px; text-align: center;">{{ "{:.1f}".format(data.marketing.first_visit_roi or 0) }}x</td>
-          <td style="padding: 5px 6px; text-align: center;">{{ "{:.1f}".format(data.marketing.first_visit_roi or 0) }}x</td>
-          <td style="padding: 5px 6px; text-align: center;">{{ "{:.1f}".format(data.marketing.first_visit_roi or 0) }}x</td>
-        </tr>
-      </tbody>
-    </table>
-    <div style="font-size: 7pt; color: #918A85; margin-top: 0.06in; font-style: italic;">
-      *Estimates assume similar conversion rates and cost-per-lead efficiency at each budget level. Actual results will vary based on market conditions, campaign optimization, and audience saturation.
+    <div class="section-subtitle">Budget Efficiency</div>
+    <div style="font-size: 9pt; line-height: 1.6; color: #5a5550; margin-top: 0.06in;">
+      At a cost per lead of <strong>${{ "{:,.0f}".format(cpl) }}</strong>, this campaign is
+      {% if cpl < 15 %}well below{% elif cpl < 30 %}within{% else %}above{% endif %}
+      the $15–$30 industry benchmark.
+      {% if (data.marketing.first_visit_roi or 0) >= 3 %}
+        With an ROI above 3x, there may be room to scale spend incrementally while monitoring cost-per-lead and conversion rates for any decline in efficiency.
+      {% elif (data.marketing.first_visit_roi or 0) >= 1 %}
+        Before increasing budget, focus on improving funnel conversion rates — a higher booking rate from existing leads will have more impact than additional spend.
+      {% else %}
+        The priority should be improving the return on current spend before considering any budget increase. Focus on lead follow-up speed and first-visit patient value.
+      {% endif %}
     </div>
   </div>
   {% endif %}

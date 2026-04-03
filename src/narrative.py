@@ -446,8 +446,8 @@ def _generate_marketing_recommendations(data: MBRData, client=None, context: str
 
 Structure:
 1. **Performance summary** — State the ROI (compare to the 3x goal), spend, leads, and revenue attributed to marketing. Be factual and measured.
-2. **Funnel analysis** — Identify the biggest conversion gap (leads→booked or booked→completed). Quantify how many leads/bookings are being lost and what closing the gap would mean in approximate revenue.
-3. **Actionable next steps** — Give 2-3 specific, practical recommendations the practice can act on. Tie each to an approximate impact where possible. Examples: lead follow-up speed, online booking links, offer testing, retargeting.
+2. **Funnel analysis** — Identify the biggest conversion gap (leads→booked or booked→completed). Quantify how many leads/bookings are being lost and what closing the gap could mean.
+3. **Actionable next steps** — Give 2-3 specific, practical recommendations the practice can act on. Examples: lead follow-up speed, online booking links, offer testing, retargeting. Do NOT project specific revenue or lead numbers from budget increases — scaling results are unpredictable.
 
 CRITICAL TONE RULES:
 - Write like a calm, experienced marketing consultant reviewing a dashboard with a client. Matter-of-fact, not salesy.
@@ -544,17 +544,27 @@ def _generate_rule_based_marketing(data: MBRData):
             f"The focus should be on maintaining this efficiency while scaling volume."
         )
 
-    # Budget scaling (conservative — 80% of linear to account for diminishing returns)
-    if roi > 0 and leads > 0:
-        proj_25_spend = spend * 1.25
-        proj_25_leads = round(leads * 1.20)  # conservative: 80% of linear scaling
-        proj_25_rev = round(revenue * 1.20)
-        paras.append(
-            f"**Budget projection:** A 25% budget increase to ${proj_25_spend:,.0f}/month could "
-            f"conservatively generate around {proj_25_leads} leads and approximately ${proj_25_rev:,.0f} "
-            f"in new patient revenue. These estimates account for diminishing returns at higher spend levels "
-            f"and assume similar market conditions."
-        )
+    # Budget efficiency context
+    if leads > 0:
+        if roi >= 3:
+            paras.append(
+                f"**Budget efficiency:** At ${cpl:,.0f} per lead, acquisition cost is "
+                f"{'below' if cpl < 15 else 'within' if cpl < 30 else 'above'} the $15–$30 benchmark. "
+                f"With ROI above 3x, there may be room to scale spend incrementally — but monitor "
+                f"cost-per-lead and conversion rates closely, as efficiency typically declines at higher spend levels."
+            )
+        elif roi >= 1:
+            paras.append(
+                f"**Budget efficiency:** At ${cpl:,.0f} per lead, the focus should be on improving "
+                f"funnel conversion before increasing spend. A higher booking rate from existing leads "
+                f"will have more impact than additional budget."
+            )
+        else:
+            paras.append(
+                f"**Budget efficiency:** At ${cpl:,.0f} per lead, the priority is improving return on "
+                f"current spend. Focus on lead follow-up speed and first-visit patient value before "
+                f"considering any budget increase."
+            )
 
     # AOV insight
     if aov > 0 and aov < 400:
