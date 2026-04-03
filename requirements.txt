@@ -6,3 +6,4 @@ anthropic
 pyarrow
 PyMuPDF
 playwright
+gunicorn
