@@ -1307,6 +1307,7 @@ def api_batch_start():
 
                     page = await browser.new_page()
                     await page.set_content(html, wait_until="networkidle")
+                    await page.evaluate("() => document.fonts.ready")
                     await page.pdf(
                         path=pdf_path,
                         format="Letter",

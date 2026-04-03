@@ -203,6 +203,8 @@ def html_to_pdf(html: str, output_path: str) -> str:
             browser = await p.chromium.launch()
             page = await browser.new_page()
             await page.set_content(html, wait_until="networkidle")
+            # Wait for fonts to load before rendering PDF
+            await page.evaluate("() => document.fonts.ready")
             await page.pdf(
                 path=output_path,
                 format="Letter",
