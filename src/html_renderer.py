@@ -209,7 +209,7 @@ def html_to_pdf(html: str, output_path: str) -> str:
                 path=output_path,
                 format="Letter",
                 print_background=True,
-                margin={"top": "1in", "right": "1in", "bottom": "1in", "left": "1in"},
+                margin={"top": "0.6in", "right": "0.7in", "bottom": "0.6in", "left": "0.7in"},
             )
             await browser.close()
 

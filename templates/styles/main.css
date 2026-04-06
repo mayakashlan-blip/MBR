@@ -44,15 +44,15 @@ body {
 
 @page {
   size: 8.5in 11in;
-  margin: 1in;
+  margin: 0.6in 0.7in;
 }
 
 /* ── Page Structure ── */
 .page {
-  width: 100%;
+  width: 8.5in;
   min-height: auto;
   height: auto;
-  padding: 1in;
+  padding: 0.6in 0.7in;
   page-break-after: always;
   break-after: page;
   position: relative;
