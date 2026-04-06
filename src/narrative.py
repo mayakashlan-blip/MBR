@@ -309,7 +309,6 @@ def _generate_rule_based(data: MBRData):
                 f"and maximize overall efficiency.")
 
     data.executive_summary = f"{win}\n\n{opp}{staff_para}"
-    )
 
     # Assessments
     _generate_rule_based_assessments(data)
