@@ -148,19 +148,19 @@ def _call_claude_api(client, context: str, data: MBRData):
         max_tokens=500,
         messages=[{
             "role": "user",
-            "content": f"""You are writing the executive summary for a Monthly Business Review (MBR) for a medspa practice. Write exactly 3-4 sentences analyzing this month's performance.
+            "content": f"""You are writing the executive summary for a Monthly Business Review (MBR) for a medspa practice. Write exactly 3-4 sentences.
 
-Reference the biggest win and biggest opportunity with specific numbers.
+STRUCTURE:
+1. Lead with the practice's biggest win this month — what went well. Reference a specific number.
+2. Then note the clearest growth opportunity — where there's room to improve. Reference a specific number and briefly mention a path forward.
 
-CRITICAL TONE RULES:
-- Write like a measured business analyst, not a cheerleader. State what happened and what it means.
-- NEVER use: "impressive", "exceptional", "incredible", "outstanding", "remarkable", "stellar", "phenomenal", "excellent", "fantastic", "amazing", "crushing it", "massive", "tremendous", "skyrocketing", "catastrophic", "immediately", "critical", "alarming", "dire", "urgent", "plummeted", "collapsed".
-- NEVER use exclamation points.
-- When metrics are strong, say "above target" or "on track" — not "impressive" or "outstanding".
-- When metrics are below target, say "below the benchmark" and note the path forward — not "concerning" or "needs immediate attention".
-- Use plain, professional language. Let the numbers speak.
-
-Do not use bullet points. Do not start with "This month" or "In {data.month_name}".
+TONE:
+- Warm and supportive, like a knowledgeable partner who genuinely wants the practice to succeed.
+- Acknowledge wins plainly and sincerely — e.g. "Revenue reached $42,000, hitting 105% of goal."
+- Frame opportunities constructively — e.g. "Utilization at 45% leaves room to grow, and filling a few more hours each week could add meaningful revenue."
+- No hyperboles or exaggerated language. No words like: impressive, exceptional, incredible, outstanding, remarkable, stellar, phenomenal, excellent, fantastic, amazing, massive, tremendous, catastrophic, alarming, critical, urgent.
+- No exclamation points. No bullet points.
+- Do not start with "This month" or "In {data.month_name}".
 
 {context}"""
         }]
@@ -253,13 +253,29 @@ def _generate_rule_based(data: MBRData):
     biggest_service = data.services[0].name if data.services else "core services"
     biggest_service_pct = data.services[0].pct_of_total if data.services else 0
 
-    data.executive_summary = (
-        f"{data.month_name} net revenue came in at ${data.monthly_net_revenue:,.0f}, "
-        f"reaching {rev_pct:.1f}% of goal across {data.total_appointments} appointments. "
-        f"{biggest_service} drove {biggest_service_pct:.0f}% of service revenue, "
-        f"confirming it as the practice's anchor offering. "
-        f"The clearest growth lever: utilization sits at {data.utilization_rate*100:.0f}% "
-        f"against a 60%+ benchmark, meaning there's significant capacity to fill."
+    # Build win statement
+    if data.pct_net_revenue_goal >= 1.0:
+        win = (f"Revenue reached ${data.monthly_net_revenue:,.0f}, hitting {rev_pct:.0f}% of goal "
+               f"across {data.total_appointments} appointments.")
+    elif data.pct_net_revenue_goal >= 0.85:
+        win = (f"Revenue came in at ${data.monthly_net_revenue:,.0f} ({rev_pct:.0f}% of goal), "
+               f"with {biggest_service} driving {biggest_service_pct:.0f}% of service revenue.")
+    else:
+        win = (f"{biggest_service} led the service mix at {biggest_service_pct:.0f}% of revenue, "
+               f"with {data.total_appointments} appointments completed this month.")
+
+    # Build opportunity statement
+    if data.utilization_rate < 0.60:
+        opp = (f"The clearest path to growth is utilization, currently at {data.utilization_rate*100:.0f}% — "
+               f"filling a few more hours each week could add meaningful revenue without additional staff cost.")
+    elif data.rebooking_rate < 0.60:
+        opp = (f"Rebooking rate at {data.rebooking_rate*100:.0f}% has room to grow toward the 60% benchmark, "
+               f"and even a small lift here builds a more predictable revenue base.")
+    else:
+        opp = (f"With utilization and rebooking both above benchmark, the next lever is "
+               f"growing average order value (currently ${data.aov:,.0f}) through add-on services or packages.")
+
+    data.executive_summary = f"{win} {opp}"
     )
 
     # Assessments
