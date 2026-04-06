@@ -785,7 +785,7 @@ function addMarketingStep() {
 
 function collectMarketingAnalysis() {
   const analysisDiv = document.getElementById('marketing-analysis');
-  if (analysisDiv.style.display === 'none') return null;
+  if (!analysisDiv || analysisDiv.style.display === 'none') return null;
 
   // Funnel
   const metricsDiv = document.getElementById('marketing-metrics');
