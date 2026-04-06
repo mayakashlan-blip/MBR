@@ -52,12 +52,18 @@ body {
   width: 8.5in;
   min-height: auto;
   height: auto;
-  padding: 0;
+  padding: 0.45in 0.5in 0.55in 0.5in;
   page-break-after: always;
   break-after: page;
   position: relative;
   overflow: visible;
   background: var(--cream);
+}
+
+@media print {
+  .page {
+    padding: 0;
+  }
 }
 
 .page:last-child {
@@ -144,13 +150,11 @@ table {
 
 /* ── Copyright Footer ── */
 .footer {
-  position: absolute;
-  bottom: 0.2in;
-  left: 0;
-  right: 0;
   text-align: center;
   font-size: 6.5pt;
   color: var(--muted-text);
+  margin-top: 0.2in;
+  padding-top: 0.1in;
 }
 
 /* ── Typography ── */
