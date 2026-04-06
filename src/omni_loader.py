@@ -35,6 +35,7 @@ QUERY_DATE_FIELDS = {
     "Active Members": None,  # active = point-in-time, no date filter needed
     "New Memberships": "dbt__moxie_client_memberships_mart.started_at",
     "Churned Memberships": "dbt__moxie_client_memberships_mart.ended_at",
+    "Payments & Refunds": "dbt__moxie_invoice_transactions_mart.transaction_date_et",
 }
 
 
@@ -279,8 +280,19 @@ def load_from_omni(practice_name: str, month: int, year: int,
 
     # Client Counts
     r = run("Client Counts")
-    data.new_clients = int(_val(r, "count_new_client"))
-    data.existing_clients = int(_val(r, "count_existing_client"))
+    new_client_appts = int(_val(r, "count_new_client_appointments"))
+    existing_client_appts = int(_val(r, "count_existing_client_appointments"))
+    total_unique_clients = int(_val(r, "paid_appointment_clients"))
+    # Use unique client count for new/existing split proportionally
+    # count_new/existing_client_appointments are appointment counts, not unique clients
+    total_appts_for_split = new_client_appts + existing_client_appts
+    if total_appts_for_split > 0 and total_unique_clients > 0:
+        new_pct = new_client_appts / total_appts_for_split
+        data.new_clients = round(total_unique_clients * new_pct)
+        data.existing_clients = total_unique_clients - data.new_clients
+    else:
+        data.new_clients = new_client_appts
+        data.existing_clients = existing_client_appts
 
     # Memberships
     r = run("Active Members")
@@ -394,6 +406,13 @@ def load_from_omni(practice_name: str, month: int, year: int,
     # Discounts and fees from Omni
     data.discounts = _val(r, "discounts_sum")
     data.client_fees = _val(r, "fees_sum")
+
+    # Payments & Refunds
+    try:
+        pr = run("Payments & Refunds")
+        data.redemptions = _val(pr, "refund_amount_sum")
+    except Exception:
+        pass
 
     # Retail to Service Ratio
     r = run("Retail to Service Revenue")
