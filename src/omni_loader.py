@@ -391,7 +391,8 @@ def load_from_omni(practice_name: str, month: int, year: int,
                         data.prepayment_revenue + data.custom_items +
                         data.membership_sales)
 
-    # Fees as client_fees
+    # Discounts and fees from Omni
+    data.discounts = _val(r, "discounts_sum")
     data.client_fees = _val(r, "fees_sum")
 
     # Retail to Service Ratio
@@ -853,12 +854,6 @@ def load_from_omni(practice_name: str, month: int, year: int,
                 print("  Marketing: no data found for this practice")
     except Exception as e:
         print(f"  Warning: Could not load marketing data: {e}")
-
-    # ── Discounts ──
-    # Derive from gross - net
-    implied_adjustments = data.total_gross - data.monthly_net_revenue
-    if implied_adjustments > 0 and data.discounts == 0:
-        data.discounts = implied_adjustments
 
     print(f"  Loaded: Net Rev ${data.monthly_net_revenue:,.2f}, "
           f"{data.total_appointments} appts, "
