@@ -44,26 +44,20 @@ body {
 
 @page {
   size: 8.5in 11in;
-  margin: 0;
+  margin: 1in;
 }
 
 /* ── Page Structure ── */
 .page {
-  width: 8.5in;
+  width: 100%;
   min-height: auto;
   height: auto;
-  padding: 0.45in 0.5in 0.55in 0.5in;
+  padding: 1in;
   page-break-after: always;
   break-after: page;
   position: relative;
   overflow: visible;
   background: var(--cream);
-}
-
-@media print {
-  .page {
-    padding: 0;
-  }
 }
 
 .page:last-child {
@@ -82,12 +76,7 @@ body {
 
 @media print {
   .page {
-    page-break-after: always;
-    break-after: page;
-  }
-  .page:last-child {
-    page-break-after: auto;
-    break-after: auto;
+    padding: 0;
   }
 }
 

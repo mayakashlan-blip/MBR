@@ -1313,7 +1313,7 @@ def api_batch_start():
                         format="Letter",
                         print_background=True,
                         prefer_css_page_size=True,
-                        margin={"top": "0.45in", "right": "0.5in", "bottom": "0.45in", "left": "0.5in"},
+                        margin={"top": "1in", "right": "1in", "bottom": "1in", "left": "1in"},
                     )
                     await page.close()
 
