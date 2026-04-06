@@ -148,19 +148,28 @@ def _call_claude_api(client, context: str, data: MBRData):
         max_tokens=500,
         messages=[{
             "role": "user",
-            "content": f"""You are writing the executive summary for a Monthly Business Review (MBR) for a medspa practice. Write exactly 3-4 sentences.
+            "content": f"""You are writing the executive summary for a Monthly Business Review (MBR) for a medspa practice. Write 3-4 short paragraphs.
 
 STRUCTURE:
-1. Lead with the practice's biggest win this month — what went well. Reference a specific number.
-2. Then note the clearest growth opportunity — where there's room to improve. Reference a specific number and briefly mention a path forward.
+- Paragraph 1: Lead with the top revenue/performance wins. Reference specific numbers — net revenue vs goal, top-performing service categories, standout conversion rates or metrics that exceeded benchmarks. Mention total appointments and AOV if they're noteworthy.
+- Paragraph 2: Note the clearest growth opportunity — a metric that's below target (rebooking, utilization, retention, etc.). Frame it warmly and constructively, explaining how improving it could support more consistent growth.
+- Paragraph 3: If there are multiple staff members, highlight how performance varies across providers — call out who's operating at high capacity and where there's an opportunity to balance appointment distribution. Use specific utilization or revenue numbers.
 
 TONE:
-- Warm and supportive, like a knowledgeable partner who genuinely wants the practice to succeed.
-- Acknowledge wins plainly and sincerely — e.g. "Revenue reached $42,000, hitting 105% of goal."
-- Frame opportunities constructively — e.g. "Utilization at 45% leaves room to grow, and filling a few more hours each week could add meaningful revenue."
-- No hyperboles or exaggerated language. No words like: impressive, exceptional, incredible, outstanding, remarkable, stellar, phenomenal, excellent, fantastic, amazing, massive, tremendous, catastrophic, alarming, critical, urgent.
-- No exclamation points. No bullet points.
+- Warm, encouraging, and specific. Like a supportive business partner celebrating what's working and gently guiding on what's next.
+- Use natural, warm language — words like "strong", "standout", "great momentum", "continued to build" are fine.
+- Keep it grounded in specific numbers from the data. Every claim should reference a metric.
+- Frame gaps as opportunities to "further strengthen" or "support even more growth" — never as failures or problems.
+- Do not use exclamation points. Do not use bullet points.
 - Do not start with "This month" or "In {data.month_name}".
+- If the practice only has one staff member, skip the staffing paragraph.
+
+EXAMPLE TONE (do not copy this verbatim, use it as a guide for style):
+"Net revenue reached $105,428, achieving 117.1% of goal — a strong result driven by neuromodulator sales ($57,038) and a standout lead-to-booking conversion rate of 30.6%, more than double the 15% target. The practice continued to build great momentum with 253 total appointments and an average order value of $399.56, both exceeding benchmarks.
+
+There's also an opportunity to further strengthen client retention, as the rebooking rate is currently at 28%, below the 40% goal. Focusing on encouraging follow-up scheduling could help support even more consistent growth.
+
+From a staffing perspective, utilization is trending differently across providers, with one provider operating at 90% capacity while another is at 54%, highlighting an opportunity to balance appointment distribution and maximize overall efficiency."
 
 {context}"""
         }]
@@ -253,29 +262,53 @@ def _generate_rule_based(data: MBRData):
     biggest_service = data.services[0].name if data.services else "core services"
     biggest_service_pct = data.services[0].pct_of_total if data.services else 0
 
-    # Build win statement
+    # Paragraph 1: Wins
     if data.pct_net_revenue_goal >= 1.0:
-        win = (f"Revenue reached ${data.monthly_net_revenue:,.0f}, hitting {rev_pct:.0f}% of goal "
-               f"across {data.total_appointments} appointments.")
+        win = (f"Net revenue reached ${data.monthly_net_revenue:,.0f}, achieving {rev_pct:.0f}% of goal "
+               f"— a strong result driven by {biggest_service} ({biggest_service_pct:.0f}% of service revenue). "
+               f"The practice built great momentum with {data.total_appointments} total appointments "
+               f"and an average order value of ${data.aov:,.0f}.")
     elif data.pct_net_revenue_goal >= 0.85:
-        win = (f"Revenue came in at ${data.monthly_net_revenue:,.0f} ({rev_pct:.0f}% of goal), "
-               f"with {biggest_service} driving {biggest_service_pct:.0f}% of service revenue.")
+        win = (f"Net revenue came in at ${data.monthly_net_revenue:,.0f}, reaching {rev_pct:.0f}% of goal "
+               f"with {data.total_appointments} appointments. {biggest_service} continued to lead "
+               f"the service mix at {biggest_service_pct:.0f}% of revenue, "
+               f"and AOV held steady at ${data.aov:,.0f}.")
     else:
         win = (f"{biggest_service} led the service mix at {biggest_service_pct:.0f}% of revenue, "
-               f"with {data.total_appointments} appointments completed this month.")
+               f"with {data.total_appointments} appointments completed and an AOV of ${data.aov:,.0f}. "
+               f"Revenue reached ${data.monthly_net_revenue:,.0f} ({rev_pct:.0f}% of goal), "
+               f"with room to close the gap through volume and retention improvements.")
 
-    # Build opportunity statement
-    if data.utilization_rate < 0.60:
-        opp = (f"The clearest path to growth is utilization, currently at {data.utilization_rate*100:.0f}% — "
-               f"filling a few more hours each week could add meaningful revenue without additional staff cost.")
+    # Paragraph 2: Opportunity
+    if data.rebooking_rate < 0.40:
+        opp = (f"There's an opportunity to further strengthen client retention, as the rebooking rate "
+               f"is currently at {data.rebooking_rate*100:.0f}%, below the 40% goal. Focusing on "
+               f"encouraging follow-up scheduling at checkout could help support more consistent growth.")
+    elif data.utilization_rate < 0.60:
+        opp = (f"There's also an opportunity to strengthen utilization, currently at "
+               f"{data.utilization_rate*100:.0f}%. Filling a few more hours each week could "
+               f"meaningfully increase revenue without additional staffing cost.")
     elif data.rebooking_rate < 0.60:
-        opp = (f"Rebooking rate at {data.rebooking_rate*100:.0f}% has room to grow toward the 60% benchmark, "
-               f"and even a small lift here builds a more predictable revenue base.")
+        opp = (f"Rebooking rate at {data.rebooking_rate*100:.0f}% has room to grow toward the 60% benchmark. "
+               f"Even a small lift here builds a more predictable revenue base month over month.")
     else:
-        opp = (f"With utilization and rebooking both above benchmark, the next lever is "
-               f"growing average order value (currently ${data.aov:,.0f}) through add-on services or packages.")
+        opp = (f"With utilization and rebooking both above benchmark, the next opportunity is "
+               f"growing average order value through add-on services or bundled packages.")
 
-    data.executive_summary = f"{win} {opp}"
+    # Paragraph 3: Staff (only if multiple providers)
+    staff_para = ""
+    if len(data.staff) > 1:
+        top = max(data.staff, key=lambda s: s.utilization or 0)
+        bottom = min(data.staff, key=lambda s: s.utilization if s.utilization is not None else 1)
+        if top.utilization and bottom.utilization and top.name != bottom.name:
+            staff_para = (
+                f"\n\nFrom a staffing perspective, utilization varies across providers, "
+                f"with {top.name} operating at {top.utilization*100:.0f}% capacity "
+                f"while {bottom.name} is at {bottom.utilization*100:.0f}%, "
+                f"highlighting an opportunity to balance appointment distribution "
+                f"and maximize overall efficiency.")
+
+    data.executive_summary = f"{win}\n\n{opp}{staff_para}"
     )
 
     # Assessments
