@@ -44,19 +44,19 @@ body {
 
 @page {
   size: 8.5in 11in;
-  margin: 0.6in 0.7in;
+  margin: 0;
 }
 
 /* ── Page Structure ── */
 .page {
   width: 8.5in;
-  min-height: auto;
+  min-height: 11in;
   height: auto;
-  padding: 0.6in 0.7in;
+  padding: 0.5in 0.6in;
   page-break-after: always;
   break-after: page;
   position: relative;
-  overflow: visible;
+  overflow: hidden;
   background: var(--cream);
 }
 
@@ -68,16 +68,11 @@ body {
 /* Continuous section — has header but no forced page break before it */
 .page.continuous {
   min-height: 0;
+  overflow: visible;
   page-break-after: auto;
   break-after: auto;
   page-break-before: auto;
   break-before: auto;
-}
-
-@media print {
-  .page {
-    padding: 0;
-  }
 }
 
 /* Prevent cards and sections from splitting across pages */
@@ -170,7 +165,6 @@ table {
   box-shadow: var(--shadow-md);
   padding: 0.18in 0.22in;
   position: relative;
-  overflow: hidden;
 }
 
 .card-inner {
@@ -266,7 +260,7 @@ table {
   box-shadow: var(--shadow-sm);
   padding: 0.12in 0.14in;
   border-top: 3px solid var(--purple);
-  overflow: hidden;
+  min-width: 0;
 }
 
 .metric-label {
@@ -279,14 +273,13 @@ table {
 }
 
 .metric-value {
-  font-size: 15pt;
+  font-size: 14pt;
   font-weight: 700;
   color: var(--purple);
-  line-height: 1.1;
-  white-space: nowrap;
+  line-height: 1.2;
 }
 
-.metric-value.small { font-size: 12pt; }
+.metric-value.small { font-size: 11pt; }
 
 /* ── MoM Change Indicator ── */
 .mom-change {
@@ -319,10 +312,8 @@ table {
 
 .gauge-wrap {
   position: relative;
-  width: 100%;
-  max-width: 0.95in;
-  aspect-ratio: 1;
-  height: auto;
+  width: 0.9in;
+  height: 0.9in;
   margin: 0 auto 0.06in;
 }
 
@@ -621,7 +612,6 @@ table {
   font-weight: 700;
   color: var(--purple);
   line-height: 1.2;
-  white-space: nowrap;
 }
 
 .sm-mom {
