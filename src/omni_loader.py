@@ -20,11 +20,14 @@ MARKETING_DASHBOARD_ID = "0ef3afa3"
 # Omni requires TIME_FOR_INTERVAL_DURATION kind for date filtering.
 # The field must belong to the same topic as the query.
 QUERY_DATE_FIELDS = {
-    # invoices_mart topic — use invoice_issued_date
-    "KPI: Net Revenue": "dbt__moxie_invoices_mart.invoice_issued_date",
-    "KPI: Paid Appointments": "dbt__moxie_invoices_mart.invoice_issued_date",
-    "KPI: AOV": "dbt__moxie_invoices_mart.invoice_issued_date",
-    "Client Counts": "dbt__moxie_invoices_mart.invoice_issued_date",
+    # transaction-based queries — use transaction_date_et to match Omni dashboard
+    "KPI: Net Revenue": "dbt__moxie_invoice_transactions_mart.transaction_date_et",
+    "Payments & Refunds": "dbt__moxie_invoice_transactions_mart.transaction_date_et",
+    # appointment-based queries — use start_time
+    "KPI: Paid Appointments": "dbt__moxie_appointments_mart.start_time",
+    "KPI: AOV": "dbt__moxie_appointments_mart.start_time",
+    "Client Counts": "dbt__moxie_appointments_mart.start_time",
+    # invoice-based queries — use invoice_issued_date
     "Total Membership Revenue": "dbt__moxie_invoices_mart.invoice_issued_date",
     "Gross Revenue Breakdown Summary": "dbt__moxie_invoices_mart.invoice_issued_date",
     "Retail to Service Revenue": "dbt__moxie_invoices_mart.invoice_issued_date",
@@ -35,7 +38,6 @@ QUERY_DATE_FIELDS = {
     "Active Members": None,  # active = point-in-time, no date filter needed
     "New Memberships": "dbt__moxie_client_memberships_mart.started_at",
     "Churned Memberships": "dbt__moxie_client_memberships_mart.ended_at",
-    "Payments & Refunds": "dbt__moxie_invoice_transactions_mart.transaction_date_et",
 }
 
 
