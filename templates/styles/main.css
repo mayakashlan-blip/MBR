@@ -54,13 +54,13 @@ html, body {
 .page {
   width: 100%;
   max-width: 8.5in;
-  min-height: 11in;
+  min-height: auto;
   height: auto;
   padding: 0.5in 0.6in;
   page-break-after: always;
   break-after: page;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
   background: var(--cream);
 }
 
