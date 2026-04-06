@@ -65,16 +65,6 @@ body {
   break-after: auto;
 }
 
-/* Continuous section — has header but no forced page break before it */
-.page.continuous {
-  min-height: 0;
-  overflow: visible;
-  page-break-after: auto;
-  break-after: auto;
-  page-break-before: auto;
-  break-before: auto;
-}
-
 /* Prevent cards and sections from splitting across pages */
 .card,
 .metric-card,
