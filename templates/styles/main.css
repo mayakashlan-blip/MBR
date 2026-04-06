@@ -36,10 +36,13 @@
   print-color-adjust: exact;
 }
 
-body {
+html, body {
   font-family: 'Inter', -apple-system, 'Segoe UI', Arial, sans-serif;
   color: var(--dark-text);
   background: var(--cream);
+  margin: 0;
+  padding: 0;
+  width: 100%;
 }
 
 @page {
@@ -49,7 +52,8 @@ body {
 
 /* ── Page Structure ── */
 .page {
-  width: 8.5in;
+  width: 100%;
+  max-width: 8.5in;
   min-height: 11in;
   height: auto;
   padding: 0.5in 0.6in;
