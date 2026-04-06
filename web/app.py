@@ -558,8 +558,11 @@ def api_update(session_id):
         from src.data_schema import BrandBankItem
         data.brand_bank_items = [BrandBankItem(**b) for b in payload["brand_bank_items"] if b.get("title")]
 
-    # Mark session as needing re-render (lazy — done when preview is requested)
+    # Re-render and persist to disk
     sess["needs_render"] = True
+    _rerender(sess)
+    sess["needs_render"] = False
+    _save_session(session_id, sess)
 
     return jsonify({"ok": True})
 
