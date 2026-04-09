@@ -459,26 +459,38 @@
     </div>
   </div>
 
-  {# ── Funnel ── #}
-  <div style="display: flex; gap: 0; margin-bottom: 0.18in; align-items: stretch;">
-    {% set funnel = [
-      ("Ad Spend", "${:,.0f}".format(data.marketing.ad_spend), "Monthly Budget"),
-      ("New Patient Leads", "{:,}".format(data.marketing.leads), "From Campaigns"),
-      ("Appts Booked", "{:,}".format(data.marketing.booked), "New Patients"),
-      ("Appts Completed", "{:,}".format(data.marketing.completed), "First Visits"),
-      ("New Patient Revenue", "${:,.0f}".format(data.marketing.revenue), "Attributed to Marketing"),
-    ] %}
-    {% for label, value, subtitle in funnel %}
-    <div style="flex: 1; text-align: center; padding: 0.12in 0.06in; background: white; border: 1px solid #e5e0db;
-                {% if loop.first %}border-radius: 10px 0 0 10px;{% elif loop.last %}border-radius: 0 10px 10px 0;{% endif %}
-                {% if not loop.first %}border-left: none;{% endif %}
-                position: relative;">
-      <div style="font-size: 6.5pt; text-transform: uppercase; letter-spacing: 0.04em; color: #8C8580; margin-bottom: 0.02in;">{{ label }}</div>
-      <div style="font-size: 16pt; font-weight: 700; color: #4D1751; margin-bottom: 0.02in;">{{ value }}</div>
-      <div style="font-size: 6.5pt; color: #918A85;">{{ subtitle }}</div>
-      {% if not loop.last %}<div style="position: absolute; right: -5px; top: 50%; transform: translateY(-50%); color: #d2cbc4; font-size: 12pt; z-index: 1;">&#9654;</div>{% endif %}
+  {# ── Marketing Metrics Tiles ── #}
+  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.1in; margin-bottom: 0.15in;">
+    <div style="text-align: center; padding: 0.12in 0.08in; background: white; border: 1px solid #e5e0db; border-radius: 8px;">
+      <div style="font-size: 6.5pt; text-transform: uppercase; letter-spacing: 0.04em; color: #8C8580; margin-bottom: 0.02in;">Ad Spend</div>
+      <div style="font-size: 16pt; font-weight: 700; color: #4D1751;">{{ "${:,.0f}".format(data.marketing.ad_spend) }}</div>
+      <div style="font-size: 6.5pt; color: #918A85;">Monthly Budget</div>
     </div>
-    {% endfor %}
+    <div style="text-align: center; padding: 0.12in 0.08in; background: white; border: 1px solid #e5e0db; border-radius: 8px;">
+      <div style="font-size: 6.5pt; text-transform: uppercase; letter-spacing: 0.04em; color: #8C8580; margin-bottom: 0.02in;">New Patient Leads</div>
+      <div style="font-size: 16pt; font-weight: 700; color: #4D1751;">{{ "{:,}".format(data.marketing.leads) }}</div>
+      <div style="font-size: 6.5pt; color: #918A85;">From Campaigns</div>
+    </div>
+    <div style="text-align: center; padding: 0.12in 0.08in; background: white; border: 1px solid #e5e0db; border-radius: 8px;">
+      <div style="font-size: 6.5pt; text-transform: uppercase; letter-spacing: 0.04em; color: #8C8580; margin-bottom: 0.02in;">Appts Booked</div>
+      <div style="font-size: 16pt; font-weight: 700; color: #4D1751;">{{ "{:,}".format(data.marketing.booked) }}</div>
+      <div style="font-size: 6.5pt; color: #918A85;">New Patients</div>
+    </div>
+    <div style="text-align: center; padding: 0.12in 0.08in; background: white; border: 1px solid #e5e0db; border-radius: 8px;">
+      <div style="font-size: 6.5pt; text-transform: uppercase; letter-spacing: 0.04em; color: #8C8580; margin-bottom: 0.02in;">Appts Completed</div>
+      <div style="font-size: 16pt; font-weight: 700; color: #4D1751;">{{ "{:,}".format(data.marketing.completed) }}</div>
+      <div style="font-size: 6.5pt; color: #918A85;">First Visits</div>
+    </div>
+    <div style="text-align: center; padding: 0.12in 0.08in; background: white; border: 1px solid #e5e0db; border-radius: 8px;">
+      <div style="font-size: 6.5pt; text-transform: uppercase; letter-spacing: 0.04em; color: #8C8580; margin-bottom: 0.02in;">New Patient Revenue</div>
+      <div style="font-size: 16pt; font-weight: 700; color: #4D1751;">{{ "${:,.0f}".format(data.marketing.revenue) }}</div>
+      <div style="font-size: 6.5pt; color: #918A85;">Attributed to Marketing</div>
+    </div>
+    <div style="text-align: center; padding: 0.12in 0.08in; background: white; border: 1px solid #e5e0db; border-radius: 8px;">
+      <div style="font-size: 6.5pt; text-transform: uppercase; letter-spacing: 0.04em; color: #8C8580; margin-bottom: 0.02in;">Est. Booked Revenue</div>
+      <div style="font-size: 16pt; font-weight: 700; color: #4D1751;">{% if data.marketing.estimated_booked_revenue %}{{ "${:,.0f}".format(data.marketing.estimated_booked_revenue) }}{% else %}—{% endif %}</div>
+      <div style="font-size: 6.5pt; color: #918A85;">Pipeline from Bookings</div>
+    </div>
   </div>
 
   {# ── Key Metrics ── #}

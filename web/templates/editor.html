@@ -352,12 +352,12 @@
       </div>
       <div class="section-body hidden" id="marketing-body">
         <div style="font-size: 11px; color: #8C8580; margin-bottom: 10px;">
-          Enter the practice's marketing campaign data. ROI, conversion rates, and recommendations will be auto-calculated.
+          All marketing fields are editable. Computed metrics update automatically.
         </div>
         <div class="mkt-grid" style="grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 10px;">
           <div>
             <label style="font-size:10px;">Ad Spend ($)</label>
-            <input type="number" id="mkt-spend" value="{{ data.marketing.ad_spend if data.marketing else '' }}" placeholder="0" oninput="updateMarketingCalcs(); debounceSave();" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:5px 8px; font-size:11px;">
+            <input type="number" id="mkt-spend" value="{{ data.marketing.ad_spend if data.marketing else '' }}" placeholder="0" step="0.01" oninput="updateMarketingCalcs(); debounceSave();" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:5px 8px; font-size:11px;">
           </div>
           <div>
             <label style="font-size:10px;">New Patient Leads</label>
@@ -373,14 +373,34 @@
           </div>
           <div>
             <label style="font-size:10px;">New Patient Revenue ($)</label>
-            <input type="number" id="mkt-revenue" value="{{ data.marketing.revenue if data.marketing else '' }}" placeholder="0" oninput="updateMarketingCalcs(); debounceSave();" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:5px 8px; font-size:11px;">
+            <input type="number" id="mkt-revenue" value="{{ data.marketing.revenue if data.marketing else '' }}" placeholder="0" step="0.01" oninput="updateMarketingCalcs(); debounceSave();" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:5px 8px; font-size:11px;">
+          </div>
+          <div>
+            <label style="font-size:10px;">Est. Booked Revenue ($)</label>
+            <input type="number" id="mkt-booked-rev" value="{{ data.marketing.estimated_booked_revenue if data.marketing and data.marketing.estimated_booked_revenue else '' }}" placeholder="0" step="0.01" oninput="updateMarketingCalcs(); debounceSave();" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:5px 8px; font-size:11px;">
+          </div>
+          <div>
+            <label style="font-size:10px;">ROI</label>
+            <input type="number" id="mkt-roi-input" value="{{ data.marketing.first_visit_roi if data.marketing and data.marketing.first_visit_roi else '' }}" placeholder="Auto" step="0.01" oninput="debounceSave();" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:5px 8px; font-size:11px;">
+          </div>
+          <div>
+            <label style="font-size:10px;">Lead → Booking Rate (%)</label>
+            <input type="number" id="mkt-ltb-input" value="{{ (data.marketing.lead_to_booking_rate * 100)|round(1) if data.marketing and data.marketing.lead_to_booking_rate else '' }}" placeholder="Auto" step="0.1" oninput="debounceSave();" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:5px 8px; font-size:11px;">
+          </div>
+          <div>
+            <label style="font-size:10px;">First-Visit AOV ($)</label>
+            <input type="number" id="mkt-aov-input" value="{{ data.marketing.first_visit_aov|round(2) if data.marketing and data.marketing.first_visit_aov else '' }}" placeholder="Auto" step="0.01" oninput="debounceSave();" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:5px 8px; font-size:11px;">
+          </div>
+          <div>
+            <label style="font-size:10px;">Cost per Lead ($)</label>
+            <input type="number" id="mkt-cpl-input" value="{% if data.marketing and data.marketing.leads > 0 %}{{ (data.marketing.ad_spend / data.marketing.leads)|round(2) }}{% endif %}" placeholder="Auto" step="0.01" oninput="debounceSave();" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:5px 8px; font-size:11px;">
           </div>
         </div>
         <div id="mkt-computed" style="background: #F7F4F0; border-radius: 6px; padding: 8px 10px; margin-bottom: 10px; font-size: 11px; color: #4A4744;">
-          <div style="display:flex; justify-content:space-between; margin-bottom:3px;"><span>ROI:</span> <strong id="mkt-roi-display">—</strong></div>
-          <div style="display:flex; justify-content:space-between; margin-bottom:3px;"><span>Lead → Booking:</span> <strong id="mkt-conv-display">—</strong></div>
-          <div style="display:flex; justify-content:space-between; margin-bottom:3px;"><span>First-Visit AOV:</span> <strong id="mkt-aov-display">—</strong></div>
-          <div style="display:flex; justify-content:space-between;"><span>Cost per Lead:</span> <strong id="mkt-cpl-display">—</strong></div>
+          <div style="display:flex; justify-content:space-between; margin-bottom:3px;"><span>Computed ROI:</span> <strong id="mkt-roi-display">—</strong></div>
+          <div style="display:flex; justify-content:space-between; margin-bottom:3px;"><span>Computed Lead → Booking:</span> <strong id="mkt-conv-display">—</strong></div>
+          <div style="display:flex; justify-content:space-between; margin-bottom:3px;"><span>Computed First-Visit AOV:</span> <strong id="mkt-aov-display">—</strong></div>
+          <div style="display:flex; justify-content:space-between;"><span>Computed Cost per Lead:</span> <strong id="mkt-cpl-display">—</strong></div>
         </div>
         <label>Summary & Recommendations</label>
         <textarea id="marketing-recs-text" rows="5" oninput="debounceSave()" placeholder="AI-generated recommendations will appear here, or type your own..." style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:8px 10px; font-family:'Inter',sans-serif; font-size:11px; line-height:1.5; resize:vertical; color:#2D2A28;">{{ data.marketing_recommendations or '' }}</textarea>
@@ -510,15 +530,21 @@ function collectData() {
   const mktBooked = parseInt(document.getElementById('mkt-booked')?.value) || 0;
   const mktCompleted = parseInt(document.getElementById('mkt-completed')?.value) || 0;
   const mktRevenue = parseFloat(document.getElementById('mkt-revenue')?.value) || 0;
+  const mktBookedRev = parseFloat(document.getElementById('mkt-booked-rev')?.value) || null;
+  // Use manual overrides if provided, otherwise compute
+  const mktRoiInput = parseFloat(document.getElementById('mkt-roi-input')?.value);
+  const mktLtbInput = parseFloat(document.getElementById('mkt-ltb-input')?.value);
+  const mktAovInput = parseFloat(document.getElementById('mkt-aov-input')?.value);
   const marketing = mktSpend > 0 ? {
     ad_spend: mktSpend,
     leads: mktLeads,
     booked: mktBooked,
     completed: mktCompleted,
     revenue: mktRevenue,
-    first_visit_roi: mktSpend > 0 ? mktRevenue / mktSpend : null,
-    lead_to_booking_rate: mktLeads > 0 ? mktBooked / mktLeads : null,
-    first_visit_aov: mktCompleted > 0 ? mktRevenue / mktCompleted : null,
+    estimated_booked_revenue: mktBookedRev,
+    first_visit_roi: !isNaN(mktRoiInput) ? mktRoiInput : (mktSpend > 0 ? mktRevenue / mktSpend : null),
+    lead_to_booking_rate: !isNaN(mktLtbInput) ? mktLtbInput / 100 : (mktLeads > 0 ? mktBooked / mktLeads : null),
+    first_visit_aov: !isNaN(mktAovInput) ? mktAovInput : (mktCompleted > 0 ? mktRevenue / mktCompleted : null),
   } : null;
 
   // Legacy — keep for backward compat
@@ -920,11 +946,22 @@ function updateMarketingCalcs() {
   const aov = completed > 0 ? revenue / completed : 0;
   const cpl = leads > 0 ? spend / leads : 0;
 
+  // Update computed display
   document.getElementById('mkt-roi-display').textContent = roi > 0 ? roi.toFixed(1) + 'x' : '—';
   document.getElementById('mkt-roi-display').style.color = roi >= 3 ? '#2E7D32' : roi >= 2 ? '#B8933A' : '#B53631';
   document.getElementById('mkt-conv-display').textContent = conv > 0 ? conv.toFixed(0) + '%' : '—';
   document.getElementById('mkt-aov-display').textContent = aov > 0 ? '$' + aov.toFixed(0) : '—';
   document.getElementById('mkt-cpl-display').textContent = cpl > 0 ? '$' + cpl.toFixed(0) : '—';
+
+  // Auto-fill editable fields if empty (user can override)
+  const roiInput = document.getElementById('mkt-roi-input');
+  const ltbInput = document.getElementById('mkt-ltb-input');
+  const aovInput = document.getElementById('mkt-aov-input');
+  const cplInput = document.getElementById('mkt-cpl-input');
+  if (!roiInput.value && roi > 0) roiInput.placeholder = roi.toFixed(1);
+  if (!ltbInput.value && conv > 0) ltbInput.placeholder = conv.toFixed(1);
+  if (!aovInput.value && aov > 0) aovInput.placeholder = '$' + aov.toFixed(0);
+  if (!cplInput.value && cpl > 0) cplInput.placeholder = '$' + cpl.toFixed(0);
 }
 
 function generateMarketingRecs() {
