@@ -3,6 +3,21 @@
 
 {% block content %}
 <div class="container">
+
+  {# Password gate #}
+  <div id="batch-lock" style="text-align: center; padding: 60px 20px;">
+    <div style="font-size: 36px; margin-bottom: 16px;">&#128274;</div>
+    <h2 style="margin-bottom: 8px;">Batch Export</h2>
+    <p style="color: #8C8580; margin-bottom: 20px;">Enter the password to access batch export.</p>
+    <div style="max-width: 300px; margin: 0 auto;">
+      <input type="password" id="batch-pw" placeholder="Password" onkeypress="if(event.key==='Enter') unlockBatch();"
+             style="width:100%; border:1px solid #d2cbc4; border-radius:8px; padding:10px 14px; font-size:14px; margin-bottom:10px;">
+      <button class="btn btn-primary" onclick="unlockBatch()" style="width:100%;">Unlock</button>
+      <div id="pw-error" style="color:#B53631; font-size:13px; margin-top:8px; display:none;">Incorrect password.</div>
+    </div>
+  </div>
+
+  <div id="batch-content" style="display:none;">
   <div class="hero">
     <h1>Batch Export</h1>
     <p>Generate MBR reports for multiple practices at once. Select practices, choose the period, and export as a ZIP file.</p>
@@ -73,7 +88,22 @@
       <a id="download-btn" class="btn btn-primary" href="#">Download ZIP</a>
     </div>
   </div>
+  </div>{# close batch-content #}
 </div>
+
+<script>
+function unlockBatch() {
+  const pw = document.getElementById('batch-pw').value;
+  if (pw === 'moxie2026') {
+    document.getElementById('batch-lock').style.display = 'none';
+    document.getElementById('batch-content').style.display = 'block';
+  } else {
+    document.getElementById('pw-error').style.display = 'block';
+    document.getElementById('batch-pw').value = '';
+    document.getElementById('batch-pw').focus();
+  }
+}
+</script>
 
 <script>
 let allPractices = [];  // [{name, id}]
@@ -138,12 +168,6 @@ function updateCount() {
 
 function startBatch() {
   if (selectedPractices.size === 0) { alert('Select at least one practice.'); return; }
-
-  const pw = prompt('Enter the batch export password:');
-  if (pw !== 'moxie2026') {
-    alert('Incorrect password.');
-    return;
-  }
 
   const month = document.getElementById('batch-month').value;
   const year = document.getElementById('batch-year').value;
