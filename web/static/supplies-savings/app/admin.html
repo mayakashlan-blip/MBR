@@ -302,18 +302,14 @@ const TOKEN = 'REPLACE_WITH_TOKEN';
 const REPO  = 'shannon-hue/supplies-savings';
 const RAW   = 'https://raw.githubusercontent.com/shannon-hue/supplies-savings/main';
 const API   = `https://api.github.com/repos/${REPO}/contents`;
+const LOCAL_BASE = '/static/supplies-savings/';
 
-// ─── GITHUB API ───────────────────────────────────────────────────────────────
-// Small files (<1MB): use Contents API
+// ─── DATA API ─────────────────────────────────────────────────────────────────
+// Reads use local static files; writes still use GitHub API
 async function ghGet(path) {
-  const r = await fetch(`${API}/${path}`, {
-    headers: {'Authorization': `token ${TOKEN}`, 'Accept': 'application/vnd.github.v3+json'}
-  });
+  const r = await fetch(LOCAL_BASE + path);
   if (!r.ok) throw new Error(`GET ${path} failed: ${r.status}`);
-  const j = await r.json();
-  const clean = j.content.replace(/[\r\n\s]/g, '');
-  const decoded = decodeURIComponent(escape(atob(clean)));
-  return {data: JSON.parse(decoded), sha: j.sha};
+  return {data: await r.json(), sha: null};
 }
 
 async function ghPut(path, data, sha, msg) {
@@ -337,31 +333,19 @@ async function ghPut(path, data, sha, msg) {
   return r.json();
 }
 
-// Fetch current vendor transaction history
-// Uses api.github.com with Accept: raw — works for any file size, private repos, no CORS issues
+// Fetch current vendor transaction history from local static files
 async function fetchVendorHistory(vendor) {
-  const res = await fetch(`${API}/data/transactions_${vendor}.json`, {
-    headers: {'Authorization': `token ${TOKEN}`, 'Accept': 'application/vnd.github.v3.raw'}
-  });
+  const res = await fetch(LOCAL_BASE + `data/transactions_${vendor}.json`);
   if (res.status === 404) return []; // first ever upload for this vendor
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return await res.json();
 }
 
-// Large files: read via raw URL, write via Git Data API (no 1MB limit)
+// Large files: read from local static files
 async function ghGetRaw(path) {
-  const meta = await fetch(`${API}/${path}`, {
-    headers: {'Authorization': `token ${TOKEN}`, 'Accept': 'application/vnd.github.v3+json'}
-  });
-  if (!meta.ok) throw new Error(`META ${path} failed: ${meta.status}`);
-  const j = await meta.json();
-  const sha = j.sha;
-  // Use download_url (GitHub CDN) — works for any file size, unlike the blob API which fails on large files
-  // No Authorization header: raw.githubusercontent.com is public and auth triggers CORS preflight failure
-  const rawUrl = j.download_url || `https://raw.githubusercontent.com/${REPO}/main/${path}`;
-  const r = await fetch(rawUrl);
-  if (!r.ok) throw new Error(`Raw GET ${path} failed: ${r.status}`);
-  return {data: await r.json(), sha};
+  const r = await fetch(LOCAL_BASE + path);
+  if (!r.ok) throw new Error(`GET ${path} failed: ${r.status}`);
+  return {data: await r.json(), sha: null};
 }
 
 // Async base64 via FileReader — doesn't block the main thread, works for large files

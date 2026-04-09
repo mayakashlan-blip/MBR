@@ -114,38 +114,24 @@ tr:last-child td{border-bottom:none}
 
 <script>
 const REPO  = 'shannon-hue/supplies-savings';
-const API   = 'https://api.github.com/repos/' + REPO + '/contents';
-const RAW   = 'https://raw.githubusercontent.com/shannon-hue/supplies-savings/main';
-const TOKEN = 'REPLACE_WITH_TOKEN';
+const API   = '';
+const RAW   = '';
+const TOKEN = '';
+const LOCAL_BASE = '/static/supplies-savings/';
 
-// ── READ-ONLY GitHub helpers ──────────────────────────────────────────────────
-async function ghGet(path) {
-  const r = await fetch(`${API}/${path}`, {
-    headers: {'Authorization': `token ${TOKEN}`, 'Accept': 'application/vnd.github.v3+json'}
-  });
+// ── LOCAL DATA LOAD (fetches from Flask static files) ────────────────────────
+async function fetchRaw(path) {
+  const r = await fetch(LOCAL_BASE + path);
   if (!r.ok) throw new Error(`GET ${path} failed: ${r.status}`);
-  const j = await r.json();
-  if (j.content) {
-    const clean = j.content.replace(/[\r\n\s]/g, '');
-    const decoded = decodeURIComponent(escape(atob(clean)));
-    return {data: JSON.parse(decoded), sha: j.sha};
-  }
-  throw new Error('No content field (file may be too large — use ghGetRaw)');
+  return {data: await r.json(), sha: null};
 }
 
-// For large files (>1MB) — uses Git Blobs API which works for private repos in browsers
+async function ghGet(path) {
+  return fetchRaw(path);
+}
+
 async function ghGetRaw(path) {
-  const meta = await fetch(`${API}/${path}`, {
-    headers: {'Authorization': `token ${TOKEN}`, 'Accept': 'application/vnd.github.v3+json'}
-  });
-  if (!meta.ok) throw new Error(`META ${path} failed: ${meta.status}`);
-  const j = await meta.json();
-  const sha = j.sha;
-  const r = await fetch(`${API.replace('/contents','')}/git/blobs/${sha}`, {
-    headers: {'Authorization': `token ${TOKEN}`, 'Accept': 'application/vnd.github.v3.raw'}
-  });
-  if (!r.ok) throw new Error(`Blob GET ${path} failed: ${r.status}`);
-  return {data: await r.json(), sha};
+  return fetchRaw(path);
 }
 
 // ── State ─────────────────────────────────────────────────────────────────────

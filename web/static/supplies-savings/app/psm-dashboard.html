@@ -138,9 +138,10 @@ td:first-child{font-weight:500}
 document.addEventListener('DOMContentLoaded', function() { initDashboard(); });
 
 // ── CONSTANTS ─────────────────────────────────────────────────────────────────
-const TOKEN = 'REPLACE_WITH_TOKEN';
+const TOKEN = '';
 const REPO  = 'shannon-hue/supplies-savings';
-const API   = 'https://api.github.com/repos/' + REPO + '/contents';
+const API   = '';
+const LOCAL_BASE = '/static/supplies-savings/';
 
 // ── PRICING ───────────────────────────────────────────────────────────────────
 const G_ERA1 = {"DYSPORT":0.2787,"RESTYLANE L":0.5931,"RESTYLANE 1ML":0.5931,"RESTYLANE SILK":0.6755,"RESTYLANE LYFT":0.5931,"RESTYLANE L LYFT":0.5931,"RESTYLANE REFYNE":0.6196,"RESTYLANE DEFYNE":0.5931,"RESTYLANE KYSSE":0.5425,"RESTYLANE CONTOUR":0.5931,"RESTYLANE EYELIGHT":0.5931,"SCULPTRA":0.9055};
@@ -493,28 +494,18 @@ function getRebates(moxieId) {
 
 // ── DATA FETCH ────────────────────────────────────────────────────────────────
 function fetchRaw(path, cb) {
-  var url='https://api.github.com/repos/'+REPO+'/contents/'+path;
-  var xhr=new XMLHttpRequest();
+  var url = LOCAL_BASE + path;
+  var xhr = new XMLHttpRequest();
   xhr.open('GET', url);
-  xhr.setRequestHeader('Authorization','token '+TOKEN);
-  xhr.setRequestHeader('Accept','application/vnd.github.v3.raw');
-  xhr.timeout=60000;
-  xhr.onload=function() {
-    if (xhr.status===200) {
-      try {
-        var data=JSON.parse(xhr.responseText);
-        // GitHub API sometimes returns base64-encoded object instead of raw content.
-        // Detect and decode it so all files parse correctly.
-        if (data && typeof data==='object' && data.encoding==='base64' && data.content) {
-          try { data=JSON.parse(atob(data.content.replace(/\n/g,''))); } catch(e2){}
-        }
-        cb(null,data);
-      } catch(e) { cb(e); }
-    }
-    else { cb(new Error(xhr.status)); }
+  xhr.timeout = 60000;
+  xhr.onload = function() {
+    if (xhr.status === 200) {
+      try { cb(null, JSON.parse(xhr.responseText)); }
+      catch(e) { cb(e); }
+    } else { cb(new Error(xhr.status)); }
   };
-  xhr.onerror=function(){ cb(new Error('network')); };
-  xhr.ontimeout=function(){ cb(new Error('timeout')); };
+  xhr.onerror = function() { cb(new Error('network')); };
+  xhr.ontimeout = function() { cb(new Error('timeout')); };
   xhr.send();
 }
 

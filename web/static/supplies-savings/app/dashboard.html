@@ -113,9 +113,10 @@ td:first-child{font-weight:500}
 // ── DATA ──────────────────────────────────────────────────────────────────────
 var MEDSPAS = []
 var NAME_MAP = {}
-const TOKEN = 'REPLACE_WITH_TOKEN';
+const TOKEN = '';
 const REPO  = 'shannon-hue/supplies-savings';
-const API   = 'https://api.github.com/repos/' + REPO + '/contents';
+const API   = '';
+const LOCAL_BASE = '/static/supplies-savings/';
 
 // ── PRICING ───────────────────────────────────────────────────────────────────
 const G_ERA1 = {"DYSPORT":0.2787,"RESTYLANE L":0.5931,"RESTYLANE 1ML":0.5931,"RESTYLANE SILK":0.6755,"RESTYLANE LYFT":0.5931,"RESTYLANE L LYFT":0.5931,"RESTYLANE REFYNE":0.6196,"RESTYLANE DEFYNE":0.5931,"RESTYLANE KYSSE":0.5425,"RESTYLANE CONTOUR":0.5931,"RESTYLANE EYELIGHT":0.5931,"SCULPTRA":0.9055};
@@ -376,30 +377,15 @@ function getRebates(moxieId) {
   return t;
 }
 
-// ── GITHUB DATA LOAD ──────────────────────────────────────────────────────────
+// ── LOCAL DATA LOAD (fetches from Flask static files) ─────────────────────────
 function ghGet(path, cb) {
-  var xhr = new XMLHttpRequest();
-  xhr.open('GET', API + '/' + path);
-  xhr.setRequestHeader('Authorization', 'token ' + TOKEN);
-  xhr.setRequestHeader('Accept', 'application/vnd.github.v3+json');
-  xhr.onload = function() {
-    if (xhr.status === 200) {
-      var j = JSON.parse(xhr.responseText);
-      var raw = j.content.replace(/[\r\n\s]/g, '');
-      try { cb(null, JSON.parse(decodeURIComponent(escape(atob(raw))))); }
-      catch(e) { cb(e); }
-    } else { cb(new Error(xhr.status)); }
-  };
-  xhr.onerror = function() { cb(new Error('network')); };
-  xhr.send();
+  fetchRaw(path, cb);
 }
 
 function fetchRaw(path, cb) {
-  var url = 'https://api.github.com/repos/' + REPO + '/contents/' + path;
+  var url = LOCAL_BASE + path;
   var xhr = new XMLHttpRequest();
   xhr.open('GET', url);
-  xhr.setRequestHeader('Authorization', 'token ' + TOKEN);
-  xhr.setRequestHeader('Accept', 'application/vnd.github.v3.raw');
   xhr.timeout = 60000;
   xhr.onload = function() {
     if (xhr.status === 200) {
