@@ -139,6 +139,12 @@ function updateCount() {
 function startBatch() {
   if (selectedPractices.size === 0) { alert('Select at least one practice.'); return; }
 
+  const pw = prompt('Enter the batch export password:');
+  if (pw !== 'moxie2026') {
+    alert('Incorrect password.');
+    return;
+  }
+
   const month = document.getElementById('batch-month').value;
   const year = document.getElementById('batch-year').value;
 
