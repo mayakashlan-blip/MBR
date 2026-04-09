@@ -1383,6 +1383,11 @@ def api_batch_download(job_id):
                      download_name="MBR_Reports.zip", mimetype="application/zip")
 
 
+
+@app.route('/supplies-savings')
+def supplies_savings():
+    return send_file('static/supplies-savings/app/dashboard.html')
+    
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "--omni-key":
         OMNI_KEY = sys.argv[2]
