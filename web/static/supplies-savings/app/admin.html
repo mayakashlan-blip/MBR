@@ -1,0 +1,1635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Supplies Savings — Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--aug:#3D1235;--aug2:#6B2D5E;--cream:#FAF8F4;--green:#1E4A08;--green-l:#EAF3DE;--border:#DDD5D9;--text:#1A1018;--muted:#7A6A76;--white:#fff;--red:#A32D2D;--red-l:#FCEBEB;--amber:#633806;--amber-l:#FAEEDA}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--cream);font-family:'DM Sans',system-ui,sans-serif;color:var(--text);min-height:100vh}
+.wrap{max-width:1100px;margin:0 auto;padding:28px 24px}
+.eyebrow{font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--aug2);margin-bottom:6px}
+h1{font-family:'Playfair Display',Georgia,serif;font-size:26px;font-weight:600;color:var(--aug);margin-bottom:4px}
+.subtitle{font-size:13px;color:var(--muted);margin-bottom:28px}
+
+/* Tabs */
+.tabs{display:flex;gap:0;border-bottom:1.5px solid var(--border);margin-bottom:24px}
+.tab{padding:10px 20px;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2.5px solid transparent;margin-bottom:-1.5px;transition:all .15s}
+.tab.active{color:var(--aug);border-bottom-color:var(--aug)}
+.tab:hover:not(.active){color:var(--aug2)}
+.panel{display:none}.panel.active{display:block}
+
+/* Cards */
+.card{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin-bottom:16px}
+.card-title{font-size:13px;font-weight:600;color:var(--aug);margin-bottom:4px}
+.card-sub{font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.5}
+
+/* Upload slots */
+.upload-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:20px}
+.slot{border:1.5px dashed var(--border);border-radius:10px;padding:16px;text-align:center;cursor:pointer;position:relative;transition:all .2s}
+.slot:hover{border-color:var(--aug2);background:#FBF5FA}
+.slot.loaded{border-style:solid;border-color:#5A9A40;background:var(--green-l)}
+.slot.loading{border-color:var(--aug2);background:#FBF5FA}
+.slot input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.slot-vendor{font-size:12px;font-weight:600;color:var(--aug2);margin-bottom:3px}
+.slot.loaded .slot-vendor{color:var(--green)}
+.slot-status{font-size:11px;color:var(--muted)}
+.slot.loaded .slot-status{color:#3A7A28}
+
+/* Buttons */
+.btn{padding:9px 18px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .15s}
+.btn-primary{background:var(--aug);color:#fff}.btn-primary:hover{background:var(--aug2)}
+.btn-secondary{background:var(--white);color:var(--aug);border:1px solid var(--border)}.btn-secondary:hover{border-color:var(--aug)}
+.btn-danger{background:var(--red-l);color:var(--red);border:1px solid #FBBCBC}.btn-danger:hover{background:#F7C1C1}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* Flag queue */
+.flag-list{display:flex;flex-direction:column;gap:8px}
+.flag-item{border:1px solid var(--border);border-radius:10px;padding:14px 16px;background:var(--white)}
+.flag-item.resolved{opacity:.5;border-style:dashed}
+.flag-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px}
+.flag-name{font-weight:600;font-size:13px;color:var(--text)}
+.flag-meta{font-size:11px;color:var(--muted);margin-top:2px}
+.flag-badge{font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px;white-space:nowrap}
+.badge-id{background:var(--red-l);color:var(--red)}
+.badge-name{background:var(--amber-l);color:var(--amber)}
+.flag-suggestions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.suggestion{padding:6px 12px;border-radius:7px;font-size:12px;border:1px solid var(--border);cursor:pointer;transition:all .15s;background:var(--white)}
+.suggestion:hover{border-color:var(--aug);color:var(--aug)}
+.suggestion.selected{background:var(--aug);color:#fff;border-color:var(--aug)}
+.flag-actions{display:flex;gap:8px;align-items:center}
+.flag-actions input{flex:1;padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:12px;outline:none}
+.flag-actions input:focus{border-color:var(--aug)}
+
+/* Name map table */
+.search-bar{display:flex;gap:10px;margin-bottom:14px}
+.search-bar input{flex:1;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none}
+.search-bar input:focus{border-color:var(--aug)}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead th{text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:8px 12px;border-bottom:1.5px solid var(--border)}
+tbody tr{border-top:.5px solid #F0EAEd}
+tbody tr:hover{background:#FBF5FA}
+td{padding:8px 12px;color:var(--text);vertical-align:middle}
+td:first-child{font-family:monospace;font-size:11px}
+.status-mapped{color:var(--green);font-size:10px;font-weight:600;background:var(--green-l);padding:1px 7px;border-radius:10px}
+.status-skipped{color:var(--muted);font-size:10px;font-weight:600;background:#F1EFE8;padding:1px 7px;border-radius:10px}
+
+/* Upload log */
+.log-entry{padding:10px 14px;border-radius:8px;background:var(--white);border:1px solid var(--border);margin-bottom:8px;display:flex;gap:14px;align-items:flex-start}
+.log-date{font-size:11px;color:var(--muted);white-space:nowrap;margin-top:1px}
+.log-body{font-size:12px;line-height:1.5}
+.log-vendor{font-weight:600;color:var(--aug2)}
+
+/* Toast */
+.toast{position:fixed;bottom:24px;right:24px;background:var(--aug);color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:999}
+.toast.show{opacity:1}
+
+/* Status bar */
+.status-bar{background:var(--aug);color:#fff;border-radius:10px;padding:12px 16px;font-size:12px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center}
+.status-bar span{opacity:.7;font-size:11px}
+
+/* Empty state */
+.empty{text-align:center;padding:40px;color:var(--muted)}
+.empty p{font-size:13px;margin-top:8px}
+
+/* ── Pricing panel ────────────────────────────────────────────────────────── */
+.pricing-layout{display:grid;grid-template-columns:220px 1fr;gap:20px;align-items:start}
+.vendor-list{display:flex;flex-direction:column;gap:4px}
+.vendor-btn{padding:10px 14px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:1.5px solid var(--border);background:var(--white);text-align:left;transition:all .15s;color:var(--text)}
+.vendor-btn:hover{border-color:var(--aug2);color:var(--aug)}
+.vendor-btn.active{border-color:var(--aug);background:#F7F0F5;color:var(--aug);font-weight:600}
+.era-list{display:flex;flex-direction:column;gap:8px;margin-bottom:20px}
+.era-card{border:1px solid var(--border);border-radius:10px;background:var(--white);overflow:hidden}
+.era-card-head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;cursor:pointer;user-select:none}
+.era-card-head:hover{background:#FBF5FA}
+.era-label{font-size:13px;font-weight:600;color:var(--aug)}
+.era-dates{font-size:11px;color:var(--muted)}
+.era-source{font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px}
+.era-source-builtin{background:#F0E8EC;color:var(--aug2)}
+.era-source-custom{background:var(--green-l);color:var(--green)}
+.era-body{display:none;padding:0 16px 14px;border-top:.5px solid var(--border)}
+.era-body.open{display:block}
+.era-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:10px}
+.era-table th{text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:6px 8px;border-bottom:1px solid var(--border)}
+.era-table td{padding:7px 8px;border-top:.5px solid #F0EAEd;font-variant-numeric:tabular-nums;vertical-align:middle}
+.era-table td:not(:first-child){text-align:right}
+.era-section-row td{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--aug2);background:#FAF5F8;padding:5px 8px}
+.savings-pill{display:inline-block;background:var(--green-l);color:var(--green);font-size:10px;font-weight:600;padding:1px 6px;border-radius:8px}
+
+/* Wizard */
+.wiz-steps{display:flex;gap:0;margin-bottom:28px;border-bottom:1.5px solid var(--border)}
+.wiz-step-lbl{padding:8px 18px;font-size:12px;font-weight:500;color:var(--muted);border-bottom:2.5px solid transparent;margin-bottom:-1.5px;white-space:nowrap}
+.wiz-step-lbl.done{color:var(--green)}
+.wiz-step-lbl.active{color:var(--aug);border-bottom-color:var(--aug);font-weight:600}
+.wiz-body{min-height:200px}
+.wiz-actions{display:flex;gap:10px;margin-top:24px;padding-top:16px;border-top:1px solid var(--border)}
+.form-row{display:flex;flex-direction:column;gap:5px;margin-bottom:16px}
+.form-row label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--aug)}
+.form-row input,.form-row select,.form-row textarea{padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;outline:none;background:var(--white)}
+.form-row input:focus,.form-row select:focus{border-color:var(--aug)}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.scope-cards{display:flex;gap:12px;margin-top:8px}
+.scope-card{flex:1;border:1.5px solid var(--border);border-radius:10px;padding:14px 16px;cursor:pointer;transition:all .15s}
+.scope-card:hover{border-color:var(--aug2)}
+.scope-card.selected{border-color:var(--aug);background:#F7F0F5}
+.scope-card h4{font-size:13px;font-weight:600;color:var(--aug);margin-bottom:4px}
+.scope-card p{font-size:12px;color:var(--muted);line-height:1.5}
+.product-check-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:6px;margin-top:10px}
+.product-check{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:7px;cursor:pointer;font-size:12px;background:var(--white);transition:all .15s}
+.product-check:hover{border-color:var(--aug2)}
+.product-check.checked{border-color:var(--aug);background:#F7F0F5;color:var(--aug);font-weight:500}
+.product-check input[type=checkbox]{accent-color:var(--aug)}
+.price-entry-table{width:100%;border-collapse:collapse;font-size:13px}
+.price-entry-table th{text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:8px 10px;border-bottom:1.5px solid var(--border)}
+.price-entry-table td{padding:6px 10px;border-top:.5px solid #F0EAEd;vertical-align:middle}
+.price-entry-table td:first-child{font-weight:500;color:var(--aug)}
+.price-entry-table .prev-val{font-size:11px;color:var(--muted);margin-top:2px}
+.price-input{width:100px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;text-align:right;outline:none}
+.price-input:focus{border-color:var(--aug)}
+.price-input.changed{border-color:#5A9A40;background:var(--green-l)}
+.review-table{width:100%;border-collapse:collapse;font-size:13px}
+.review-table td{padding:8px 12px;border-top:.5px solid #F0EAEd}
+.review-table td:first-child{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em;width:140px}
+.review-section-lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--aug2);margin:14px 0 6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">Moxie Supplies — Admin</div>
+  <h1>Data Management</h1>
+  <p class="subtitle">Upload vendor files, resolve unmapped names, manage the name database</p>
+
+  <div id="status-bar" class="status-bar" style="display:none">
+    <div>
+      <div id="status-text">Loading…</div>
+    </div>
+    <span id="status-sub"></span>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('upload')">Upload Files</div>
+    <div class="tab" onclick="switchTab('flags')">Review Queue <span id="flag-badge" style="display:none;background:#E24B4A;color:#fff;font-size:10px;padding:1px 6px;border-radius:10px;margin-left:4px"></span></div>
+    <div class="tab" onclick="switchTab('namemap')">Name Map</div>
+    <div class="tab" onclick="switchTab('log')">Upload Log</div>
+    <div class="tab" onclick="switchTab('pricing')">Pricing</div>
+  </div>
+
+  <!-- UPLOAD PANEL -->
+  <div id="panel-upload" class="panel active">
+    <div class="card">
+      <div class="card-title">Vendor transaction files — monthly</div>
+      <div class="card-sub">Drop new month CSV. Rows are appended and deduplicated. Name resolution runs automatically after each upload.</div>
+      <div class="upload-grid">
+        <div class="slot" id="slot-galderma">
+          <input type="file" accept=".csv" onchange="handleUpload('galderma',this)">
+          <div class="slot-vendor">Galderma</div>
+          <div class="slot-status" id="st-galderma">Drop CSV or click</div>
+        </div>
+        <div class="slot" id="slot-allergan">
+          <input type="file" accept=".csv" onchange="handleUpload('allergan',this)">
+          <div class="slot-vendor">Allergan</div>
+          <div class="slot-status" id="st-allergan">Drop CSV or click</div>
+        </div>
+        <div class="slot" id="slot-evolus">
+          <input type="file" accept=".csv" onchange="handleUpload('evolus',this)">
+          <div class="slot-vendor">Evolus</div>
+          <div class="slot-status" id="st-evolus">Drop CSV or click</div>
+        </div>
+        <div class="slot" id="slot-merz">
+          <input type="file" accept=".csv" onchange="handleUpload('merz',this)">
+          <div class="slot-vendor">Merz</div>
+          <div class="slot-status" id="st-merz">Drop CSV or click</div>
+        </div>
+        <div class="slot" id="slot-revance">
+          <input type="file" accept=".csv" onchange="handleUpload('revance',this)">
+          <div class="slot-vendor">Revance</div>
+          <div class="slot-status" id="st-revance">Drop CSV or click</div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Rebates — quarterly</div>
+      <div class="card-sub">Drop new quarterly rebates CSV. Appended by quarter, never overwritten.</div>
+      <div class="upload-grid" style="grid-template-columns:repeat(auto-fill,minmax(200px,1fr));max-width:240px">
+        <div class="slot" id="slot-rebates">
+          <input type="file" accept=".csv" onchange="handleUpload('rebates',this)">
+          <div class="slot-vendor">Rebates</div>
+          <div class="slot-status" id="st-rebates">Drop CSV or click</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLAG QUEUE -->
+  <div id="panel-flags" class="panel">
+    <div class="card">
+      <div class="card-title">Unresolved items</div>
+      <div class="card-sub">Items flagged during upload. Resolve by linking to a medspa or skip permanently.</div>
+      <div id="flag-list" class="flag-list">
+        <div class="empty"><p>No unresolved items. Upload vendor files to populate.</p></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NAME MAP -->
+  <div id="panel-namemap" class="panel">
+    <div class="card">
+      <div class="card-title">Vendor ID map — <span id="map-count">0</span> medspas</div>
+      <div class="card-sub">One row per medspa. Omni-sourced IDs are read-only. Name-mapped vendors (Merz, Evolus) can be edited. Revance names are auto-built from CSV uploads.</div>
+      <div class="search-bar">
+        <input type="text" id="map-search" placeholder="Search medspa name or any vendor ID…" oninput="renderNameMap()">
+        <button class="btn btn-secondary" onclick="downloadNameMap()">↓ Download</button>
+        <button class="btn btn-secondary" onclick="showAddMapping()">+ Add mapping</button>
+      </div>
+      <div id="map-table-wrap" style="overflow-x:auto">
+        <table>
+          <thead><tr id="map-thead-row"></tr></thead>
+          <tbody id="map-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOG -->
+  <div id="panel-log" class="panel">
+    <div class="card">
+      <div class="card-title">Upload history</div>
+      <div class="card-sub">Audit trail of all uploads.</div>
+      <div id="log-list"><div class="empty"><p>No uploads yet.</p></div></div>
+    </div>
+  </div>
+</div>
+
+
+<div id="panel-pricing" class="panel">
+  <div id="pricing-viewer-wrap">
+    <div class="card">
+      <div class="card-title">Pricing by vendor &amp; era</div>
+      <div class="card-sub">View all active pricing eras. Built-in eras reflect historical configuration. Custom eras are added via the wizard and apply to future transactions.</div>
+      <div class="pricing-layout">
+        <div>
+          <div class="vendor-list" id="pv-vendor-list"></div>
+          <div style="margin-top:16px">
+            <button class="btn btn-primary" onclick="showWizard()" style="width:100%">+ New pricing update</button>
+          </div>
+        </div>
+        <div id="pv-era-detail"><div style="color:var(--muted);font-size:13px;padding:20px 0">Select a vendor to view pricing eras.</div></div>
+      </div>
+    </div>
+  </div>
+  <div id="pricing-wizard-wrap" style="display:none">
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+        <div>
+          <div class="card-title">New pricing update</div>
+          <div class="card-sub" style="margin-bottom:0">Applies to transactions on or after the effective date. Historical data is never modified.</div>
+        </div>
+        <button class="btn btn-secondary" onclick="hideWizard()">Cancel</button>
+      </div>
+      <div class="wiz-steps" id="wiz-steps"></div>
+      <div class="wiz-body" id="wiz-body"></div>
+      <div class="wiz-actions" id="wiz-actions"></div>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+const TOKEN = 'REPLACE_WITH_TOKEN';
+const REPO  = 'shannon-hue/supplies-savings';
+const RAW   = 'https://raw.githubusercontent.com/shannon-hue/supplies-savings/main';
+const API   = `https://api.github.com/repos/${REPO}/contents`;
+
+// ─── GITHUB API ───────────────────────────────────────────────────────────────
+// Small files (<1MB): use Contents API
+async function ghGet(path) {
+  const r = await fetch(`${API}/${path}`, {
+    headers: {'Authorization': `token ${TOKEN}`, 'Accept': 'application/vnd.github.v3+json'}
+  });
+  if (!r.ok) throw new Error(`GET ${path} failed: ${r.status}`);
+  const j = await r.json();
+  const clean = j.content.replace(/[\r\n\s]/g, '');
+  const decoded = decodeURIComponent(escape(atob(clean)));
+  return {data: JSON.parse(decoded), sha: j.sha};
+}
+
+async function ghPut(path, data, sha, msg) {
+  // If SHA missing, fetch it now before writing
+  if (!sha) {
+    try {
+      const cur = await fetch(`${API}/${path}`, {
+        headers: {'Authorization': `token ${TOKEN}`, 'Accept': 'application/vnd.github.v3+json'}
+      });
+      if (cur.ok) { const j = await cur.json(); sha = j.sha; }
+    } catch(e) { console.warn('Could not fetch SHA before put:', e); }
+  }
+  const content = btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2))));
+  const body = {message: msg, content, ...(sha ? {sha} : {})};
+  const r = await fetch(`${API}/${path}`, {
+    method: 'PUT',
+    headers: {'Authorization': `token ${TOKEN}`, 'Content-Type': 'application/json'},
+    body: JSON.stringify(body)
+  });
+  if (!r.ok) throw new Error(`PUT ${path} failed: ${r.status} ${await r.text()}`);
+  return r.json();
+}
+
+// Fetch current vendor transaction history
+// Uses api.github.com with Accept: raw — works for any file size, private repos, no CORS issues
+async function fetchVendorHistory(vendor) {
+  const res = await fetch(`${API}/data/transactions_${vendor}.json`, {
+    headers: {'Authorization': `token ${TOKEN}`, 'Accept': 'application/vnd.github.v3.raw'}
+  });
+  if (res.status === 404) return []; // first ever upload for this vendor
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return await res.json();
+}
+
+// Large files: read via raw URL, write via Git Data API (no 1MB limit)
+async function ghGetRaw(path) {
+  const meta = await fetch(`${API}/${path}`, {
+    headers: {'Authorization': `token ${TOKEN}`, 'Accept': 'application/vnd.github.v3+json'}
+  });
+  if (!meta.ok) throw new Error(`META ${path} failed: ${meta.status}`);
+  const j = await meta.json();
+  const sha = j.sha;
+  // Use download_url (GitHub CDN) — works for any file size, unlike the blob API which fails on large files
+  // No Authorization header: raw.githubusercontent.com is public and auth triggers CORS preflight failure
+  const rawUrl = j.download_url || `https://raw.githubusercontent.com/${REPO}/main/${path}`;
+  const r = await fetch(rawUrl);
+  if (!r.ok) throw new Error(`Raw GET ${path} failed: ${r.status}`);
+  return {data: await r.json(), sha};
+}
+
+// Async base64 via FileReader — doesn't block the main thread, works for large files
+function toBase64(str) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(new Blob([str]));
+  });
+}
+
+async function ghPutLarge(path, data, msg, onStep) {
+  const step = onStep || function(){};
+  step('Encoding…');
+  const content = await toBase64(JSON.stringify(data, null, 2));
+  step('Creating blob…');
+  const blobR = await fetch(`https://api.github.com/repos/${REPO}/git/blobs`, {
+    method: 'POST',
+    headers: {'Authorization': `token ${TOKEN}`, 'Content-Type': 'application/json'},
+    body: JSON.stringify({content, encoding: 'base64'})
+  });
+  if (!blobR.ok) throw new Error(`Blob failed: ${blobR.status} ${await blobR.text()}`);
+  const blob = await blobR.json();
+  step('Getting HEAD…');
+  const refR = await fetch(`https://api.github.com/repos/${REPO}/git/ref/heads/main`, {
+    headers: {'Authorization': `token ${TOKEN}`}
+  });
+  if (!refR.ok) throw new Error(`Get ref failed: ${refR.status}`);
+  const headSha = (await refR.json()).object.sha;
+  const commitR = await fetch(`https://api.github.com/repos/${REPO}/git/commits/${headSha}`, {
+    headers: {'Authorization': `token ${TOKEN}`}
+  });
+  const treeSha = (await commitR.json()).tree.sha;
+  step('Creating tree…');
+  const treeR = await fetch(`https://api.github.com/repos/${REPO}/git/trees`, {
+    method: 'POST',
+    headers: {'Authorization': `token ${TOKEN}`, 'Content-Type': 'application/json'},
+    body: JSON.stringify({base_tree: treeSha, tree: [{path, mode: '100644', type: 'blob', sha: blob.sha}]})
+  });
+  if (!treeR.ok) throw new Error(`Tree failed: ${treeR.status}`);
+  const newTree = await treeR.json();
+  step('Committing…');
+  const newCommitR = await fetch(`https://api.github.com/repos/${REPO}/git/commits`, {
+    method: 'POST',
+    headers: {'Authorization': `token ${TOKEN}`, 'Content-Type': 'application/json'},
+    body: JSON.stringify({message: msg, tree: newTree.sha, parents: [headSha]})
+  });
+  if (!newCommitR.ok) throw new Error(`Commit failed: ${newCommitR.status}`);
+  const newCommit = await newCommitR.json();
+  step('Updating branch…');
+  const patchR = await fetch(`https://api.github.com/repos/${REPO}/git/refs/heads/main`, {
+    method: 'PATCH',
+    headers: {'Authorization': `token ${TOKEN}`, 'Content-Type': 'application/json'},
+    body: JSON.stringify({sha: newCommit.sha})
+  });
+  if (!patchR.ok) throw new Error(`Ref update failed: ${patchR.status}`);
+}
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+const VENDORS = ['galderma','allergan','evolus','merz','revance'];
+let DB = {galderma:null, allergan:null, evolus:null, merz:null, revance:null, rebates:null, name_map:null, upload_log:null, vendor_config:null, pricing_eras:null};
+let SHAS = {};
+let FLAGS = [];
+let OMNI_MEDSPAS = [];
+const TRANSACTIONS_LOADED = new Set(); // tracks which vendor files have finished loading
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+async function init() {
+  document.getElementById('status-bar').style.display = 'flex';
+  showStatus('Loading data from GitHub…');
+  try {
+    // Load small files via Contents API
+    // Load pricing eras (fail silently)
+    try {
+      const {data:pe, sha:pes} = await ghGet('data/pricing_eras.json');
+      DB.pricing_eras = pe; SHAS.pricing_eras = pes;
+    } catch(e2) {
+      DB.pricing_eras = {allergan:[],galderma:[],evolus:[],merz:[],revance:[]};
+    }
+    for (const f of ['rebates','name_map','upload_log','vendor_config','flags']) {
+      try {
+        const {data, sha} = await ghGet(`data/${f}.json`);
+        DB[f] = data; SHAS[f] = sha;
+      } catch(e2) {
+        console.warn(`Failed to load ${f} via API, trying relative URL:`, e2.message);
+        // Fallback: same-origin relative fetch (no auth/CORS issues on GitHub Pages)
+        try {
+          const res = await fetch(`../data/${f}.json`);
+          if (!res.ok) throw new Error('Status ' + res.status);
+          DB[f] = await res.json();
+          // No SHA — saves will need to fetch SHA at write time
+        } catch(e3) {
+          console.warn(`Failed to load ${f} entirely:`, e3.message);
+          if (f === 'name_map') DB[f] = {merz:{},evolus:{},revance:{}};
+          else if (f === 'flags') DB[f] = [];
+          else DB[f] = f === 'rebates' ? [] : (f === 'upload_log' ? [] : null);
+        }
+      }
+    }
+    FLAGS = DB.flags || [];
+    // Transaction files are NOT pre-loaded at init.
+    // fetchVendorHistory(vendor) fetches via GitHub API at upload time — always current, no CDN cache.
+    showStatus('Ready', `${countMappings()} name mappings`);
+    renderNameMap();
+    renderLog();
+    loadOmni();
+  } catch(e) {
+    showStatus('Error: ' + e.message + ' — check console for details');
+    console.error('Init error:', e);
+  }
+}
+
+// Auto-resolve stale flags where the mapping now exists in medspas/name_map
+async function autoResolveFlags() {
+  const flags = FLAGS.slice();
+  let changed = 0;
+  flags.forEach(f => {
+    if (f.status !== 'pending') return;
+    if (f.type === 'id_not_in_omni') {
+      const lookupId = (f.value||'').replace(/^0+/,'');
+      const found = OMNI_MEDSPAS.find(m => (m.mk||'').toString().replace(/^0+/,'') === lookupId);
+      if (found) { f.status = 'resolved'; f.resolved_to = {id: found.id, name: found.n}; changed++; }
+    } else if (f.type === 'name_not_in_map') {
+      const mapped = DB.name_map?.[f.name_map_vendor]?.[f.value];
+      if (mapped) { f.status = 'resolved'; f.resolved_to = {id: mapped}; changed++; }
+    }
+  });
+  if (changed > 0) {
+    FLAGS = flags;
+    await saveFlags('Auto-resolve: clear matched flags');
+    updateFlagBadge();
+  }
+}
+
+async function saveFlags(commitMsg) {
+  DB.flags = FLAGS;
+  try {
+    await ghPut('data/flags.json', FLAGS, SHAS.flags, commitMsg || 'Update review queue');
+    const updated = await ghGet('data/flags.json');
+    SHAS.flags = updated.sha;
+    DB.flags = FLAGS;
+  } catch(e) {
+    console.error('Failed to save flags to GitHub:', e.message);
+    toast('Warning: review queue could not be saved to server — ' + e.message, true);
+  }
+}
+
+function countTransactions() {
+  return VENDORS.reduce((s,v) => s + (DB[v]?.length || 0), 0);
+}
+function countMappings() {
+  if (!DB.name_map) return 0;
+  return Object.values(DB.name_map).reduce((s,v) => s + Object.keys(v).length, 0);
+}
+// Called after Omni loads to refresh name map if tab is visible
+function onOmniLoaded() {
+  autoResolveFlags();
+  const panel = document.getElementById('panel-namemap');
+  if (panel && panel.classList.contains('active')) renderNameMap();
+  renderFlags();
+}
+
+async function loadOmni() {
+  // Try Contents API first (gives us SHA for future writes to medspas.json)
+  try {
+    const r = await ghGet('data/medspas.json');
+    OMNI_MEDSPAS = Array.isArray(r.data) ? r.data : (r.data.medspas || []);
+    SHAS.medspas = r.sha;
+    console.log('Medspas loaded via API:', OMNI_MEDSPAS.length);
+    onOmniLoaded();
+    return;
+  } catch(e) {
+    console.warn('Medspa API load failed, trying same-origin fetch:', e);
+  }
+  // Fallback: relative URL — same origin as GitHub Pages, no auth/CORS issues
+  try {
+    const res = await fetch('../data/medspas.json');
+    if (!res.ok) throw new Error('Status ' + res.status);
+    const d = await res.json();
+    OMNI_MEDSPAS = Array.isArray(d) ? d : (d.medspas || []);
+    console.log('Medspas loaded via relative URL:', OMNI_MEDSPAS.length);
+    onOmniLoaded();
+  } catch(e2) {
+    console.warn('Medspa load failed entirely:', e2);
+  }
+}
+
+// ─── CSV PARSING ──────────────────────────────────────────────────────────────
+function parseCSV(text, skipRows) {
+  // Strip BOM if present
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+  const lines = text.split(/\r?\n/);
+  if (lines.length < 2) return [];
+  // Auto-detect delimiter from the header line
+  const hdrIdx = skipRows || 0;
+  const hdrLine = lines[hdrIdx] || lines[0];
+  const delim = (hdrLine.split('\t').length > hdrLine.split(',').length) ? '\t'
+              : (hdrLine.split(';').length > hdrLine.split(',').length) ? ';' : ',';
+  const hdr = splitLine(hdrLine, delim);
+  const rows = [];
+  for (let i=hdrIdx+1; i<lines.length; i++) {
+    if (!lines[i].trim()) continue;
+    const vals = splitLine(lines[i], delim);
+    const obj = {};
+    hdr.forEach((h,j) => obj[h.trim()] = (vals[j]||'').trim());
+    rows.push(obj);
+  }
+  return rows;
+}
+function splitLine(line, delim=',') {
+  const res=[]; let cur=''; let inQ=false;
+  for (let c of line) {
+    if (c==='"') inQ=!inQ;
+    else if (c===delim && !inQ) {res.push(cur); cur='';}
+    else cur+=c;
+  }
+  res.push(cur); return res;
+}
+
+// ─── UPLOAD HANDLER ──────────────────────────────────────────────────────────
+async function handleUpload(vendor, input) {
+  const file = input.files[0]; if (!file) return;
+  const slot = document.getElementById(`slot-${vendor}`);
+  const st   = document.getElementById(`st-${vendor}`);
+
+  slot.classList.add('loading');
+  st.textContent = 'Reading…';
+
+  const text = await file.text();
+  
+  if (vendor === 'rebates') {
+    await processRebates(text, file.name);
+    slot.classList.remove('loading'); slot.classList.add('loaded');
+    st.textContent = file.name;
+    return;
+  }
+
+  const cfg = DB.vendor_config.find(v => v.id === vendor);
+  if (!cfg) { toast('Unknown vendor config'); return; }
+  const rows = parseCSV(text, cfg.skip_header_rows || 0);
+  const sampleKeys = rows.length ? Object.keys(rows[0]).filter(k=>k&&k!=='_moxie_id'&&k!=='_vendor').slice(0,3).join(', ') : '';
+  if (!sampleKeys) {
+    const firstLine = text.replace(/^\uFEFF/,'').slice(0, 120);
+    st.textContent = `PARSE ERROR — first line: ${firstLine}`;
+    slot.classList.remove('loading');
+    return;
+  }
+  st.textContent = `${rows.length} rows — processing…`;
+
+
+
+  // Get Omni IDs for this vendor (Galderma = MKID, Allergan = Allergan ID)
+  let omniIds = new Set();
+  if (cfg.id_source === 'omni') {
+    const field = cfg.omni_field;
+    OMNI_MEDSPAS.forEach(m => {
+      const val = field === 'Supplies - MKID' ? m.mk : field === 'Supplies - Allergan ID' ? m.al : null;
+      if (val) omniIds.add(val.toString().trim().replace(/^0+/, ''));
+    });
+  }
+
+  // Always fetch existing historical data fresh at upload time — guarantees we never overwrite history
+  st.textContent = 'Fetching existing data…';
+  let existing = [];
+  try {
+    existing = await fetchVendorHistory(vendor);
+  } catch(e2) {
+    slot.classList.remove('loading');
+    st.textContent = `Error fetching existing data — upload aborted`;
+    toast(`Could not load existing ${vendor} data: ${e2.message}. Upload aborted to protect history.`, true);
+    input.value = '';
+    return;
+  }
+  DB[vendor] = existing;
+  const dedup_fields = cfg.dedup_fields;
+  // Normalize strips trailing ".0" so stored floats ("698645360.0") match CSV strings ("698645360")
+  // Also normalizes M/D/YYYY dates to YYYY-MM-DD so CSV dates match ISO-stored dates
+  const MONTHS = {jan:'01',feb:'02',mar:'03',apr:'04',may:'05',jun:'06',jul:'07',aug:'08',sep:'09',oct:'10',nov:'11',dec:'12'};
+  const normVal = v => { let s = String(v||'').trim().replace(/^(\d+)\.0$/, '$1'); const mDate = s.match(/^([A-Za-z]{3})\s+(\d{1,2}),?\s+(\d{4})$/); if (mDate) { const mo = MONTHS[mDate[1].toLowerCase()]; if (mo) s = `${mDate[3]}-${mo}-${mDate[2].padStart(2,'0')}`; } const mSlash = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/); if (mSlash) s = `${mSlash[3]}-${mSlash[1].padStart(2,'0')}-${mSlash[2].padStart(2,'0')}`; return s; };
+  const normKey = r => dedup_fields.map(f => normVal(r[f])).join('|');
+  const existingKeys = new Set(existing.map(normKey));
+
+  let newRows = 0, dupeRows = 0, flaggedIds = new Set();
+  const flags = [];
+
+  for (const row of rows) {
+    // Skip rows matching skip_if rule (e.g. Galderma SHIPPING rows)
+    if (cfg.skip_if) {
+      const skipField = Object.keys(cfg.skip_if)[0];
+      if ((row[skipField]||'').toUpperCase().includes(cfg.skip_if[skipField].toUpperCase())) continue;
+    }
+
+    // Dedup check — skip dedup entirely for rows missing a key identifier field
+    const skipDedupField = cfg.skip_dedup_when_empty;
+    const skipDedup = skipDedupField && !(row[skipDedupField]||'').trim();
+    if (!skipDedup) {
+      const key = normKey(row);
+      if (existingKeys.has(key)) { dupeRows++; continue; }
+      existingKeys.add(key);
+    }
+
+    // ID/name resolution
+    let moxie_id = null;
+    if (cfg.id_source === 'omni') {
+      const csvId = (row[cfg.csv_join_field]||'').trim();
+      const omniField = cfg.omni_field === 'Supplies - MKID' ? 'mk' : 'al';
+      // Normalize leading zeros on both sides — Omni sometimes stores MKIDs with or without leading zero
+      const lookupId = omniField === 'mk' ? csvId.replace(/^0+/, '') : csvId;
+      // Check if this ID exists in Omni
+      if (omniIds.size > 0 && !omniIds.has(lookupId) && csvId && !flaggedIds.has(csvId)) {
+        flaggedIds.add(csvId);
+        const csvName = cfg.csv_name_field ? (row[cfg.csv_name_field]||'').trim() : null;
+        flags.push({
+          type: 'id_not_in_omni', vendor, value: csvId,
+          row_count: rows.filter(r => (r[cfg.csv_join_field]||'').trim() === csvId).length,
+          ship_to_name: csvName || null,
+          sold_to_name: row['Sold-to Name'] || null,
+          ship_to_attn: row['Ship to Attn'] || null,
+          ship_to_city: row['Ship-to City'] || null,
+          ship_to_state: row['Ship-to State'] || null,
+          suggestions: csvName ? fuzzyMatch(csvName, 5) : [],
+          status: 'pending'
+        });
+      }
+      // Find moxie_id from Omni
+      const match = OMNI_MEDSPAS.find(m => (m[omniField]||'').toString().trim().replace(/^0+/, '') === lookupId);
+      moxie_id = match ? match.id : null;
+    } else if (cfg.id_source === 'name_map') {
+      const csvName = (row[cfg.csv_join_field]||'').trim();
+      moxie_id = DB.name_map[cfg.name_map_vendor]?.[csvName] || null;
+      if (!moxie_id && csvName && !flaggedIds.has(csvName)) {
+        flaggedIds.add(csvName);
+        const suggestions = fuzzyMatch(csvName, 5);
+        flags.push({
+          type: 'name_not_in_map', vendor, name_map_vendor: cfg.name_map_vendor,
+          value: csvName,
+          city: cfg.csv_city_field ? (row[cfg.csv_city_field]||'').trim() : null,
+          state: cfg.csv_state_field ? (row[cfg.csv_state_field]||'').trim() : null,
+          row_count: rows.filter(r => (r[cfg.csv_join_field]||'').trim() === csvName).length,
+          suggestions, status: 'pending'
+        });
+      }
+    } else if (cfg.id_source === 'csv') {
+      const acctName = (row[cfg.csv_join_field] || '').trim();
+      const hasMoxieIdCol = cfg.csv_moxie_id_field && (cfg.csv_moxie_id_field in row);
+
+      if (hasMoxieIdCol) {
+        // Historical upload: Moxie ID is in the CSV — use it directly and build the name map
+        const rawId = (row[cfg.csv_moxie_id_field] || '').trim();
+        moxie_id = rawId ? (parseInt(rawId) || rawId) : null;
+        // Skip rows with no Moxie ID (pre-launch / unmapped accounts) — silent, not flagged
+        if (!moxie_id) continue;
+        // Auto-build name map: Account Name → Moxie ID for future monthly uploads
+        if (acctName) {
+          if (!DB.name_map[cfg.id]) DB.name_map[cfg.id] = {};
+          DB.name_map[cfg.id][acctName] = moxie_id;
+        }
+      } else {
+        // Monthly upload: no Moxie ID column — look up Account Name in name map
+        moxie_id = DB.name_map[cfg.id]?.[acctName] || null;
+        if (!moxie_id && acctName && !flaggedIds.has(acctName)) {
+          flaggedIds.add(acctName);
+          flags.push({
+            type: 'name_not_in_map', vendor, name_map_vendor: cfg.id,
+            value: acctName,
+            city: cfg.csv_city_field ? (row[cfg.csv_city_field]||'').trim() : null,
+            state: cfg.csv_state_field ? (row[cfg.csv_state_field]||'').trim() : null,
+            row_count: rows.filter(r => (r[cfg.csv_join_field]||'').trim() === acctName).length,
+            suggestions: fuzzyMatch(acctName, 5), status: 'pending'
+          });
+        }
+      }
+    }
+
+    row._moxie_id = moxie_id;
+    row._vendor = vendor;
+    existing.push(row);
+    newRows++;
+  }
+
+  // Save transactions (individual vendor file via Git Data API — no size limit)
+  DB[vendor] = existing;
+  await ghPutLarge(
+    `data/transactions_${vendor}.json`, existing,
+    `${vendor}: +${newRows} rows (${file.name})`,
+    (step) => { st.textContent = step; }
+  );
+
+  // For csv-source vendors (Revance): persist the name map that was built from this CSV
+  if (cfg.id_source === 'csv' && newRows > 0) {
+    st.textContent = 'Saving name map…';
+    await ghPut('data/name_map.json', DB.name_map, SHAS.name_map,
+      `${vendor}: update name map from ${file.name}`);
+    const nm = await ghGet('data/name_map.json');
+    SHAS.name_map = nm.sha;
+  }
+
+  // Save flags if any
+  let pendingFlagCount = 0;
+  if (flags.length > 0) {
+    const newFlags = flags.filter(f => !FLAGS.find(e => e.vendor===f.vendor && e.value===f.value));
+    pendingFlagCount = newFlags.length;
+    if (newFlags.length > 0) {
+      FLAGS = [...FLAGS, ...newFlags];
+      await saveFlags(`${vendor}: add ${newFlags.length} review queue items`);
+    }
+    updateFlagBadge();
+    renderFlags();
+  }
+
+  // Log the upload
+  const logEntry = {
+    timestamp: new Date().toISOString(),
+    vendor, filename: file.name,
+    rows_added: newRows, dupes_skipped: dupeRows,
+    flags_raised: flags.length
+  };
+  DB.upload_log.unshift(logEntry);
+  await ghPut('data/upload_log.json', DB.upload_log, SHAS.upload_log,
+    `Upload log: ${vendor} ${file.name}`);
+  const ul = await ghGet('data/upload_log.json');
+  SHAS.upload_log = ul.sha;
+
+  slot.classList.remove('loading'); slot.classList.add('loaded');
+  const totalInFile = rows.length;
+  st.innerHTML = `<span style="display:block">${totalInFile} in file &nbsp;·&nbsp; ${dupeRows} dupes &nbsp;·&nbsp; <strong>+${newRows} new</strong></span>${pendingFlagCount > 0 ? `<span style="display:block;color:var(--red);margin-top:2px">${pendingFlagCount} unmatched → review queue</span>` : ''}`;
+  showStatus('Ready', `${countTransactions()} total rows · ${countMappings()} name mappings`);
+  renderLog();
+  toast(`${vendor}: ${newRows} rows added${pendingFlagCount ? `, ${pendingFlagCount} items need review` : ''}`);
+
+  if (flags.length > 0) switchTab('flags');
+}
+
+function downloadNameMap() {
+  const blob = new Blob([JSON.stringify(DB.name_map, null, 2)], {type: 'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'name_map.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// ─── NAME MAP SEED UPLOAD (Revance) ──────────────────────────────────────────
+// Accepts a CSV with Account Name + Moxie Medspa ID columns.
+// Upserts into name_map[vendor] and saves to GitHub. No transactions touched.
+async function handleNameMapUpload(vendor, input) {
+  const file = input.files[0]; if (!file) return;
+  const slot = document.getElementById(`slot-${vendor}-namemap`);
+  const st   = document.getElementById(`st-${vendor}-namemap`);
+  slot.classList.add('loading');
+  st.textContent = 'Reading…';
+
+  const cfg = (DB.vendor_config || []).find(v => v.id === vendor);
+  if (!cfg) { toast('Unknown vendor config'); slot.classList.remove('loading'); return; }
+
+  const rows = parseCSV(await file.text(), cfg.skip_header_rows || 0);
+  if (!rows.length) { st.textContent = 'No rows found'; slot.classList.remove('loading'); return; }
+
+  let mapped = 0, skipped = 0;
+  if (!DB.name_map[vendor]) DB.name_map[vendor] = {};
+
+  for (const row of rows) {
+    const acctName = (row[cfg.csv_join_field] || '').trim();
+    const rawId    = (row[cfg.csv_moxie_id_field] || '').trim();
+    const moxieId  = rawId ? (parseInt(rawId) || rawId) : null;
+    if (!acctName || !moxieId) { skipped++; continue; }
+    DB.name_map[vendor][acctName] = moxieId;
+    mapped++;
+  }
+
+  if (mapped === 0) {
+    st.textContent = `No valid rows — check column names`;
+    slot.classList.remove('loading');
+    toast(`Expected columns: "${cfg.csv_join_field}" and "${cfg.csv_moxie_id_field}"`);
+    return;
+  }
+
+  st.textContent = 'Saving…';
+  await ghPut('data/name_map.json', DB.name_map, SHAS.name_map,
+    `${vendor}: seed name map — ${mapped} mappings (${file.name})`);
+  const nm = await ghGet('data/name_map.json');
+  SHAS.name_map = nm.sha;
+
+  slot.classList.remove('loading'); slot.classList.add('loaded');
+  st.textContent = `${mapped} mapped · ${skipped} skipped`;
+  showStatus('Ready', `${countTransactions()} total rows · ${countMappings()} name mappings`);
+  renderNameMap();
+  toast(`Revance name map: ${mapped} accounts saved`);
+}
+
+async function processRebates(text, filename) {
+  const rows = parseCSV(text);
+  const existing = Array.isArray(DB.rebates) ? DB.rebates : [];
+  let added = 0;
+  for (const row of rows) {
+    existing.push(row); added++;
+  }
+  DB.rebates = existing;
+  await ghPut('data/rebates.json', DB.rebates, SHAS.rebates, `Rebates: +${added} rows (${filename})`);
+  const r = await ghGet('data/rebates.json');
+  SHAS.rebates = r.sha;
+
+  // Log the upload
+  const logEntry = {
+    timestamp: new Date().toISOString(),
+    vendor: 'rebates', filename,
+    rows_added: added, dupes_skipped: 0, flags_raised: 0
+  };
+  DB.upload_log.unshift(logEntry);
+  await ghPut('data/upload_log.json', DB.upload_log, SHAS.upload_log,
+    `Upload log: rebates ${filename}`);
+  const ul = await ghGet('data/upload_log.json');
+  SHAS.upload_log = ul.sha;
+  renderLog();
+
+  toast(`Rebates: ${added} rows added`);
+}
+
+// ─── FUZZY MATCH ─────────────────────────────────────────────────────────────
+function fuzzyMatch(query, limit=3) {
+  if (!OMNI_MEDSPAS.length) return [];
+  const q = query.toLowerCase().replace(/[^a-z0-9 ]/g,'');
+  const qWords = new Set(q.split(/\s+/).filter(w => w.length > 2));
+  const scored = OMNI_MEDSPAS.map(m => {
+    const n = (m.n||'').toLowerCase().replace(/[^a-z0-9 ]/g,'');
+    const nWords = new Set(n.split(/\s+/).filter(w => w.length > 2));
+    const overlap = [...qWords].filter(w => nWords.has(w)).length;
+    const partials = [...qWords].filter(w => n.includes(w)).length;
+    return {m, score: overlap*2 + partials};
+  }).filter(x => x.score > 0).sort((a,b) => b.score - a.score);
+  return scored.slice(0, limit).map(x => ({id: x.m.id, name: x.m.n}));
+}
+
+// ─── FLAG QUEUE ───────────────────────────────────────────────────────────────
+function renderFlags() {
+  const pending = FLAGS.filter(f => f.status === 'pending');
+  const el = document.getElementById('flag-list');
+  if (!pending.length) {
+    el.innerHTML = '<div class="empty"><p>No unresolved items — all good!</p></div>';
+    return;
+  }
+  el.innerHTML = pending.map((f, i) => `
+    <div class="flag-item" id="flag-${i}">
+      <div class="flag-header">
+        <div>
+          <div class="flag-name">${f.ship_to_name || f.sold_to_name || f.value}</div>
+          <div class="flag-meta">${f.vendor} · ${f.row_count} row${f.row_count!==1?'s':''} affected${f.city ? ` · ${f.city}${f.state ? ', '+f.state : ''}` : ''}${f.type==='id_not_in_omni' ? ` · ID: ${f.value}` : ''}${f.ship_to_attn ? ` · ${f.ship_to_attn}` : ''}</div>
+        </div>
+        <span class="flag-badge ${f.type==='id_not_in_omni'?'badge-id':'badge-name'}">${f.type==='id_not_in_omni'?'ID not in Omni':'Name not mapped'}</span>
+      </div>
+      ${f.suggestions?.length ? `
+        <div style="font-size:11px;color:var(--muted);margin-bottom:6px">Suggestions:</div>
+        <div class="flag-suggestions">
+          ${f.suggestions.map((s,si) => `<div class="suggestion" onclick="selectSuggestion(${i},${si})" id="sug-${i}-${si}">${s.name}</div>`).join('')}
+        </div>` : `<div style="font-size:12px;color:var(--muted);margin-bottom:10px">No Omni suggestions available — search or enter Moxie ID manually.</div>`}
+      <div class="flag-actions">
+        <input type="text" id="flag-input-${i}" placeholder="Search medspa or type Moxie ID…" oninput="searchFlagInput(${i}, this.value)">
+        <button class="btn btn-primary" onclick="resolveFlag(${i})">Link</button>
+        <button class="btn btn-secondary" onclick="skipFlag(${i})">Skip</button>
+      </div>
+      <div id="flag-search-results-${i}" style="margin-top:6px"></div>
+    </div>
+  `).join('');
+}
+
+let flagSelections = {};
+
+function selectSuggestion(flagIdx, sugIdx) {
+  const pending = FLAGS.filter(f=>f.status==='pending');
+  const f = pending[flagIdx];
+  const sug = f.suggestions[sugIdx];
+  flagSelections[flagIdx] = sug;
+  document.getElementById(`flag-input-${flagIdx}`).value = sug.name + ` (ID: ${sug.id})`;
+  // Toggle visual
+  document.querySelectorAll(`[id^="sug-${flagIdx}-"]`).forEach(el => el.classList.remove('selected'));
+  document.getElementById(`sug-${flagIdx}-${sugIdx}`).classList.add('selected');
+}
+
+function searchFlagInput(flagIdx, val) {
+  const res = document.getElementById(`flag-search-results-${flagIdx}`);
+  if (val.length < 2) { res.innerHTML=''; return; }
+  const q = val.trim().toLowerCase();
+  // Search by ID (exact), name (contains), or fuzzy word match
+  let matches = [];
+  const byId = OMNI_MEDSPAS.find(m => String(m.id) === q.replace(/\D/g,''));
+  if (byId) matches.push({id: byId.id, name: byId.n});
+  const byName = OMNI_MEDSPAS.filter(m =>
+    (m.n||'').toLowerCase().includes(q) && !matches.find(x => x.id === m.id)
+  ).slice(0, 5).map(m => ({id: m.id, name: m.n}));
+  matches = [...matches, ...byName];
+  if (matches.length < 5) {
+    const fuzzy = fuzzyMatch(val, 5).filter(m => !matches.find(x => x.id === m.id));
+    matches = [...matches, ...fuzzy].slice(0, 5);
+  }
+  res.innerHTML = matches.map(m =>
+    `<div class="suggestion" style="margin-top:4px" onclick="selectFromSearch(${flagIdx},${m.id},'${m.name.replace(/'/g,"\\'")}')">${m.name} <span style="color:var(--muted);font-size:11px">${m.id}</span></div>`
+  ).join('');
+}
+
+function selectFromSearch(flagIdx, id, name) {
+  flagSelections[flagIdx] = {id, name};
+  document.getElementById(`flag-input-${flagIdx}`).value = name + ` (ID: ${id})`;
+  document.getElementById(`flag-search-results-${flagIdx}`).innerHTML = '';
+}
+
+async function resolveFlag(flagIdx) {
+  const sel = flagSelections[flagIdx];
+  if (!sel) { toast('Select a medspa first'); return; }
+  const pending = FLAGS.filter(f=>f.status==='pending');
+  const f = pending[flagIdx];
+
+  // Disable button to prevent double-clicks
+  const btn = document.querySelector(`#flag-${flagIdx} .btn-primary`);
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+
+  try {
+    // Save to name_map if it's a name-type flag
+    if (f.type === 'name_not_in_map') {
+      if (!DB.name_map[f.name_map_vendor]) DB.name_map[f.name_map_vendor] = {};
+      DB.name_map[f.name_map_vendor][f.value] = sel.id;
+      await ghPut('data/name_map.json', DB.name_map, SHAS.name_map,
+        `Map: "${f.value}" → ${sel.id} (${f.vendor})`);
+      const nm = await ghGet('data/name_map.json');
+      SHAS.name_map = nm.sha;
+    }
+
+    // Mark resolved and save flags to GitHub
+    const idx = FLAGS.findIndex(x=>x.vendor===f.vendor && x.value===f.value);
+    if (idx>=0) { FLAGS[idx].status = 'resolved'; FLAGS[idx].resolved_to = sel; }
+    await saveFlags(`Resolve: "${f.value}" → ${sel.id} (${f.vendor})`);
+
+    document.getElementById(`flag-${flagIdx}`).classList.add('resolved');
+    renderNameMap(); updateFlagBadge();
+    toast(`Mapped "${f.value}" → ${sel.name}`);
+    setTimeout(renderFlags, 600);
+
+    // Retroactively resolve matching transaction rows — fire and forget, doesn't block UI
+    const needsBackfill = f.type === 'name_not_in_map' || f.type === 'id_not_in_omni';
+    if (needsBackfill) {
+      const cfg = DB.vendor_config.find(v=>v.id===f.vendor);
+      fetchVendorHistory(f.vendor).then(txRows => {
+        let updated = 0;
+        txRows.forEach(r => {
+          if (!r._moxie_id) {
+            const rowVal = (r[cfg.csv_join_field]||'').trim().replace(/^0+/,'');
+            const flagVal = (f.value||'').trim().replace(/^0+/,'');
+            if (rowVal === flagVal) { r._moxie_id = sel.id; updated++; }
+          }
+        });
+        if (updated > 0) {
+          ghPutLarge(`data/transactions_${f.vendor}.json`, txRows,
+            `Retroactive resolve: "${f.value}" → ${sel.id} (${f.vendor})`)
+            .catch(e => console.warn('Transaction backfill failed (non-critical):', e.message));
+        }
+      }).catch(e => console.warn('Backfill fetch failed:', e.message));
+    }
+  } catch(e) {
+    toast(`Error: ${e.message}`, true);
+    if (btn) { btn.disabled = false; btn.textContent = 'Link'; }
+  }
+}
+
+async function skipFlag(flagIdx) {
+  const pending = FLAGS.filter(f=>f.status==='pending');
+  const f = pending[flagIdx];
+  const idx = FLAGS.findIndex(x=>x.vendor===f.vendor && x.value===f.value);
+  if (idx>=0) FLAGS[idx].status = 'skipped';
+  await saveFlags(`Skip: "${f.value}" (${f.vendor})`);
+  document.getElementById(`flag-${flagIdx}`).classList.add('resolved');
+  updateFlagBadge();
+  toast(`Skipped "${f.value}" — won't flag again`);
+  setTimeout(renderFlags, 600);
+}
+
+function updateFlagBadge() {
+  const count = FLAGS.filter(f=>f.status==='pending').length;
+  const badge = document.getElementById('flag-badge');
+  if (count > 0) { badge.style.display='inline'; badge.textContent=count; }
+  else badge.style.display='none';
+}
+
+// ─── NAME MAP TABLE ───────────────────────────────────────────────────────────
+// Maps omni_field label → key in OMNI_MEDSPAS objects
+const OMNI_KEY = {'Supplies - MKID':'mk','Supplies - Allergan ID':'al'};
+
+function renderNameMap() {
+  if (!DB.name_map || !DB.vendor_config) return;
+  const q = (document.getElementById('map-search')?.value||'').toLowerCase();
+  const vendors = DB.vendor_config.filter(v => v.active !== false);
+
+  // Build reverse lookup: vendor_id → { moxie_id → csv_name }
+  const rev = {};
+  for (const v of vendors) {
+    if (v.id_source === 'name_map') {
+      rev[v.id] = {};
+      for (const [csvName, moxieId] of Object.entries(DB.name_map[v.name_map_vendor] || {})) {
+        rev[v.id][moxieId] = csvName;
+      }
+    } else if (v.id_source === 'csv') {
+      rev[v.id] = {};
+      for (const [csvName, moxieId] of Object.entries(DB.name_map[v.id] || {})) {
+        rev[v.id][moxieId] = csvName;
+      }
+    }
+  }
+
+  // Build one row per medspa from OMNI_MEDSPAS
+  const source = OMNI_MEDSPAS.length ? OMNI_MEDSPAS : [];
+  const rows = source.map(m => {
+    const row = {name: m.n, id: m.id, cells: {}};
+    for (const v of vendors) {
+      if (v.id_source === 'omni') {
+        const key = OMNI_KEY[v.omni_field];
+        row.cells[v.id] = {val: key ? (m[key] || '') : '', editable: false};
+      } else if (v.id_source === 'name_map') {
+        row.cells[v.id] = {val: rev[v.id]?.[m.id] || '', editable: true, nmVendor: v.name_map_vendor};
+      } else if (v.id_source === 'csv') {
+        // Account name auto-built from CSV upload — display only, not manually editable
+        row.cells[v.id] = {val: rev[v.id]?.[m.id] || '', editable: false};
+      }
+    }
+    return row;
+  }).filter(row => {
+    if (q) {
+      const flat = [row.name, String(row.id), ...vendors.map(v => row.cells[v.id]?.val || '')].join(' ').toLowerCase();
+      return flat.includes(q);
+    }
+    return true;
+  });
+
+  // Dynamic header
+  const thead = document.getElementById('map-thead-row');
+  thead.innerHTML = '<th>Medspa</th><th>Moxie ID</th>' +
+    vendors.map(v => `<th>${v.display_name}</th>`).join('') + '<th></th>';
+
+  document.getElementById('map-count').textContent = rows.length;
+  const tbody = document.getElementById('map-tbody');
+  const colCount = 3 + vendors.length;
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="${colCount}" style="text-align:center;color:var(--muted);padding:20px">${OMNI_MEDSPAS.length ? 'No results' : 'Loading medspa list…'}</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = rows.slice(0, 300).map(row => `
+    <tr>
+      <td>${row.name}</td>
+      <td style="font-family:monospace;font-size:11px">${row.id}</td>
+      ${vendors.map(v => {
+        const c = row.cells[v.id];
+        if (!c) return '<td>—</td>';
+        if (c.editable) {
+          return c.val
+            ? `<td style="font-size:12px">${c.val} <button class="btn btn-danger" style="padding:1px 7px;font-size:10px;margin-left:4px" onclick="removeMapping('${c.nmVendor}','${c.val.replace(/'/g,"\\'")}')">✕</button></td>`
+            : `<td><span style="color:var(--muted);font-size:11px">—</span></td>`;
+        }
+        return `<td style="font-family:monospace;font-size:11px;color:var(--muted)">${c.val || '—'}</td>`;
+      }).join('')}
+      <td></td>
+    </tr>
+  `).join('');
+  if (rows.length > 300) tbody.innerHTML += `<tr><td colspan="${colCount}" style="text-align:center;color:var(--muted);padding:8px;font-size:11px">Showing 300 of ${rows.length} — use search to filter</td></tr>`;
+}
+
+async function removeMapping(vendor, name) {
+  if (!confirm(`Remove mapping for "${name}"?`)) return;
+  delete DB.name_map[vendor][name];
+  await ghPut('data/name_map.json', DB.name_map, SHAS.name_map, `Remove mapping: "${name}" (${vendor})`);
+  const nm = await ghGet('data/name_map.json');
+  SHAS.name_map = nm.sha;
+  renderNameMap();
+  toast('Mapping removed');
+}
+
+function showAddMapping() {
+  const name = prompt('Vendor name (as it appears in CSV):');
+  if (!name) return;
+  const nmVendors = (DB.vendor_config||[]).filter(v=>v.id_source==='name_map').map(v=>v.name_map_vendor);
+  const vendor = prompt(`Vendor (${nmVendors.join(' or ')}):`);
+  if (!nmVendors.includes(vendor)) { toast(`Vendor must be one of: ${nmVendors.join(', ')}`); return; }
+  const id = parseInt(prompt('Moxie ID:'));
+  if (isNaN(id)) { toast('Invalid ID'); return; }
+  if (!DB.name_map[vendor]) DB.name_map[vendor] = {};
+  DB.name_map[vendor][name.trim()] = id;
+  ghPut('data/name_map.json', DB.name_map, SHAS.name_map, `Manual mapping: "${name}" → ${id}`).then(async () => {
+    const nm = await ghGet('data/name_map.json');
+    SHAS.name_map = nm.sha;
+    renderNameMap();
+    toast('Mapping added');
+  });
+}
+
+// ─── LOG ─────────────────────────────────────────────────────────────────────
+function renderLog() {
+  const el = document.getElementById('log-list');
+  if (!DB.upload_log?.length) { el.innerHTML = '<div class="empty"><p>No uploads yet.</p></div>'; return; }
+  el.innerHTML = DB.upload_log.map(e => `
+    <div class="log-entry">
+      <div class="log-date">${new Date(e.timestamp).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'})}</div>
+      <div class="log-body">
+        <span class="log-vendor">${e.vendor}</span> — ${e.filename}<br>
+        <span style="color:var(--muted)">+${e.rows_added} rows added · ${e.dupes_skipped} dupes skipped${e.flags_raised ? ` · ${e.flags_raised} flags raised` : ''}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ─── UI HELPERS ──────────────────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t,i) => {
+    t.classList.toggle('active', ['upload','flags','namemap','log','pricing'][i]===name);
+  });
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  const panel = document.getElementById('panel-' + name);
+  if (panel) panel.classList.add('active');
+  if (name==='flags') renderFlags();
+  if (name==='namemap') renderNameMap();
+  if (name==='log') renderLog();
+  if (name==='pricing') renderPricingViewer();
+}
+
+function showStatus(text, sub='') {
+  document.getElementById('status-bar').style.display='flex';
+  document.getElementById('status-text').textContent = text;
+  document.getElementById('status-sub').textContent = sub;
+}
+
+function toast(msg, isError=false) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.style.background = isError ? 'var(--red)' : '';
+  el.classList.add('show');
+  setTimeout(() => { el.classList.remove('show'); el.style.background = ''; }, isError ? 6000 : 3000);
+}
+
+// ─── PRICING CONSTANTS (mirrors dashboard.html) ──────────────────────────────
+const PRICING_BUILTIN = {
+  allergan: [
+    { label: 'Era 1 — pre Mar 2024', startDate: '2000-01-01', endDate: '2024-02-29',
+      note: 'List prices; Moxie savings per SKU (qty × savings amount)',
+      skus: [
+        {sku:'BOTOX 100U', field:'botox_100u', listPrice:null, moxiePrice:null, savingsNote:'Spend = Amount; savings $0 (rebate)'},
+        {sku:'ULTRA PLUS XC 1 ML', field:'ultra_plus_1', listPrice:755, moxiePrice:551.42, savingsAmt:null},
+        {sku:'ULTRA XC 0.55 ML',   field:'ultra_055',   listPrice:621, moxiePrice:453.46},
+        {sku:'ULTRA XC 1 ML',      field:'ultra_1',     listPrice:755, moxiePrice:551.42},
+        {sku:'VOLBELLA XC 0.55 ML',field:'volbella_055',listPrice:420, moxiePrice:356.70},
+        {sku:'VOLBELLA XC 1 ML',   field:'volbella_1',  listPrice:770, moxiePrice:654.24},
+        {sku:'VOLLURE XC 1 ML',    field:'vollure_1',   listPrice:770, moxiePrice:654.24},
+        {sku:'VOLUMA XC 1 ML',     field:'voluma_1',    listPrice:853, moxiePrice:724.71},
+        {sku:'VOLUX XC 2×1ML',     field:'volux_2x1',  listPrice:880, moxiePrice:748.20},
+        {sku:'SKINVIVE',           field:'skinvive',    listPrice:380, moxiePrice:368.60},
+        {sku:'SkinMedica / DiamondGlow (all)', listPrice:null, moxiePrice:null, savingsNote:'No savings (Era 1)'},
+      ]
+    },
+    { label: 'Era 2 — Mar–Aug 2024', startDate: '2024-03-01', endDate: '2024-08-26',
+      note: 'Price increases across most fillers; SkinMedica savings introduced',
+      skus: [
+        {sku:'BOTOX 100U', listPrice:null, moxiePrice:656, savingsNote:'Savings $0 (rebate)'},
+        {sku:'BOTOX 50U',  listPrice:null, moxiePrice:362, savingsNote:'Savings $0 (rebate)'},
+        {sku:'BOTOX 200U', listPrice:null, moxiePrice:1312, savingsNote:'Savings $0 (rebate)'},
+        {sku:'ULTRA PLUS XC 1 ML', listPrice:781, moxiePrice:523.50},
+        {sku:'ULTRA XC 0.55 ML',   listPrice:643, moxiePrice:430.50},
+        {sku:'ULTRA XC 1 ML',      listPrice:781, moxiePrice:523.50},
+        {sku:'VOLBELLA XC 0.55 ML',listPrice:431, moxiePrice:332.10},
+        {sku:'VOLBELLA XC 1 ML',   listPrice:791, moxiePrice:609.12},
+        {sku:'VOLLURE XC 1 ML',    listPrice:791, moxiePrice:609.12},
+        {sku:'VOLUMA XC 1 ML',     listPrice:876, moxiePrice:674.73},
+        {sku:'VOLUX XC 2×1ML',     listPrice:905, moxiePrice:696.60},
+        {sku:'SKINVIVE',           listPrice:380, moxiePrice:368.60},
+        {sku:'SkinMedica (TNS, HA5, serums, cleansers, etc.)', listPrice:null, moxiePrice:null, savingsNote:'~13.6% of spend (list = Moxie / 0.88)'},
+        {sku:'DiamondGlow (all SKUs)', listPrice:null, moxiePrice:null, savingsNote:'~13.6% of spend (list = Moxie / 0.88)'},
+      ]
+    },
+    { label: 'Era 3 — Aug 2024+', startDate: '2024-08-27', endDate: null,
+      note: 'Current pricing — price decreases on most fillers',
+      skus: [
+        {sku:'BOTOX 100U', listPrice:null, moxiePrice:656, savingsNote:'Savings $0 (rebate)'},
+        {sku:'BOTOX 50U',  listPrice:null, moxiePrice:362, savingsNote:'Savings $0 (rebate)'},
+        {sku:'BOTOX 200U', listPrice:null, moxiePrice:1312, savingsNote:'Savings $0 (rebate)'},
+        {sku:'ULTRA PLUS XC 1 ML', listPrice:698, moxiePrice:418.80},
+        {sku:'ULTRA XC 0.55 ML',   listPrice:574, moxiePrice:344.40},
+        {sku:'ULTRA XC 1 ML',      listPrice:698, moxiePrice:418.80},
+        {sku:'VOLBELLA XC 0.55 ML',listPrice:410, moxiePrice:266.50},
+        {sku:'VOLBELLA XC 1 ML',   listPrice:752, moxiePrice:488.80},
+        {sku:'VOLLURE XC 1 ML',    listPrice:752, moxiePrice:488.80},
+        {sku:'VOLUMA XC 1 ML',     listPrice:833, moxiePrice:541.45},
+        {sku:'VOLUX XC 2×1ML',     listPrice:860, moxiePrice:559.00},
+        {sku:'SKINVIVE',           listPrice:380, moxiePrice:368.60},
+        {sku:'KYBELLA',            listPrice:1200, moxiePrice:1080},
+        {sku:'LATISSE 5mL',        listPrice:131, moxiePrice:114.99},
+        {sku:'LATISSE 3mL',        listPrice:108, moxiePrice:94.99},
+        {sku:'SkinMedica (TNS, HA5, serums, cleansers, etc.)', listPrice:null, moxiePrice:null, savingsNote:'~13.6% of spend (list = Moxie / 0.88)'},
+        {sku:'DiamondGlow (all SKUs)', listPrice:null, moxiePrice:null, savingsNote:'~13.6% of spend (list = Moxie / 0.88)'},
+      ]
+    }
+  ],
+  galderma: [
+    { label: 'Era 1 — pre Apr 2024', startDate: '2000-01-01', endDate: '2024-03-31',
+      note: 'Savings as % of spend per product family',
+      skus: [
+        {sku:'DYSPORT',            listPrice:null, moxiePrice:null, savingsNote:'27.87% of spend'},
+        {sku:'RESTYLANE L / 1ML',  savingsNote:'59.31% of spend'},
+        {sku:'RESTYLANE SILK',     savingsNote:'67.55% of spend'},
+        {sku:'RESTYLANE LYFT',     savingsNote:'59.31% of spend'},
+        {sku:'RESTYLANE REFYNE',   savingsNote:'61.96% of spend'},
+        {sku:'RESTYLANE DEFYNE',   savingsNote:'59.31% of spend'},
+        {sku:'RESTYLANE KYSSE',    savingsNote:'54.25% of spend'},
+        {sku:'RESTYLANE CONTOUR',  savingsNote:'59.31% of spend'},
+        {sku:'RESTYLANE EYELIGHT', savingsNote:'59.31% of spend'},
+        {sku:'SCULPTRA',           savingsNote:'90.55% of spend'},
+      ]
+    },
+    { label: 'Era 2 — Apr 2024+', startDate: '2024-04-01', endDate: null,
+      note: 'Current pricing — [list, moxie] per SKU',
+      skus: [
+        {sku:'DYSPORT',            listPrice:622,  moxiePrice:466.5},
+        {sku:'RESTYLANE L / 1ML',  listPrice:344,  moxiePrice:209.84},
+        {sku:'RESTYLANE SILK',     listPrice:351,  moxiePrice:200.07},
+        {sku:'RESTYLANE LYFT',     listPrice:366,  moxiePrice:219.6},
+        {sku:'RESTYLANE REFYNE',   listPrice:407,  moxiePrice:240.13},
+        {sku:'RESTYLANE DEFYNE',   listPrice:407,  moxiePrice:244.2},
+        {sku:'RESTYLANE KYSSE',    listPrice:425,  moxiePrice:263.5},
+        {sku:'RESTYLANE CONTOUR',  listPrice:425,  moxiePrice:255},
+        {sku:'RESTYLANE EYELIGHT', listPrice:255,  moxiePrice:153},
+        {sku:'SCULPTRA',           listPrice:1040, moxiePrice:509.6},
+      ]
+    }
+  ],
+  evolus: [
+    { label: 'Current pricing', startDate: '2000-01-01', endDate: null,
+      note: 'Flat per-vial pricing',
+      skus: [
+        {sku:'Jeuveau (per vial)', listPrice:610, moxiePrice:390, savingsNote:'$220/vial savings'},
+        {sku:'Evolysse (per vial)', listPrice:325, moxiePrice:160, savingsNote:'$165/vial savings'},
+      ]
+    }
+  ],
+  merz: [
+    { label: 'Current pricing', startDate: '2000-01-01', endDate: null,
+      note: 'Xeomin flat; Belotero/Radiesse [list, moxie]; NeoStrata 20% savings',
+      skus: [
+        {sku:'Xeomin 100U',                            listPrice:null, moxiePrice:511},
+        {sku:'Xeomin 50U',                             listPrice:null, moxiePrice:268},
+        {sku:'BELOTERO Balance 1cc',                   listPrice:285,  moxiePrice:213.75},
+        {sku:'Belotero Balance Lido 1x1.0ml',          listPrice:329,  moxiePrice:246.75},
+        {sku:'RADIESSE 2×1.5cc Kit',                   listPrice:780,  moxiePrice:468},
+        {sku:'RADIESSE (+) Lido 2×1.5cc Kit',          listPrice:780,  moxiePrice:468},
+        {sku:'NeoStrata skincare (all)',                listPrice:null, moxiePrice:null, savingsNote:'20% savings on spend'},
+      ]
+    }
+  ],
+  revance: [
+    { label: 'Current pricing', startDate: '2000-01-01', endDate: null,
+      note: 'Savings = max(qty × list − actual spend, 0)',
+      skus: [
+        {sku:'RHA2',       listPrice:600, moxiePrice:null},
+        {sku:'RHA3',       listPrice:600, moxiePrice:null},
+        {sku:'RHA4',       listPrice:600, moxiePrice:null},
+        {sku:'Redensity',  listPrice:600, moxiePrice:null},
+        {sku:'Daxxify',    listPrice:420, moxiePrice:null},
+      ]
+    }
+  ]
+};
+
+const VENDOR_LABELS = {allergan:'Allergan', galderma:'Galderma', evolus:'Evolus', merz:'Merz', revance:'Revance'};
+const VENDOR_SKUS = {
+  allergan: ['BOTOX 100U','BOTOX 50U','BOTOX 200U','ULTRA PLUS XC 1 ML','ULTRA XC 0.55 ML','ULTRA XC 1 ML','ULTRA PLUS XC 0.55 ML','VOLBELLA XC 0.55 ML','VOLBELLA XC 1 ML','VOLLURE XC 1 ML','VOLUMA XC 1 ML','VOLUX XC 2×1ML','SKINVIVE','KYBELLA','LATISSE 5mL','LATISSE 3mL','SkinMedica margin %','DiamondGlow margin %'],
+  galderma: ['DYSPORT','RESTYLANE L / 1ML','RESTYLANE SILK','RESTYLANE LYFT','RESTYLANE REFYNE','RESTYLANE DEFYNE','RESTYLANE KYSSE','RESTYLANE CONTOUR','RESTYLANE EYELIGHT','SCULPTRA'],
+  evolus:   ['Jeuveau (per vial)','Evolysse (per vial)'],
+  merz:     ['Xeomin 100U','Xeomin 50U','BELOTERO Balance 1cc','Belotero Balance Lido 1x1.0ml','RADIESSE 2×1.5cc Kit','RADIESSE (+) Lido 2×1.5cc Kit','NeoStrata skincare (all)'],
+  revance:  ['RHA2','RHA3','RHA4','Redensity','Daxxify']
+};
+
+// ─── PRICING VIEWER ───────────────────────────────────────────────────────────
+let pvVendor = 'allergan';
+
+function renderPricingViewer() {
+  // Vendor buttons
+  const vl = document.getElementById('pv-vendor-list');
+  if (!vl) return;
+  vl.innerHTML = Object.keys(VENDOR_LABELS).map(v =>
+    `<button class="vendor-btn${v===pvVendor?' active':''}" onclick="pvSelectVendor('${v}')">${VENDOR_LABELS[v]}</button>`
+  ).join('');
+  pvRenderEras();
+}
+
+function pvSelectVendor(v) {
+  pvVendor = v;
+  document.querySelectorAll('.vendor-btn').forEach((b,i) => {
+    b.classList.toggle('active', Object.keys(VENDOR_LABELS)[i]===v);
+  });
+  pvRenderEras();
+}
+
+function pvRenderEras() {
+  const el = document.getElementById('pv-era-detail');
+  if (!el) return;
+  const builtinEras = PRICING_BUILTIN[pvVendor] || [];
+  const customEras  = (DB.pricing_eras?.[pvVendor] || []).slice().sort((a,b)=>a.startDate.localeCompare(b.startDate));
+  const allEras = [
+    ...builtinEras.map(e => ({...e, source:'builtin'})),
+    ...customEras.map(e => ({...e, source:'custom'}))
+  ].sort((a,b) => b.startDate.localeCompare(a.startDate)); // newest first
+
+  if (!allEras.length) { el.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:20px 0">No eras configured.</div>'; return; }
+
+  el.innerHTML = '<div class="era-list">' + allEras.map((era, idx) => {
+    const isOpen = idx === 0;
+    const dateRange = era.endDate
+      ? `${fmtDate(era.startDate)} – ${fmtDate(era.endDate)}`
+      : `${fmtDate(era.startDate)} — present`;
+    const sourceLabel = era.source==='builtin'
+      ? '<span class="era-source era-source-builtin">Built-in</span>'
+      : '<span class="era-source era-source-custom">Custom</span>';
+    const skuRows = (era.skus||[]).map(s => {
+      const sv = s.listPrice && s.moxiePrice ? '$'+(s.listPrice-s.moxiePrice).toFixed(2) : (s.savingsNote||'—');
+      return `<tr>
+        <td>${s.sku}</td>
+        <td>${s.listPrice?'$'+s.listPrice.toFixed(2):'—'}</td>
+        <td>${s.moxiePrice?'$'+s.moxiePrice.toFixed(2):'—'}</td>
+        <td><span class="savings-pill">${sv}</span></td>
+      </tr>`;
+    }).join('');
+    return `<div class="era-card">
+      <div class="era-card-head" onclick="pvToggleEra(this)">
+        <div>
+          <div class="era-label">${era.label||'Custom era'}</div>
+          <div class="era-dates">${dateRange}${era.note?' · '+era.note:''}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">${sourceLabel}<span style="color:var(--muted);font-size:16px">▾</span></div>
+      </div>
+      <div class="era-body${isOpen?' open':''}">
+        <table class="era-table">
+          <thead><tr><th>SKU / Product</th><th>List price</th><th>Moxie price</th><th>Savings</th></tr></thead>
+          <tbody>${skuRows}</tbody>
+        </table>
+      </div>
+    </div>`;
+  }).join('') + '</div>';
+}
+
+function pvToggleEra(head) {
+  const body = head.nextElementSibling;
+  body.classList.toggle('open');
+}
+
+function fmtDate(d) {
+  if (!d) return '—';
+  const [y,m,day] = d.split('-');
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${months[parseInt(m)-1]} ${parseInt(day)}, ${y}`;
+}
+
+// ─── PRICING WIZARD ───────────────────────────────────────────────────────────
+let WIZ = { step:0, vendor:null, effectiveDate:null, scope:null, skus:[], prices:{} };
+const WIZ_STEPS = ['Vendor & date','Scope','Enter prices','Review & save'];
+
+function showWizard() {
+  WIZ = { step:0, vendor:pvVendor, effectiveDate:'', scope:null, skus:[], prices:{} };
+  document.getElementById('pricing-viewer-wrap').style.display = 'none';
+  document.getElementById('pricing-wizard-wrap').style.display = 'block';
+  renderWiz();
+}
+function hideWizard() {
+  document.getElementById('pricing-wizard-wrap').style.display = 'none';
+  document.getElementById('pricing-viewer-wrap').style.display = 'block';
+  renderPricingViewer();
+}
+
+function renderWiz() {
+  // Steps bar
+  document.getElementById('wiz-steps').innerHTML = WIZ_STEPS.map((s,i) =>
+    `<div class="wiz-step-lbl ${i<WIZ.step?'done':i===WIZ.step?'active':''}">${i<WIZ.step?'✓ ':''+(i+1)+'. '}${s}</div>`
+  ).join('');
+
+  // Body
+  const body = document.getElementById('wiz-body');
+  const actions = document.getElementById('wiz-actions');
+
+  if (WIZ.step === 0) {
+    body.innerHTML = `
+      <div class="form-grid">
+        <div class="form-row">
+          <label>Vendor</label>
+          <select id="wiz-vendor" onchange="WIZ.vendor=this.value">
+            ${Object.keys(VENDOR_LABELS).map(v=>`<option value="${v}"${v===WIZ.vendor?' selected':''}>${VENDOR_LABELS[v]}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-row">
+          <label>Effective date</label>
+          <input type="date" id="wiz-date" value="${WIZ.effectiveDate}" oninput="WIZ.effectiveDate=this.value" />
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">Applies to all transactions on or after this date. Historical data is not changed.</div>
+        </div>
+      </div>`;
+    actions.innerHTML = `
+      <button class="btn btn-secondary" onclick="hideWizard()">Cancel</button>
+      <button class="btn btn-primary" onclick="wizNext()">Next →</button>`;
+
+  } else if (WIZ.step === 1) {
+    body.innerHTML = `
+      <div style="font-size:13px;font-weight:500;color:var(--aug);margin-bottom:12px">Are you updating all ${VENDOR_LABELS[WIZ.vendor]} products, or only specific ones?</div>
+      <div class="scope-cards">
+        <div class="scope-card${WIZ.scope==='all'?' selected':''}" onclick="wizSetScope('all')">
+          <h4>All products</h4>
+          <p>Every SKU for this vendor gets new pricing from ${fmtDate(WIZ.effectiveDate)}. You'll enter prices for all of them on the next step.</p>
+        </div>
+        <div class="scope-card${WIZ.scope==='specific'?' selected':''}" onclick="wizSetScope('specific')">
+          <h4>Specific products only</h4>
+          <p>Only selected SKUs change. Others keep their current pricing. Good for a single product adjustment.</p>
+        </div>
+      </div>
+      ${WIZ.scope==='specific'?`
+      <div style="margin-top:16px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--aug);margin-bottom:8px">Select products to update</div>
+      <div class="product-check-grid">
+        ${VENDOR_SKUS[WIZ.vendor].map(sku=>`
+          <label class="product-check${WIZ.skus.includes(sku)?' checked':''}">
+            <input type="checkbox" ${WIZ.skus.includes(sku)?'checked':''} onchange="wizToggleSku('${sku.replace(/'/g,"\\'")}',this.checked)" />
+            ${sku}
+          </label>`).join('')}
+      </div>`:''}`;
+    actions.innerHTML = `
+      <button class="btn btn-secondary" onclick="wizBack()">← Back</button>
+      <button class="btn btn-primary" onclick="wizNext()">Next →</button>`;
+
+  } else if (WIZ.step === 2) {
+    const skusToShow = WIZ.scope==='all' ? VENDOR_SKUS[WIZ.vendor] : WIZ.skus;
+    // Get prev price from most recent era
+    const prevEra = [...(PRICING_BUILTIN[WIZ.vendor]||[]), ...(DB.pricing_eras?.[WIZ.vendor]||[])]
+      .filter(e => e.startDate <= WIZ.effectiveDate)
+      .sort((a,b)=>b.startDate.localeCompare(a.startDate))[0];
+
+    body.innerHTML = `
+      <div style="font-size:12px;color:var(--muted);margin-bottom:14px">Enter the new Moxie member price and/or list price for each product. Leave blank to keep current pricing.</div>
+      <table class="price-entry-table">
+        <thead><tr><th>Product</th><th>List price</th><th>Moxie price</th></tr></thead>
+        <tbody>${skusToShow.map(sku => {
+          const prev = (prevEra?.skus||[]).find(s=>s.sku===sku);
+          const prevList = prev?.listPrice ? `<div class="prev-val">prev: $${prev.listPrice.toFixed(2)}</div>` : '';
+          const prevMox  = prev?.moxiePrice ? `<div class="prev-val">prev: $${prev.moxiePrice.toFixed(2)}</div>` : '';
+          const curList  = WIZ.prices[sku]?.listPrice  ?? (prev?.listPrice||'');
+          const curMox   = WIZ.prices[sku]?.moxiePrice ?? (prev?.moxiePrice||'');
+          return `<tr>
+            <td>${sku}</td>
+            <td><input class="price-input" type="number" step="0.01" min="0" placeholder="—" value="${curList}"
+              oninput="wizSetPrice('${sku.replace(/'/g,"\\'")}','listPrice',this.value,this)" />${prevList}</td>
+            <td><input class="price-input" type="number" step="0.01" min="0" placeholder="—" value="${curMox}"
+              oninput="wizSetPrice('${sku.replace(/'/g,"\\'")}','moxiePrice',this.value,this)" />${prevMox}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>`;
+    actions.innerHTML = `
+      <button class="btn btn-secondary" onclick="wizBack()">← Back</button>
+      <button class="btn btn-primary" onclick="wizNext()">Review →</button>`;
+
+  } else if (WIZ.step === 3) {
+    const skusToShow = WIZ.scope==='all' ? VENDOR_SKUS[WIZ.vendor] : WIZ.skus;
+    const changedSkus = skusToShow.filter(sku => WIZ.prices[sku]?.listPrice || WIZ.prices[sku]?.moxiePrice);
+    body.innerHTML = `
+      <div class="review-section-lbl">Summary</div>
+      <table class="review-table">
+        <tr><td>Vendor</td><td><strong>${VENDOR_LABELS[WIZ.vendor]}</strong></td></tr>
+        <tr><td>Effective from</td><td><strong>${fmtDate(WIZ.effectiveDate)}</strong></td></tr>
+        <tr><td>Scope</td><td><strong>${WIZ.scope==='all'?'All products':'Specific products only'}</strong></td></tr>
+        <tr><td>Products updated</td><td><strong>${changedSkus.length} of ${skusToShow.length}</strong></td></tr>
+      </table>
+      <div class="review-section-lbl">Price changes</div>
+      <table class="price-entry-table">
+        <thead><tr><th>Product</th><th>New list price</th><th>New Moxie price</th><th>New savings</th></tr></thead>
+        <tbody>${skusToShow.map(sku => {
+          const p = WIZ.prices[sku]||{};
+          if (!p.listPrice && !p.moxiePrice) return '';
+          const sv = p.listPrice && p.moxiePrice ? '$'+((parseFloat(p.listPrice)-parseFloat(p.moxiePrice)).toFixed(2)) : '—';
+          return `<tr>
+            <td>${sku}</td>
+            <td>${p.listPrice?'$'+parseFloat(p.listPrice).toFixed(2):'—'}</td>
+            <td>${p.moxiePrice?'$'+parseFloat(p.moxiePrice).toFixed(2):'—'}</td>
+            <td><span class="savings-pill">${sv}</span></td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>
+      <div style="font-size:12px;color:var(--muted);margin-top:14px">⚠️ Saving will update <code>data/pricing_eras.json</code> and apply to all future transaction calculations.</div>`;
+    actions.innerHTML = `
+      <button class="btn btn-secondary" onclick="wizBack()">← Back</button>
+      <button class="btn btn-primary" id="wiz-save-btn" onclick="wizSave()">Save pricing era</button>`;
+  }
+}
+
+function wizSetScope(s) {
+  WIZ.scope = s;
+  if (s==='all') WIZ.skus = [...VENDOR_SKUS[WIZ.vendor]];
+  renderWiz();
+}
+function wizToggleSku(sku, checked) {
+  if (checked) { if (!WIZ.skus.includes(sku)) WIZ.skus.push(sku); }
+  else WIZ.skus = WIZ.skus.filter(s=>s!==sku);
+  document.querySelectorAll('.product-check').forEach(el => {
+    const cb = el.querySelector('input[type=checkbox]');
+    el.classList.toggle('checked', cb.checked);
+  });
+}
+function wizSetPrice(sku, field, val, el) {
+  if (!WIZ.prices[sku]) WIZ.prices[sku] = {};
+  WIZ.prices[sku][field] = val ? parseFloat(val) : null;
+  el.classList.toggle('changed', !!val);
+}
+function wizNext() {
+  if (WIZ.step===0) {
+    if (!WIZ.effectiveDate) { toast('Please set an effective date.'); return; }
+    WIZ.vendor = document.getElementById('wiz-vendor').value;
+  }
+  if (WIZ.step===1) {
+    if (!WIZ.scope) { toast('Please select full update or specific products.'); return; }
+    if (WIZ.scope==='specific' && !WIZ.skus.length) { toast('Please select at least one product.'); return; }
+  }
+  WIZ.step = Math.min(WIZ.step+1, 3);
+  renderWiz();
+}
+function wizBack() { WIZ.step = Math.max(WIZ.step-1,0); renderWiz(); }
+
+async function wizSave() {
+  const btn = document.getElementById('wiz-save-btn');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    const skusToShow = WIZ.scope==='all' ? VENDOR_SKUS[WIZ.vendor] : WIZ.skus;
+    const skus = skusToShow
+      .filter(sku => WIZ.prices[sku]?.listPrice || WIZ.prices[sku]?.moxiePrice)
+      .map(sku => ({
+        sku,
+        listPrice:  WIZ.prices[sku]?.listPrice  ?? null,
+        moxiePrice: WIZ.prices[sku]?.moxiePrice ?? null
+      }));
+    const newEra = {
+      label: `Custom era — ${VENDOR_LABELS[WIZ.vendor]} from ${fmtDate(WIZ.effectiveDate)}`,
+      startDate: WIZ.effectiveDate,
+      endDate: null,
+      scope: WIZ.scope,
+      note: `Added ${new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}`,
+      skus
+    };
+    if (!DB.pricing_eras) DB.pricing_eras = {allergan:[],galderma:[],evolus:[],merz:[],revance:[]};
+    if (!DB.pricing_eras[WIZ.vendor]) DB.pricing_eras[WIZ.vendor] = [];
+    DB.pricing_eras[WIZ.vendor].push(newEra);
+
+    // Close out previous custom era for this vendor if open
+    DB.pricing_eras[WIZ.vendor].forEach(era => {
+      if (era !== newEra && !era.endDate && era.startDate < WIZ.effectiveDate) {
+        era.endDate = new Date(new Date(WIZ.effectiveDate) - 86400000).toISOString().slice(0,10);
+      }
+    });
+
+    await ghPut('data/pricing_eras.json', DB.pricing_eras, SHAS.pricing_eras,
+      `Pricing update: ${VENDOR_LABELS[WIZ.vendor]} from ${WIZ.effectiveDate} (${skus.length} SKUs)`);
+    const r = await ghGet('data/pricing_eras.json');
+    SHAS.pricing_eras = r.sha;
+    toast(`Pricing era saved for ${VENDOR_LABELS[WIZ.vendor]}`);
+    hideWizard();
+  } catch(e) {
+    toast('Error saving: ' + e.message);
+    btn.disabled = false; btn.textContent = 'Save pricing era';
+  }
+}
+
+// ─── START ──────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+  init();
+  updateFlagBadge();
+  renderFlags();
+});
+</script>
+</body>

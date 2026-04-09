@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Moxie Supplies Savings</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+@media print{.no-print{display:none!important}body{background:#fff}.aug-strip,.medspa-bar{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+:root{--aug:#3D1235;--aug2:#6B2D5E;--cream:#FAF8F4;--green:#1E4A08;--green-l:#EAF3DE;--border:#DDD5D9;--text:#1A1018;--muted:#7A6A76;--white:#fff}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--cream);font-family:'DM Sans',system-ui,sans-serif;color:var(--text);min-height:100vh}
+.wrap{max-width:960px;margin:0 auto;padding:28px 24px}
+.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;flex-wrap:wrap;gap:16px}
+.eyebrow{font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--aug2);margin-bottom:4px}
+h1{font-family:'Playfair Display',Georgia,serif;font-size:26px;font-weight:600;color:var(--aug);line-height:1.2}
+.controls{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+.ctrl{display:flex;flex-direction:column;gap:4px}
+.ctrl-lbl{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--aug)}
+.sel-wrap{position:relative}
+.sel-wrap::after{content:'';position:absolute;right:11px;top:50%;transform:translateY(-50%);width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:6px solid var(--aug);pointer-events:none}
+.sel-wrap select{padding:10px 34px 10px 13px;font-family:'DM Sans',system-ui,sans-serif;font-size:13px;color:var(--text);background:var(--white);border:1.5px solid var(--border);border-radius:9px;appearance:none;cursor:pointer;outline:none}
+.sel-wrap select:focus{border-color:var(--aug)}
+.typeahead-wrap{position:relative;width:320px}
+#picker-input{width:100%;padding:10px 13px;font-family:'DM Sans',system-ui,sans-serif;font-size:13px;color:var(--text);background:var(--white);border:1.5px solid var(--border);border-radius:9px;outline:none;box-sizing:border-box}
+#picker-input:focus{border-color:var(--aug)}
+#picker-input::placeholder{color:var(--muted)}
+.sug-list{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--white);border:1.5px solid var(--border);border-radius:9px;max-height:280px;overflow-y:auto;z-index:100;box-shadow:0 4px 16px rgba(0,0,0,.08);display:none}
+.sug-item{padding:9px 13px;font-size:13px;cursor:pointer;border-bottom:.5px solid #F0E8EC}.sug-item:last-child{border-bottom:none}
+.sug-item:hover,.sug-item.active{background:#F9F4F7}
+.sug-name{font-weight:500}.sug-id{font-size:11px;color:var(--muted);margin-left:6px}
+#sel-period{width:190px}
+.btn-pdf{padding:10px 18px;background:var(--aug);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;align-self:flex-end}
+.btn-pdf:hover{background:var(--aug2)}
+/* medspa bar */
+.medspa-bar{background:var(--aug);border-radius:12px;padding:16px 20px;margin-bottom:20px;color:#fff;animation:fadeIn .3s ease}
+.bar-row{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px}
+.bar-name{font-family:'Playfair Display',Georgia,serif;font-size:20px;font-weight:600}
+.bar-stats{display:flex;gap:24px}
+.bar-stat{text-align:right}
+.bar-stat-lbl{font-size:10px;opacity:.55;text-transform:uppercase;letter-spacing:.07em;display:block;margin-bottom:2px}
+.bar-stat-val{font-family:'Playfair Display',Georgia,serif;font-size:16px;font-weight:600}
+/* hero */
+.hero{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+.hero-card{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:14px 16px;animation:fadeIn .3s ease}
+.hero-period{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:8px}
+.hero-spend{font-family:'Playfair Display',Georgia,serif;font-size:22px;font-weight:600;color:var(--aug);line-height:1.1;margin-bottom:4px}
+.hero-sav{font-size:13px;font-weight:600;color:var(--green)}
+.hero-sav-lbl{font-size:11px;color:var(--muted)}
+/* strip */
+.aug-strip{background:var(--aug);border-radius:12px;padding:14px 20px;margin-bottom:18px;animation:fadeIn .35s ease}
+.strip-header{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.5);margin-bottom:10px;text-align:center}
+.strip-items{display:grid;grid-template-columns:repeat(4,1fr)}
+.strip-item{padding:0 16px;border-right:1px solid rgba(255,255,255,.15);text-align:center}
+.strip-item:first-child{padding-left:0}
+.strip-item:last-child{border-right:none}
+.strip-lbl{font-size:10px;opacity:.6;text-transform:uppercase;letter-spacing:.07em;color:#fff;margin-bottom:4px}
+.strip-val{font-family:'Playfair Display',Georgia,serif;font-size:18px;color:#fff;font-weight:600}
+/* tables */
+.vendor-section{background:var(--white);border:1px solid var(--border);border-radius:12px;margin-bottom:14px;overflow:hidden;animation:fadeIn .35s ease}
+.vsec-title{font-size:11px;font-weight:600;color:var(--aug);text-transform:uppercase;letter-spacing:.07em;padding:11px 16px;border-bottom:1px solid #F0E8EC;background:#FBF6FA}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;padding:7px 14px;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;border-bottom:.5px solid var(--border)}
+th:not(:first-child){text-align:right}
+td{padding:8px 14px;border-top:.5px solid #F7F2F5;font-variant-numeric:tabular-nums}
+td:not(:first-child){text-align:right}
+td:first-child{font-weight:500}
+.sav-td{color:var(--green);font-weight:500}
+.pct-td{color:var(--aug2)}
+.total-row td{font-weight:600;background:#FBF6FA;border-top:1.5px solid var(--border)!important}
+.no-data{font-size:12px;color:var(--muted);padding:14px 16px;font-style:italic}
+/* chart */
+.chart-section{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:14px;animation:fadeIn .4s ease}
+.chart-title{font-size:11px;font-weight:600;color:var(--aug);text-transform:uppercase;letter-spacing:.07em;margin-bottom:14px}
+.empty{text-align:center;padding:60px 0;color:var(--muted)}
+.empty p{font-size:14px;margin-top:10px}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:680px){.hero{grid-template-columns:1fr 1fr}.strip-items{grid-template-columns:1fr 1fr}.strip-item{padding:8px 0;border-right:none;border-bottom:1px solid rgba(255,255,255,.15)}.header{flex-direction:column}.typeahead-wrap{width:100%}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <div>
+      <div class="eyebrow">Moxie Supplies</div>
+      <h1>Savings Dashboard</h1>
+    </div>
+    <div class="controls">
+      <div class="ctrl">
+        <div class="ctrl-lbl">Medspa</div>
+        <div class="typeahead-wrap">
+          <input type="text" id="picker-input" placeholder="Search by name or ID…" autocomplete="off">
+          <div id="sug-list" class="sug-list"></div>
+        </div>
+      </div>
+      <div class="ctrl">
+        <div class="ctrl-lbl">Reporting Period</div>
+        <div class="sel-wrap"><select id="sel-period"></select></div>
+      </div>
+      <button class="btn-pdf no-print" onclick="exportPDF()">Export PDF</button>
+    </div>
+  </div>
+  <div id="content">
+    <div class="empty">
+      <svg width="40" height="40" viewBox="0 0 40 40" fill="none"><rect width="40" height="40" rx="20" fill="#F0E8EC"/><path d="M20 27V13M13 20l7-7 7 7" stroke="#6B2D5E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <p>Select a medspa above to view savings</p>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────────────
+var MEDSPAS = []
+var NAME_MAP = {}
+const TOKEN = 'REPLACE_WITH_TOKEN';
+const REPO  = 'shannon-hue/supplies-savings';
+const API   = 'https://api.github.com/repos/' + REPO + '/contents';
+
+// ── PRICING ───────────────────────────────────────────────────────────────────
+const G_ERA1 = {"DYSPORT":0.2787,"RESTYLANE L":0.5931,"RESTYLANE 1ML":0.5931,"RESTYLANE SILK":0.6755,"RESTYLANE LYFT":0.5931,"RESTYLANE L LYFT":0.5931,"RESTYLANE REFYNE":0.6196,"RESTYLANE DEFYNE":0.5931,"RESTYLANE KYSSE":0.5425,"RESTYLANE CONTOUR":0.5931,"RESTYLANE EYELIGHT":0.5931,"SCULPTRA":0.9055};
+const G_ERA2 = {"DYSPORT":[622,466.5],"RESTYLANE L":[344,209.84],"RESTYLANE 1ML":[344,209.84],"RESTYLANE SILK":[351,200.07],"RESTYLANE LYFT":[366,219.6],"RESTYLANE L LYFT":[366,219.6],"RESTYLANE REFYNE":[407,240.13],"RESTYLANE DEFYNE":[407,244.2],"RESTYLANE KYSSE":[425,263.5],"RESTYLANE CONTOUR":[425,255],"RESTYLANE EYELIGHT":[255,153],"SCULPTRA":[1040,509.6]};
+const AL_BOTOX_MOXIE = {"100 UNIT":656,"50 UNIT":362,"200 UNIT":1312}; // Era 2+ spend prices; Era 1 uses Amount
+const AL_ERA1 = {"ULTRA PLUS XC 1 ML":[755,551.42],"ULTRA XC 0.55 ML":[621,453.46],"ULTRA XC 1 ML":[755,551.42],"ULTRA PLUS XC 0.55 ML":[621,453.46],"VOLBELLA XC 0.55 ML":[420,356.70],"VOLBELLA XC 1 ML":[770,654.24],"VOLLURE XC 1 ML":[770,654.24],"VOLUMA XC 1 ML":[853,724.71],"VOLUX XC 2 X 1ML":[880,748.20],"SKINVIVE":[380,368.60],"25G CANNULA/23G NEEDLE KIT 10X10":[74,62.64],"25G CANNULA/23G NEEDLE KIT 4X4":[35,29.58]};
+const AL_ERA2 = {"ULTRA PLUS XC 1 ML":[781,523.50],"ULTRA XC 0.55 ML":[643,430.50],"ULTRA XC 1 ML":[781,523.50],"ULTRA PLUS XC 0.55 ML":[643,430.50],"VOLBELLA XC 0.55 ML":[431,332.10],"VOLBELLA XC 1 ML":[791,609.12],"VOLLURE XC 1 ML":[791,609.12],"VOLUMA XC 1 ML":[876,674.73],"VOLUX XC 2 X 1ML":[905,696.60],"SKINVIVE":[380,368.60],"25G CANNULA/23G NEEDLE KIT 10X10":[76,58.32],"25G CANNULA/23G NEEDLE KIT 4X4":[36,27.54]};
+const AL_ERA3 = {"ULTRA PLUS XC 1 ML":[698,418.80],"ULTRA XC 0.55 ML":[574,344.40],"ULTRA XC 1 ML":[698,418.80],"ULTRA PLUS XC 0.55 ML":[574,344.40],"VOLBELLA XC 0.55 ML":[410,266.50],"VOLBELLA XC 1 ML":[752,488.80],"VOLLURE XC 1 ML":[752,488.80],"VOLUMA XC 1 ML":[833,541.45],"VOLUX XC 2 X 1ML":[860,559.00],"SKINVIVE":[380,368.60],"25G CANNULA/23G NEEDLE KIT 10X10":[72,46.80],"25G CANNULA/23G NEEDLE KIT 4X4":[34,22.10],"27G CANNULA / 25G NEEDLE KIT 10X10":[72,46.80],"27G CANNULA / 25G NEEDLE KIT 4X4":[34,22.10],"KYBELLA":[1200,1080],"LATISSE 5":[131,114.99],"LATISSE 3":[108,94.99]};
+const MZ_XEO  = {"Xeomin 100-U Vials":511,"Xeomin 50 U Vials":268};
+const MZ_STD  = {"BELOTERO Balance 1.0cc US":[285,213.75],"Belotero Balance Lido US 1x1.0ml":[329,246.75],"Belotero 1.0 Lido":[329,246.75],"RADIESSE (Refresh) - 2 X 1.5cc Kit":[780,468],"RADIESSE (+) Lidocaine (Refresh) - 2 X 1.5cc Kit":[780,468]};
+const MZ_NEO  = new Set(["Lumiere Firm Riche 15ml","Journee Firm Riche 50ml","Journee Firm Riche 15ml","Journee Firm 50ml","Journee Firm 15ml","Neo Firm 50g","NeoGentle Cleanser 125ml","NeoCleanse Exfoliating 125ml","Neo Body 200ml","Lumiere Firm 15ml","Perle 30ml RB","Bio Cream Firm Riche 15ml","Bio Cream Firm 15ml","Bio Cream Firm 50ml","Bio Cream Firm 200ml","Bio Gel Firm 15ml","Bio Gel Firm 50ml","Bio Gel Firm 200ml","Bio Serum Firm 30ml","Daily Essentials Kit","Hyalis+ 30ml","Hyalis+ 15ml","Lumiere Firm 200ml","Micro-Gel 50ml","Neocutis After Care 15ml","Neocutis After Care 200ml","NEOCUTIS Neo Restore (6 sachets)"]);
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+var DB = {transactions:{galderma:[],allergan:[],evolus:[],merz:[]}, rebates:[], meta:{}, revenue:{}};
+var dataReady = false;
+var pendingMedspa = null;
+var activeChart = null;
+var SEL_YEAR  = new Date().getFullYear();
+var SEL_MONTH = new Date().getMonth() - 1; // default to last complete month
+const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+// ── DATE UTILS ────────────────────────────────────────────────────────────────
+function bounds() {
+  var end   = new Date(SEL_YEAR, SEL_MONTH + 1, 0);
+  var moSt  = new Date(SEL_YEAR, SEL_MONTH, 1);
+  var m3St  = new Date(SEL_YEAR, SEL_MONTH - 2, 1);
+  var ytdSt = new Date(SEL_YEAR, 0, 1);
+  return {end:end, moSt:moSt, m3St:m3St, ytdSt:ytdSt};
+}
+function pd(s) { if(!s) return null; var t = s.trim(); var d = /^\d{4}-\d{2}-\d{2}$/.test(t) ? new Date(t + 'T00:00:00') : new Date(t); return isNaN(d) ? null : d; }
+function pm(v) { return parseFloat((v||'').toString().replace(/[$,\s]/g,'')) || 0; }
+function fmt(n) { return (n && n > 0) ? '$' + Math.round(n).toLocaleString() : '—'; }
+function pct(s, sp) { return sp > 0 ? (s/sp*100).toFixed(1) + '%' : '—'; }
+function mk(d) { return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'); }
+function inMo(d)  { var b=bounds(); return d >= b.moSt  && d <= b.end; }
+function inM3(d)  { var b=bounds(); return d >= b.m3St  && d <= b.end; }
+function inYTD(d) { var b=bounds(); return d >= b.ytdSt && d <= b.end; }
+
+// ── PERIODS ACCUMULATOR ───────────────────────────────────────────────────────
+function mkP() { return {mo:{sp:0,sv:0}, m3:{sp:0,sv:0}, ytd:{sp:0,sv:0}, all:{sp:0,sv:0}, byMon:{}}; }
+function accP(p, d, sp, sv) {
+  p.all.sp += sp; p.all.sv += sv;
+  if (d) {
+    if (inMo(d))  { p.mo.sp  += sp; p.mo.sv  += sv; }
+    if (inM3(d))  { p.m3.sp  += sp; p.m3.sv  += sv; }
+    if (inYTD(d)) { p.ytd.sp += sp; p.ytd.sv += sv; }
+    var k = mk(d);
+    if (!p.byMon[k]) p.byMon[k] = {sp:0,sv:0};
+    p.byMon[k].sp += sp; p.byMon[k].sv += sv;
+  }
+}
+
+// ── CALCULATIONS ──────────────────────────────────────────────────────────────
+function calcGalderma(mkid, moxieId) {
+  var clean = mkid ? mkid.toString().replace(/^0+/,'') : null;
+  var rows = (DB.transactions.galderma||[]).filter(function(r){
+    if (moxieId && r._moxie_id === moxieId) return true;
+    if (clean && (r['SHIP TO']||'').toString().replace(/^0+/,'') === clean) return true;
+    return false;
+  });
+  if (!rows.length) return null;
+  var p = mkP();
+  rows.forEach(function(r) {
+    var desc = (r.DESCRIPTION||r.Description||'').toUpperCase();
+    if (desc.includes('SHIPPING')) return;
+    var amt = pm(r['EXTENDED AMOUNT']||r['Ext Amount']||r.extended_amount);
+    var qty = pm(r.QTY||r.Qty||r.QUANTITY||r.quantity);
+    var d   = pd(r['ORDER DATE']||r.ORDER_DATE||r['Order Date']);
+    if (!d || (amt===0 && qty>0)) return;
+    var sp=0, sv=0;
+    var G_E2 = new Date('2024-04-01');
+    if (d < G_E2) {
+      sp = amt * 1.029;
+      var k = Object.keys(G_ERA1).find(function(k){ return desc.includes(k); });
+      sv = k ? sp * G_ERA1[k] : 0;
+    } else {
+      var k2 = Object.keys(G_ERA2).find(function(k){ return desc.includes(k); });
+      if (k2) { var lr = G_ERA2[k2]; sp = qty*lr[1]; sv = qty*(lr[0]-lr[1]); }
+    }
+    accP(p, d, sp, sv);
+  });
+  return p;
+}
+
+function calcAllergan(alId) {
+  if (!alId) return null;
+  var alIdClean = alId.toString().trim();
+  var rows = (DB.transactions.allergan||[]).filter(function(r){
+    // Allergan confirmed: Sold-to # is the correct customer identifier (not Ship-to #)
+    var soldTo  = (r['Sold-to #']||'').toString().replace(/\.0$/,'').trim();
+    return soldTo === alIdClean;
+  });
+  if (!rows.length) return null;
+  var p = mkP();
+  var AL_E2 = new Date('2024-03-01'), AL_E3 = new Date('2024-08-27');
+  var AL_BOTOX_MOXIE = {"100 UNIT":656,"50 UNIT":362,"200 UNIT":1312}; // Era 2+ spend prices; Era 1 uses Amount
+  var AL_ERA1 = {"ULTRA PLUS XC 1 ML":[755,551.42],"ULTRA XC 0.55 ML":[621,453.46],"ULTRA XC 1 ML":[755,551.42],"ULTRA PLUS XC 0.55 ML":[621,453.46],"VOLBELLA XC 0.55 ML":[420,356.70],"VOLBELLA XC 1 ML":[770,654.24],"VOLLURE XC 1 ML":[770,654.24],"VOLUMA XC 1 ML":[853,724.71],"VOLUX XC 2 X 1ML":[880,748.20],"SKINVIVE":[380,368.60],"25G CANNULA/23G NEEDLE KIT 10X10":[74,62.64],"25G CANNULA/23G NEEDLE KIT 4X4":[35,29.58]};
+  var AL_ERA2 = {"ULTRA PLUS XC 1 ML":[781,523.50],"ULTRA XC 0.55 ML":[643,430.50],"ULTRA XC 1 ML":[781,523.50],"ULTRA PLUS XC 0.55 ML":[643,430.50],"VOLBELLA XC 0.55 ML":[431,332.10],"VOLBELLA XC 1 ML":[791,609.12],"VOLLURE XC 1 ML":[791,609.12],"VOLUMA XC 1 ML":[876,674.73],"VOLUX XC 2 X 1ML":[905,696.60],"SKINVIVE":[380,368.60],"25G CANNULA/23G NEEDLE KIT 10X10":[76,58.32],"25G CANNULA/23G NEEDLE KIT 4X4":[36,27.54]};
+  var AL_ERA3 = {"ULTRA PLUS XC 1 ML":[698,418.80],"ULTRA XC 0.55 ML":[574,344.40],"ULTRA XC 1 ML":[698,418.80],"ULTRA PLUS XC 0.55 ML":[574,344.40],"VOLBELLA XC 0.55 ML":[410,266.50],"VOLBELLA XC 1 ML":[752,488.80],"VOLLURE XC 1 ML":[752,488.80],"VOLUMA XC 1 ML":[833,541.45],"VOLUX XC 2 X 1ML":[860,559.00],"SKINVIVE":[380,368.60],"25G CANNULA/23G NEEDLE KIT 10X10":[72,46.80],"25G CANNULA/23G NEEDLE KIT 4X4":[34,22.10],"27G CANNULA / 25G NEEDLE KIT 10X10":[72,46.80],"27G CANNULA / 25G NEEDLE KIT 4X4":[34,22.10],"KYBELLA":[1200,1080],"LATISSE 5":[131,114.99],"LATISSE 3":[108,94.99]};
+  // SkinMedica/DiamondGlow (Era 2+ savings = Amount × (1/0.88 − 1)); Kybella/Latisse use price table in Era 3
+  var SKM_BRANDS = ['SKINMEDICA','LATISSE','KYBELLA','DIAMONDGLOW','TNS','HA5','AHA/BHA','ESD ','LUMIVIVE','RETINOL','NECK CORRECT','INSTANT BRIGHT','EVEN & CORRECT','ULTRA SHEER','TOTAL DEFENSE','VITAMIN C+E','PORE PURIFYING','FACIAL CLEANSER','REJUVENIZE','VITALIZE','ILLUMINIZE','CALMING MASQUE','PURIFYING','SCAR RECOVERY','RESTORATIVE'];
+  var seen = {};
+  rows.forEach(function(r) {
+    var key = (r['Ship-to #']||'').toString().replace(/\.0$/,'')+'|'+(r['Invoice or Credit Memo']||'').toString().replace(/\.0$/,'')+'|'+(r.Description||r.DESCRIPTION||'');
+    if (seen[key]) return; seen[key] = 1;
+    var amt = pm(r.Amount||r.AMOUNT);
+    var qty = pm(r.Quantity||r.QTY||r.Qty);
+    var desc = (r.Description||r.DESCRIPTION||'').toUpperCase().trim();
+    var d = pd(r.DATE||r.Date);
+    if (!d) return;
+    if (amt === 0 && qty > 0) return; // free/promo
+    if (/REBATE|BUY [0-9]+ GET|GET [0-9]+ FREE|FREE$|BUY.IN|BUY-IN/.test(desc)) return; // skip rebate/promo lines
+    var prices = d < AL_E2 ? AL_ERA1 : d < AL_E3 ? AL_ERA2 : AL_ERA3;
+    var sp = 0, sv = 0;
+    if (desc.indexOf('BOTOX') >= 0) {
+      // Era 1: Amount as reported (Moxie $656 contract not in place yet); Era 2+: Qty × Moxie; savings $0 always
+      var u = desc.indexOf('200 UNIT') >= 0 ? '200 UNIT' : desc.indexOf('50 UNIT') >= 0 ? '50 UNIT' : '100 UNIT';
+      sp = d < AL_E2 ? Math.abs(amt) : qty * (AL_BOTOX_MOXIE[u]||656);
+      sv = 0; // Botox savings $0 (rebate handled separately)
+    } else {
+      // Try filler price lookup first
+      var fillerKey = Object.keys(prices).find(function(k){ return desc.indexOf(k) >= 0; });
+      if (fillerKey) {
+        if (d < AL_E2) { sp = Math.abs(amt); sv = qty * (prices[fillerKey][0] - prices[fillerKey][1]); }
+        else { sp = qty * prices[fillerKey][1]; sv = qty * (prices[fillerKey][0] - prices[fillerKey][1]); }
+      } else if (SKM_BRANDS.some(function(b){ return desc.indexOf(b) >= 0; })) {
+        // SkinMedica / ancillary: spend = Amount; savings = 12% margin in Era 2+
+        sp = Math.abs(amt);
+        if (d >= AL_E2 && sp > 0) {
+          sv = sp * (1 - 0.88); // List = Moxie/0.88, savings = List - Moxie = Moxie*(1/0.88 - 1) = Moxie*0.136...
+          // Actually spec says: List = Moxie / 0.88, so Savings = Qty*(List-Moxie) = Qty*Moxie*(1/0.88-1)
+          // But we only have Amount not Moxie price. Amount in Era2+ = Qty*Moxie
+          // So sv = Amount * (1/0.88 - 1) = Amount * 0.13636...
+          sv = sp * (1/0.88 - 1);
+        }
+      } else {
+        // Unknown / accessories / equipment: spend = Amount, savings = $0
+        sp = Math.abs(amt);
+      }
+    }
+    accP(p, d, sp, sv);
+  });
+  return p;
+}
+
+function calcEvolus(moxieId) {
+  var evName = null;
+  var emap = NAME_MAP.evolus||{};
+  Object.keys(emap).forEach(function(n){ if(emap[n]===moxieId) evName=n; });
+  var rows = (DB.transactions.evolus||[]).filter(function(r){
+    return r._moxie_id===moxieId || (evName && (r.Facility||'').trim()===evName);
+  });
+  if (!rows.length) return null;
+  var p = mkP();
+  rows.forEach(function(r) {
+    var jqty   = pm(r['Jeaveau Vials']||r['Jeuveau Vials']||r.jeuveau_vials);
+    var eqty   = pm(r['Evolysse Vials']||r.evolysse_vials);
+    var eTotal = pm(r['Evolysse Total']||r.evolysse_total);
+    var d = pd(r.Date||r.date);
+    var sp=0, sv=0;
+    if (jqty>0) { sp += jqty*390; sv += jqty*220; }
+    if (eqty>0) { sp += eqty*160; sv += eqty*165; }
+    accP(p, d, sp, sv);
+  });
+  return p;
+}
+
+function calcRevance(moxieId) {
+  var rows = (DB.transactions.revance||[]).filter(function(r){
+    return r._moxie_id === moxieId || String(r._moxie_id) === String(moxieId);
+  });
+  if (!rows.length) return null;
+  var RV_LP = {RHA2:600, RHA3:600, RHA4:600, Redensity:600, Daxxify:420};
+  var p = mkP();
+  rows.forEach(function(r) {
+    var sales = pm(r['Sales $']);
+    var qty   = pm(r['Boxes / Vials']);
+    var prod  = (r.Product||'').trim();
+    var d     = pd(r.Date);
+    if (!d || sales <= 0 || qty <= 0) return;
+    var lp = RV_LP[prod];
+    var sp = sales;
+    var sv = lp ? Math.max((qty * lp) - sales, 0) : 0;
+    accP(p, d, sp, sv);
+  });
+  return p;
+}
+
+function calcMerz(moxieId) {
+  var mzName = null;
+  var mmap = NAME_MAP.merz||{};
+  Object.keys(mmap).forEach(function(n){ if(mmap[n]===moxieId) mzName=n; });
+  var rows = (DB.transactions.merz||[]).filter(function(r){
+    return r._moxie_id===moxieId || (mzName && (r.Ship_To_Name||'').trim()===mzName);
+  });
+  if (!rows.length) return null;
+  var p = mkP();
+  var MZ_BOGO = new Date('2025-01-01');
+  rows.forEach(function(r) {
+    var prod  = (r.MaterialDescription||'').trim();
+    var qty   = pm(r.Billing_qty_in_SKU);
+    var gross = pm(r.Gross_Value);
+    var d     = pd(r.Invoice_Date);
+    if (!d || qty===0) return;
+    var sp=0, sv=0;
+    if (MZ_XEO[prod] !== undefined) {
+      var lp=MZ_XEO[prod], rate=d>=MZ_BOGO?1.0:0.8;
+      sp=qty*lp; sv=qty*lp*rate;
+    } else if (MZ_STD[prod]) {
+      var lr=MZ_STD[prod]; sp=qty*lr[1]; sv=qty*(lr[0]-lr[1]);
+    } else if (MZ_NEO.has(prod)) {
+      sp=gross; sv=gross*0.2;
+    } else {
+      sp=gross;
+    }
+    accP(p, d, sp, sv);
+  });
+  return p;
+}
+
+function parseRebatePeriod(str) {
+  // Handles "Q4-2023", "Q1 2025", "Q2-2024", etc.
+  var m = (str||'').toString().trim().match(/Q([1-4])[-\s]+(\d{4})/i);
+  if (!m) return null;
+  var q = parseInt(m[1]), yr = parseInt(m[2]);
+  return {year: yr, startMonth: (q-1)*3+1, endMonth: q*3};
+}
+
+function getRebates(moxieId) {
+  if (!Array.isArray(DB.rebates)||!DB.rebates.length) return null;
+  var rows = DB.rebates.filter(function(r){ return (r['Medspa ID']||r.medspa_id||'').toString().trim()===moxieId.toString(); });
+  if (!rows.length) return null;
+  var zero = function(){ return {m3:0,ytd:0,all:0,hasEver:false}; };
+  var t = {galderma:zero(),allergan:zero(),evolus:zero(),merz:zero()};
+  var vmap = {galderma:'Galderma',allergan:'Allergan',evolus:'Evolus',merz:'Merz'};
+  // SEL_MONTH is 0-indexed; convert to 1-indexed for quarter comparisons
+  var selM = SEL_MONTH + 1;
+  // Last-3-months window bounds (1-indexed)
+  var m3StartMonth = selM-2, m3Year = SEL_YEAR;
+  if (m3StartMonth < 1) { m3StartMonth += 12; m3Year -= 1; }
+  rows.forEach(function(r) {
+    var qp = parseRebatePeriod(r['Rebate For Period']);
+    ['galderma','allergan','evolus','merz'].forEach(function(v) {
+      var amt = pm(r[vmap[v]]||r[v]);
+      if (!amt) return;
+      t[v].hasEver = true;
+      // all: every credited rebate regardless of period
+      t[v].all += amt;
+      if (!qp) return;
+      // ytd: any rebate earned in SEL_YEAR
+      if (qp.year === SEL_YEAR) t[v].ytd += amt;
+      // m3: earned quarter overlaps the last-3-months window
+      var qBeforeEnd = qp.year < SEL_YEAR || (qp.year===SEL_YEAR && qp.startMonth<=selM);
+      var qAfterStart = qp.year > m3Year  || (qp.year===m3Year  && qp.endMonth>=m3StartMonth);
+      if (qBeforeEnd && qAfterStart) t[v].m3 += amt;
+    });
+  });
+  return t;
+}
+
+// ── GITHUB DATA LOAD ──────────────────────────────────────────────────────────
+function ghGet(path, cb) {
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', API + '/' + path);
+  xhr.setRequestHeader('Authorization', 'token ' + TOKEN);
+  xhr.setRequestHeader('Accept', 'application/vnd.github.v3+json');
+  xhr.onload = function() {
+    if (xhr.status === 200) {
+      var j = JSON.parse(xhr.responseText);
+      var raw = j.content.replace(/[\r\n\s]/g, '');
+      try { cb(null, JSON.parse(decodeURIComponent(escape(atob(raw))))); }
+      catch(e) { cb(e); }
+    } else { cb(new Error(xhr.status)); }
+  };
+  xhr.onerror = function() { cb(new Error('network')); };
+  xhr.send();
+}
+
+function fetchRaw(path, cb) {
+  var url = 'https://api.github.com/repos/' + REPO + '/contents/' + path;
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', url);
+  xhr.setRequestHeader('Authorization', 'token ' + TOKEN);
+  xhr.setRequestHeader('Accept', 'application/vnd.github.v3.raw');
+  xhr.timeout = 60000;
+  xhr.onload = function() {
+    if (xhr.status === 200) {
+      try { cb(null, JSON.parse(xhr.responseText)); }
+      catch(e) { cb(e); }
+    } else { cb(new Error(xhr.status)); }
+  };
+  xhr.onerror = function() { cb(new Error('network')); };
+  xhr.ontimeout = function() { cb(new Error('timeout')); };
+  xhr.send();
+}
+
+function loadData() {
+  var vendors = ['galderma','allergan','evolus','merz','revance'];
+  var total = vendors.length + 3; // 5 vendors + rebates + medspas + name_map
+  var loaded = 0;
+
+  function done(vendorName, err) {
+    loaded++;
+    if (err) console.error('Error loading ' + vendorName + ':', err.message);
+    if (loaded === total) {
+      dataReady = true;
+      if (pendingMedspa) { render(pendingMedspa); pendingMedspa = null; }
+    }
+  }
+
+  vendors.forEach(function(v) {
+    fetchRaw('data/transactions_' + v + '.json', function(err, data) {
+      if (!err) DB.transactions[v] = data;
+      done(v, err);
+    });
+  });
+
+  fetchRaw('data/rebates.json', function(err, data) {
+    if (!err) DB.rebates = data;
+    done('rebates', err);
+  });
+
+  // Load medspa list live from backend — single source of truth
+  fetchRaw('data/medspas.json', function(err, data) {
+    if (!err && Array.isArray(data)) {
+      MEDSPAS = data;
+      initTypeahead();
+    }
+    done('medspas', err);
+  });
+
+  // Load name map live from backend — always current
+  fetchRaw('data/name_map.json', function(err, data) {
+    if (!err && data) NAME_MAP = data;
+    done('name_map', err);
+  });
+
+  fetchRaw('data/medspa_meta.json', function(err, data) {
+    if (!err) DB.meta = data;
+  });
+
+  fetchRaw('data/revenue_monthly.json', function(err, data) {
+    if (!err) DB.revenue = data.revenue || {};
+  });
+}
+
+// ── TYPEAHEAD SEARCH ──────────────────────────────────────────────────────────
+var selectedMedspaIdx = null;
+
+function initTypeahead() {
+  var input = document.getElementById('picker-input');
+  var list  = document.getElementById('sug-list');
+
+  input.addEventListener('input', function() {
+    var q = this.value.trim().toLowerCase();
+    if (!q) { list.style.display = 'none'; list.innerHTML = ''; return; }
+    var matches = [];
+    for (var i = 0; i < MEDSPAS.length && matches.length < 12; i++) {
+      var m = MEDSPAS[i];
+      if (m.n.toLowerCase().indexOf(q) >= 0 || m.id.toString().indexOf(q) >= 0) {
+        matches.push({m: m, i: i});
+      }
+    }
+    if (!matches.length) { list.style.display = 'none'; list.innerHTML = ''; return; }
+    list.innerHTML = matches.map(function(x) {
+      return '<div class="sug-item" data-idx="' + x.i + '">'
+        + '<span class="sug-name">' + x.m.n + '</span>'
+        + '<span class="sug-id">' + x.m.id + '</span>'
+        + '</div>';
+    }).join('');
+    list.style.display = 'block';
+    list.querySelectorAll('.sug-item').forEach(function(el) {
+      el.addEventListener('mousedown', function(e) {
+        e.preventDefault(); // keep focus on input
+        var idx = parseInt(this.dataset.idx);
+        selectedMedspaIdx = idx;
+        input.value = MEDSPAS[idx].n; // show name only (no ID) after selection
+        list.style.display = 'none';
+        list.innerHTML = '';
+        onMedSpaChange();
+      });
+    });
+  });
+
+  // Close on outside click
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('.typeahead-wrap')) {
+      list.style.display = 'none';
+    }
+  });
+}
+
+function populatePeriod() {
+  var sel = document.getElementById('sel-period');
+  var now = new Date();
+  var yr = now.getFullYear(), mo = now.getMonth();
+  // Include current month in the list but default to previous month
+  // (current month likely has no data yet)
+  for (var y = yr; y >= 2023; y--) {
+    var maxM = (y === yr) ? mo : 11;
+    for (var m = maxM; m >= 0; m--) {
+      var o = document.createElement('option');
+      o.value = y + '-' + m;
+      o.textContent = MONTH_NAMES[m] + ' ' + y;
+      sel.appendChild(o);
+    }
+  }
+  // Default to previous month (most recent full month of data)
+  var defMo = mo - 1, defYr = yr;
+  if (defMo < 0) { defMo = 11; defYr = yr - 1; }
+  SEL_MONTH = defMo; SEL_YEAR = defYr;
+  sel.value = defYr + '-' + defMo;
+}
+
+function onPeriodChange() {
+  var val = document.getElementById('sel-period').value.split('-');
+  SEL_YEAR  = parseInt(val[0]);
+  SEL_MONTH = parseInt(val[1]);
+  if (selectedMedspaIdx !== null) render(MEDSPAS[selectedMedspaIdx]);
+}
+
+function onMedSpaChange() {
+  if (selectedMedspaIdx === null) { document.getElementById('content').innerHTML = '<div class="empty"><p>Select a medspa above</p></div>'; return; }
+  var m = MEDSPAS[selectedMedspaIdx];
+  if (!dataReady) { pendingMedspa = m; document.getElementById('content').innerHTML = '<div class="empty"><p>Loading transaction data, please wait…</p></div>'; return; }
+  render(m);
+}
+
+// ── LAUNCH SUB ────────────────────────────────────────────────────────────────
+
+// ── RENDER ────────────────────────────────────────────────────────────────────
+function render(m) {
+  var g  = calcGalderma(m.mk, m.id);
+  var a  = calcAllergan(m.al);
+  var ev = calcEvolus(m.id);
+  var mz = calcMerz(m.id);
+  var rv = calcRevance(m.id);
+  var rb = getRebates(m.id);
+
+  function agg(period) {
+    var sp=0, sv=0;
+    [g,a,ev,mz,rv].forEach(function(v){ if(!v) return; sp+=(v[period]||{}).sp||0; sv+=(v[period]||{}).sv||0; });
+    return {sp:sp, sv:sv};
+  }
+  var mo_t=agg('mo'), m3_t=agg('m3'), ytd_t=agg('ytd'), all_t=agg('all');
+  var totalRb = 0; // kept for legacy; use allTimeRb below
+
+  var selLabel = MONTH_NAMES[SEL_MONTH] + ' ' + SEL_YEAR;
+  var ytdLabel = 'YTD ' + SEL_YEAR;
+  var m3Label  = MONTH_NAMES[new Date(SEL_YEAR, SEL_MONTH-2, 1).getMonth()] + '\u2013' + MONTH_NAMES[SEL_MONTH];
+
+  // Last 12 months for chart
+  var chartMonths = [];
+  for (var i=11; i>=0; i--) { var cd=new Date(SEL_YEAR, SEL_MONTH-i, 1); chartMonths.push(mk(cd)); }
+
+  var vendors = [
+    {id:'galderma', label:'Galderma', data:g,  color:'#4A90D9'},
+    {id:'allergan', label:'Allergan', data:a,  color:'#7B68EE'},
+    {id:'evolus',   label:'Evolus',   data:ev, color:'#50C878'},
+    {id:'merz',     label:'Merz',     data:mz, color:'#DEB887'},
+    {id:'revance',  label:'Revance',  data:rv, color:'#E07B54'}
+  ];
+
+  var html = '<div class="medspa-bar">'
+    + '<div class="bar-row">'
+    + '<div class="bar-name">' + m.n + '</div>'
+    + '<div class="bar-stats">'
+    + '<div class="bar-stat"><span class="bar-stat-lbl">3M revenue (' + m3Label + ')</span><span class="bar-stat-val" id="stat-rev">—</span></div>'
+    + '<div class="bar-stat"><span class="bar-stat-lbl">Launch date</span><span class="bar-stat-val" id="stat-launch">—</span></div>'
+    + '</div></div></div>';
+
+  html += '<div style="font-size:11px;color:var(--muted);margin-top:-14px;margin-bottom:16px">Note: This dashboard reflects purchasing savings for our five core partners: Allergan, Galderma, Merz, Revance, and Evolus. Spend and savings associated with other partnerships are calculated and presented separately.</div>';
+
+  function rbTotal(period) {
+    if (!rb) return 0;
+    return ['Galderma','Allergan','Evolus','Merz','Revance'].reduce(function(s,n){ return s+rebateAmt(n,rb,period); },0);
+  }
+  var m3Rb=rbTotal('m3'), ytdRb=rbTotal('ytd'), allRb=rbTotal('all');
+
+  // Compute 3M revenue for savings-as-%-of-revenue strip metric
+  var rev3m = 0;
+  var mRev = DB.revenue[m.id] || DB.revenue[String(m.id)];
+  if (mRev) {
+    for (var ri = 0; ri <= 2; ri++) {
+      var rmo = SEL_MONTH - ri;
+      var ryr = SEL_YEAR;
+      if (rmo < 0) { rmo += 12; ryr -= 1; }
+      var rym = ryr + '-' + String(rmo + 1).padStart(2, '0');
+      rev3m += mRev[rym] || 0;
+    }
+  }
+
+  html += '<div class="hero">';
+  [[selLabel,mo_t,0],['Last 3 months',m3_t,m3Rb],[ytdLabel,ytd_t,ytdRb],['All time',all_t,allRb]].forEach(function(triple) {
+    var lbl=triple[0], t=triple[1], reb=triple[2];
+    html += '<div class="hero-card"><div class="hero-period">' + lbl + '</div>'
+      + '<div class="hero-spend">' + (t.sp>0?fmt(t.sp):'—') + ' <span class="hero-sav-lbl" style="font-size:11px">spend</span></div>'
+      + '<div class="hero-sav">' + (t.sv>0?fmt(t.sv):'—') + ' <span class="hero-sav-lbl" style="font-size:11px">savings</span></div>'
+      + (reb>0?'<div class="hero-sav" style="font-size:13px;color:var(--aug2)">'+fmt(reb)+' <span class="hero-sav-lbl" style="font-size:11px">rebates</span></div>':'')
+      + '<div class="hero-sav-lbl">' + (t.sp>0?pct(t.sv+reb,t.sp)+' savings':'— savings') + '</div></div>';
+  });
+  html += '</div>';
+
+  html += '<div class="aug-strip">'
+    + '<div class="strip-header">Last 3 Months</div>'
+    + '<div class="strip-items">'
+    + '<div class="strip-item"><div class="strip-lbl">Spend</div><div class="strip-val">' + fmt(m3_t.sp) + '</div></div>'
+    + '<div class="strip-item"><div class="strip-lbl">Savings</div><div class="strip-val">' + fmt(m3_t.sv+m3Rb) + '</div></div>'
+    + '<div class="strip-item"><div class="strip-lbl">Savings as % of revenue</div><div class="strip-val">' + (rev3m>0?pct(m3_t.sv+m3Rb,rev3m):'—') + '</div></div>'
+    + '<div class="strip-item"><div class="strip-lbl">Savings as % of spend</div><div class="strip-val">' + pct(m3_t.sv+m3Rb,m3_t.sp) + '</div></div>'
+    + '</div></div>';
+
+  html += vendorTable('Last 3 months', g, a, ev, mz, rv, rb, true, 'm3');
+  if (rb) html += '<div style="font-size:11px;color:var(--muted);margin-top:-12px;margin-bottom:16px">¹ If your selected period overlaps any part of a quarter, the full quarter\'s rebate is shown. Rebates for periods not yet calculated will not appear.</div>';
+
+  html += vendorTable(ytdLabel, g, a, ev, mz, rv, rb, true, 'ytd');
+  if (rb) html += '<div style="font-size:11px;color:var(--muted);margin-top:-12px;margin-bottom:16px">² Rebate amounts are attributed to the quarter in which they were earned. Actual payouts are deposited to your account the following quarter.</div>';
+
+  html += vendorTable('All time', g, a, ev, mz, rv, rb, true, 'all');
+  if (rb) html += '<div style="font-size:11px;color:var(--muted);margin-top:-12px;margin-bottom:16px">² Rebate amounts are attributed to the quarter in which they were earned. Actual payouts are deposited to your account the following quarter.</div>';
+
+  html += '<div class="chart-section"><div class="chart-title">Monthly savings — last 12 months</div>'
+    + '<canvas id="trendChart" height="180"></canvas></div>';
+
+  document.getElementById('content').innerHTML = html;
+
+  // Chart
+  if (activeChart) { activeChart.destroy(); activeChart = null; }
+  var ctx = document.getElementById('trendChart').getContext('2d');
+  var activeV = vendors.filter(function(v){ return v.data; });
+  activeChart = new Chart(ctx, {
+    type:'bar',
+    data:{
+      labels: chartMonths.map(function(mo) {
+        var parts=mo.split('-'); return new Date(parts[0],parts[1]-1,1).toLocaleString('default',{month:'short',year:'2-digit'});
+      }),
+      datasets: activeV.map(function(v) {
+        return {
+          label:v.label,
+          data: chartMonths.map(function(mo){ return (v.data.byMon[mo]||{}).sv||0; }),
+          backgroundColor: v.color+'CC', borderColor: v.color, borderWidth:1, borderRadius:3
+        };
+      })
+    },
+    options:{responsive:true, scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,ticks:{callback:function(v){return '$'+Math.round(v/1000)+'k';}}}}, plugins:{legend:{position:'bottom',labels:{font:{family:"'DM Sans',system-ui"}}}}}
+  });
+
+  // Fetch medspa meta from Omni
+  renderMeta(m);
+}
+
+function rebateAmt(name, rb, period) {
+  var vr = rb && rb[name.toLowerCase()];
+  if (name === 'Allergan' || name === 'Evolus') return vr ? vr[period] || 0 : 0;
+  if (!vr || !vr.hasEver) return 0;
+  if (name === 'Merz' && period !== 'all') return 0;
+  return vr[period] || 0;
+}
+
+function rebateCell(name, rb, period) {
+  var vr = rb && rb[name.toLowerCase()];
+  // Allergan + Evolus: always show amount or —, never N/A
+  if (name === 'Allergan' || name === 'Evolus') return vr && vr[period] > 0 ? fmt(vr[period]) : '—';
+  // Galderma + Merz: N/A if this medspa has never received one
+  if (!vr || !vr.hasEver) return 'N/A';
+  // Merz: one-time historical — show amount for all-time only
+  if (name === 'Merz' && period !== 'all') return 'N/A';
+  var amt = vr[period] || 0;
+  return amt > 0 ? fmt(amt) : '—';
+}
+
+function vendorTable(title, g, a, ev, mz, rv, rb, showRb, period) {
+  var rows = [['Galderma',g],['Allergan',a],['Evolus',ev],['Merz',mz],['Revance',rv]];
+  var totSp=0, totSv=0, totRb=0;
+  rows.forEach(function(r){ var v=r[1]; if(!v)return; totSp+=(v[period]||{}).sp||0; totSv+=(v[period]||{}).sv||0;
+    if(showRb){ var vr=rb&&rb[r[0].toLowerCase()]; var n=r[0];
+      if(n==='Allergan'||n==='Evolus'){ if(vr) totRb+=vr[period]||0; }
+      else if(vr&&vr.hasEver&&!(n==='Merz'&&period!=='all')) totRb+=vr[period]||0; }
+  });
+  var hasAny = rows.some(function(r){ var v=r[1]; return v&&((v[period]||{}).sp>0||(v[period]||{}).sv>0); });
+
+  var html = '<div class="vendor-section"><div class="vsec-title">' + title + '</div>';
+  if (!hasAny) {
+    html += '<div class="no-data">No transaction data for this period</div>';
+  } else {
+    html += '<table><thead><tr><th>Vendor</th><th>Spend</th><th>Savings</th>' + (showRb?'<th>Rebates</th>':'') + '<th>% Saved</th></tr></thead><tbody>';
+    rows.forEach(function(row) {
+      var name=row[0], v=row[1];
+      var pp = v ? (v[period]||{sp:0,sv:0}) : {sp:0,sv:0};
+      if (!pp.sp && !pp.sv) {
+        return; // skip rows with no data
+      } else {
+        var reb = showRb ? rebateAmt(name, rb, period) : 0;
+        html += '<tr><td>' + name + '</td><td>' + fmt(pp.sp) + '</td><td class="sav-td">' + fmt(pp.sv) + '</td>';
+        if (showRb) html += '<td>' + rebateCell(name, rb, period) + '</td>';
+        html += '<td class="pct-td">' + pct(pp.sv+reb,pp.sp) + '</td></tr>';
+      }
+    });
+    html += '</tbody><tfoot><tr class="total-row"><td>Total</td><td>' + fmt(totSp) + '</td><td class="sav-td">' + fmt(totSv) + '</td>';
+    if (showRb) html += '<td>' + (totRb>0?fmt(totRb):'—') + '</td>';
+    html += '<td class="pct-td">' + pct(totSv+(showRb?totRb:0),totSp) + '</td>';
+    html += '</tr></tfoot></table>';
+  }
+  html += '</div>';
+  return html;
+}
+
+// ── OMNI META (revenue + launch date) — revenue computed dynamically from revenue_monthly.json ──
+function renderMeta(m) {
+  var meta  = DB.meta[m.id] || DB.meta[String(m.id)] || {};
+  var revEl = document.getElementById('stat-rev');
+  var ldEl  = document.getElementById('stat-launch');
+
+  // Compute 3M revenue for the 3 calendar months ending at SEL_YEAR/SEL_MONTH
+  var rev3m = 0;
+  var mRev  = DB.revenue[m.id] || DB.revenue[String(m.id)];
+  if (mRev) {
+    for (var i = 0; i <= 2; i++) {
+      var mo = SEL_MONTH - i;
+      var yr = SEL_YEAR;
+      if (mo < 0) { mo += 12; yr -= 1; }
+      var ym = yr + '-' + String(mo + 1).padStart(2, '0');
+      rev3m += mRev[ym] || 0;
+    }
+  }
+
+  if (revEl) revEl.textContent = rev3m > 0 ? '$' + Math.round(rev3m).toLocaleString() : (meta.revenue_3m > 0 ? '$' + Math.round(meta.revenue_3m).toLocaleString() : '—');
+  if (ldEl && meta.launch) {
+    var ld = new Date(meta.launch);
+    ldEl.textContent = ld.toLocaleString('default', {month:'long', year:'numeric'});
+  }
+}
+
+// ── PDF EXPORT ────────────────────────────────────────────────────────────────
+function exportPDF() {
+  var medspaName = (document.getElementById('picker-input') || {}).value || 'Savings Report';
+  var period = document.getElementById('sel-period') ? document.getElementById('sel-period').options[document.getElementById('sel-period').selectedIndex].text : '';
+  var title = (medspaName + ', Supplies Savings, ' + period).trim();
+  var prev = document.title;
+  document.title = title;
+  window.print();
+  document.title = prev;
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+populatePeriod();
+document.getElementById('sel-period').addEventListener('change', onPeriodChange);
+loadData(); // loads MEDSPAS + NAME_MAP from backend and calls initTypeahead when ready
+</script>
+</body>
+</html>

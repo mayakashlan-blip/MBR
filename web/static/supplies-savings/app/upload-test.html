@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Upload Test Harness — Supplies Savings</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--aug:#3D1235;--aug2:#6B2D5E;--cream:#FAF8F4;--green:#1E4A08;--green-l:#EAF3DE;--border:#DDD5D9;--text:#1A1018;--muted:#7A6A76;--white:#fff;--red:#A32D2D;--red-l:#FCEBEB;--amber:#633806;--amber-l:#FAEEDA}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--cream);font-family:'DM Sans',system-ui,sans-serif;color:var(--text);min-height:100vh}
+.wrap{max-width:1000px;margin:0 auto;padding:28px 24px}
+.eyebrow{font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--aug2);margin-bottom:6px}
+h1{font-family:'Playfair Display',Georgia,serif;font-size:26px;font-weight:600;color:var(--aug);margin-bottom:4px}
+.subtitle{font-size:13px;color:var(--muted);margin-bottom:24px}
+.banner{background:var(--amber-l);border:1px solid #E8C98A;border-radius:10px;padding:12px 16px;font-size:13px;color:var(--amber);margin-bottom:24px;display:flex;gap:10px;align-items:center}
+.flag-list{display:flex;flex-direction:column;gap:8px}
+.flag-item{border:1px solid var(--border);border-radius:10px;padding:14px 16px;background:var(--white)}
+.flag-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px}
+.flag-name{font-weight:600;font-size:13px;color:var(--text)}
+.flag-meta{font-size:11px;color:var(--muted);margin-top:2px}
+.flag-badge{font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px;white-space:nowrap}
+.badge-id{background:var(--red-l);color:var(--red)}
+.badge-name{background:var(--amber-l);color:var(--amber)}
+.flag-suggestions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.suggestion{padding:6px 12px;border-radius:7px;font-size:12px;border:1px solid var(--border);background:var(--white)}
+.card{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin-bottom:16px}
+.card-title{font-size:13px;font-weight:600;color:var(--aug);margin-bottom:4px}
+.card-sub{font-size:12px;color:var(--muted);margin-bottom:16px}
+.upload-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
+.slot{border:1.5px dashed var(--border);border-radius:10px;padding:16px;text-align:center;cursor:pointer;position:relative;transition:all .2s}
+.slot:hover{border-color:var(--aug2);background:#FBF5FA}
+.slot.loaded{border-style:solid;border-color:#5A9A40;background:var(--green-l)}
+.slot.loading{border-color:var(--aug2);background:#FBF5FA;animation:pulse 1s infinite alternate}
+@keyframes pulse{from{opacity:.7}to{opacity:1}}
+.slot input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.slot-vendor{font-size:12px;font-weight:600;color:var(--aug2);margin-bottom:3px}
+.slot.loaded .slot-vendor{color:var(--green)}
+.slot-status{font-size:11px;color:var(--muted)}
+.slot.loaded .slot-status{color:#3A7A28}
+.status-bar{background:var(--aug);color:#fff;border-radius:10px;padding:10px 16px;font-size:12px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center}
+.result{margin-top:20px}
+.result-section{margin-bottom:20px}
+.result-section h3{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;border-bottom:1px solid var(--border);padding-bottom:6px}
+.stat-row{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px}
+.stat{background:var(--cream);border:1px solid var(--border);border-radius:8px;padding:10px 16px;min-width:120px}
+.stat-lbl{font-size:11px;color:var(--muted);margin-bottom:2px}
+.stat-val{font-size:20px;font-weight:600;color:var(--aug)}
+.stat.green{background:var(--green-l);border-color:#C3DEB6}.stat.green .stat-val{color:var(--green)}
+.stat.red{background:var(--red-l);border-color:#FBBCBC}.stat.red .stat-val{color:var(--red)}
+.stat.amber{background:var(--amber-l);border-color:#E8C98A}.stat.amber .stat-val{color:var(--amber)}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;padding:7px 10px;background:var(--cream);border-bottom:1.5px solid var(--border);font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+td{padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+tr:last-child td{border-bottom:none}
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600}
+.badge-green{background:var(--green-l);color:var(--green)}
+.badge-red{background:var(--red-l);color:var(--red)}
+.badge-amber{background:var(--amber-l);color:var(--amber)}
+.badge-muted{background:var(--cream);color:var(--muted);border:1px solid var(--border)}
+.empty{color:var(--muted);font-size:12px;font-style:italic;padding:12px 0}
+.loading-bar{font-size:13px;color:var(--muted);padding:20px 0;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">Moxie Supplies</div>
+  <h1>Upload Test Harness</h1>
+  <p class="subtitle">Dry-run uploads — runs the full parse, dedup, and ID resolution logic. Nothing is saved.</p>
+
+  <div class="banner">
+    ⚠️ <strong>Test mode only.</strong> No data will be written to GitHub. Results show exactly what a real upload would do.
+  </div>
+
+  <div id="status-bar" class="status-bar" style="display:none">
+    <span id="status-text">Loading…</span>
+    <span id="status-sub" style="opacity:.7;font-size:11px"></span>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Drop a vendor CSV to test</div>
+    <div class="card-sub">Uses your live vendor config, existing transaction data (for dedup), and current name map/medspa list. One file at a time.</div>
+    <div class="upload-grid">
+      <div class="slot" id="slot-galderma">
+        <input type="file" accept=".csv" onchange="runTest('galderma',this)">
+        <div class="slot-vendor">Galderma</div>
+        <div class="slot-status" id="st-galderma">Drop CSV or click</div>
+      </div>
+      <div class="slot" id="slot-allergan">
+        <input type="file" accept=".csv" onchange="runTest('allergan',this)">
+        <div class="slot-vendor">Allergan</div>
+        <div class="slot-status" id="st-allergan">Drop CSV or click</div>
+      </div>
+      <div class="slot" id="slot-evolus">
+        <input type="file" accept=".csv" onchange="runTest('evolus',this)">
+        <div class="slot-vendor">Evolus</div>
+        <div class="slot-status" id="st-evolus">Drop CSV or click</div>
+      </div>
+      <div class="slot" id="slot-merz">
+        <input type="file" accept=".csv" onchange="runTest('merz',this)">
+        <div class="slot-vendor">Merz</div>
+        <div class="slot-status" id="st-merz">Drop CSV or click</div>
+      </div>
+      <div class="slot" id="slot-revance">
+        <input type="file" accept=".csv" onchange="runTest('revance',this)">
+        <div class="slot-vendor">Revance</div>
+        <div class="slot-status" id="st-revance">Drop CSV or click</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="result"></div>
+</div>
+
+<script>
+const REPO  = 'shannon-hue/supplies-savings';
+const API   = 'https://api.github.com/repos/' + REPO + '/contents';
+const RAW   = 'https://raw.githubusercontent.com/shannon-hue/supplies-savings/main';
+const TOKEN = 'REPLACE_WITH_TOKEN';
+
+// ── READ-ONLY GitHub helpers ──────────────────────────────────────────────────
+async function ghGet(path) {
+  const r = await fetch(`${API}/${path}`, {
+    headers: {'Authorization': `token ${TOKEN}`, 'Accept': 'application/vnd.github.v3+json'}
+  });
+  if (!r.ok) throw new Error(`GET ${path} failed: ${r.status}`);
+  const j = await r.json();
+  if (j.content) {
+    const clean = j.content.replace(/[\r\n\s]/g, '');
+    const decoded = decodeURIComponent(escape(atob(clean)));
+    return {data: JSON.parse(decoded), sha: j.sha};
+  }
+  throw new Error('No content field (file may be too large — use ghGetRaw)');
+}
+
+// For large files (>1MB) — uses Git Blobs API which works for private repos in browsers
+async function ghGetRaw(path) {
+  const meta = await fetch(`${API}/${path}`, {
+    headers: {'Authorization': `token ${TOKEN}`, 'Accept': 'application/vnd.github.v3+json'}
+  });
+  if (!meta.ok) throw new Error(`META ${path} failed: ${meta.status}`);
+  const j = await meta.json();
+  const sha = j.sha;
+  const r = await fetch(`${API.replace('/contents','')}/git/blobs/${sha}`, {
+    headers: {'Authorization': `token ${TOKEN}`, 'Accept': 'application/vnd.github.v3.raw'}
+  });
+  if (!r.ok) throw new Error(`Blob GET ${path} failed: ${r.status}`);
+  return {data: await r.json(), sha};
+}
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let VENDOR_CONFIG = null;
+let OMNI_MEDSPAS  = [];
+let NAME_MAP      = {merz:{}, evolus:{}, revance:{}};
+let EXISTING      = {};  // vendor -> rows (for dedup only, read-only)
+let ready         = false;
+
+function setStatus(text, sub) {
+  const bar = document.getElementById('status-bar');
+  bar.style.display = 'flex';
+  document.getElementById('status-text').textContent = text;
+  document.getElementById('status-sub').textContent = sub || '';
+}
+function clearStatus() { document.getElementById('status-bar').style.display = 'none'; }
+
+async function init() {
+  setStatus('Loading config & medspa list…');
+  try {
+    const [vc, ms, nm] = await Promise.all([
+      ghGet('data/vendor_config.json'),
+      ghGet('data/medspas.json'),
+      ghGet('data/name_map.json'),
+    ]);
+    VENDOR_CONFIG = vc.data;
+    OMNI_MEDSPAS  = ms.data;
+    NAME_MAP      = nm.data;
+
+    // Load existing transactions for dedup (read-only)
+    // Use ghGetRaw (authenticated raw URL) for large files, matching admin.html
+    setStatus('Loading existing transactions for dedup check…');
+    const vendors = ['galderma','allergan','evolus','merz','revance'];
+    await Promise.all(vendors.map(async v => {
+      try {
+        const r = await ghGetRaw(`data/transactions_${v}.json`);
+        EXISTING[v] = r.data;
+      } catch(e) { EXISTING[v] = []; }
+    }));
+
+    ready = true;
+    clearStatus();
+    setStatus('Ready — ' + OMNI_MEDSPAS.length + ' medspas loaded, existing rows: ' +
+      vendors.map(v => `${v}: ${(EXISTING[v]||[]).length}`).join(' · '), '');
+    setTimeout(clearStatus, 4000);
+  } catch(e) {
+    setStatus('Load failed: ' + e.message);
+  }
+}
+
+// ── CSV parsing (mirrors admin.html exactly) ──────────────────────────────────
+function parseCSV(text, skipRows) {
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+  const lines = text.split(/\r?\n/);
+  if (lines.length < 2) return [];
+  let delim = ',';
+  const firstLine = lines[0];
+  if ((firstLine.match(/\t/g)||[]).length > (firstLine.match(/,/g)||[]).length) delim = '\t';
+  let hdrIdx = 0;
+  if (skipRows > 0) {
+    for (let i = 0; i < lines.length; i++) {
+      const cols = splitLine(lines[i], delim).filter(c => c.trim());
+      if (cols.length >= 3) { hdrIdx = i; break; }
+    }
+  }
+  const hdr = splitLine(lines[hdrIdx], delim);
+  const rows = [];
+  for (let i = hdrIdx+1; i < lines.length; i++) {
+    if (!lines[i].trim()) continue;
+    const vals = splitLine(lines[i], delim);
+    const obj = {};
+    hdr.forEach((h,j) => obj[h.trim()] = (vals[j]||'').trim());
+    rows.push(obj);
+  }
+  return rows;
+}
+function splitLine(line, delim=',') {
+  const res=[]; let cur=''; let inQ=false;
+  for (let c of line) {
+    if (c==='"') inQ=!inQ;
+    else if (c===delim && !inQ) {res.push(cur); cur='';}
+    else cur+=c;
+  }
+  res.push(cur); return res;
+}
+
+// ── Fuzzy match ───────────────────────────────────────────────────────────────
+function fuzzyMatch(query, limit=3) {
+  if (!OMNI_MEDSPAS.length) return [];
+  const q = query.toLowerCase().replace(/[^a-z0-9 ]/g,'');
+  const qWords = new Set(q.split(/\s+/).filter(w => w.length > 2));
+  const scored = OMNI_MEDSPAS.map(m => {
+    const n = (m.n||'').toLowerCase().replace(/[^a-z0-9 ]/g,'');
+    const nWords = new Set(n.split(/\s+/).filter(w => w.length > 2));
+    const overlap = [...qWords].filter(w => nWords.has(w)).length;
+    const partials = [...qWords].filter(w => n.includes(w)).length;
+    return {m, score: overlap*2 + partials};
+  }).filter(x => x.score > 0).sort((a,b) => b.score - a.score);
+  return scored.slice(0, limit).map(x => ({id: x.m.id, name: x.m.n}));
+}
+
+// ── Session dedup cache — persists across test runs without saving to GitHub ──
+const SESSION_KEYS = {};   // vendor -> Set of keys "virtually added" this session
+
+// ── Core test logic ───────────────────────────────────────────────────────────
+async function runTest(vendor, input) {
+  if (!ready) { alert('Still loading — please wait a moment.'); return; }
+  const file = input.files[0]; if (!file) return;
+
+  const slot = document.getElementById(`slot-${vendor}`);
+  const st   = document.getElementById(`st-${vendor}`);
+  slot.className = 'slot loading';
+  st.textContent = 'Parsing…';
+
+  const text = await file.text();
+  const cfg  = VENDOR_CONFIG.find(v => v.id === vendor);
+  if (!cfg) { st.textContent = 'No config found'; slot.className = 'slot'; return; }
+
+  const rows = parseCSV(text, cfg.skip_header_rows || 0);
+  if (!rows.length) { st.textContent = 'Parse failed — 0 rows'; slot.className = 'slot'; return; }
+
+  const existing     = EXISTING[vendor] || [];
+  const dedup_fields = cfg.dedup_fields;
+  // Normalize a single field value: strip trailing ".0" floats; normalize human-readable dates to ISO (e.g. "Feb 13, 2026" → "2026-02-13")
+  const MONTHS = {jan:'01',feb:'02',mar:'03',apr:'04',may:'05',jun:'06',jul:'07',aug:'08',sep:'09',oct:'10',nov:'11',dec:'12'};
+  const normVal = v => {
+    let s = String(v||'').trim().replace(/^(\d+)\.0$/, '$1');
+    const mDate = s.match(/^([A-Za-z]{3})\s+(\d{1,2}),?\s+(\d{4})$/);
+    if (mDate) { const mo = MONTHS[mDate[1].toLowerCase()]; if (mo) s = `${mDate[3]}-${mo}-${mDate[2].padStart(2,'0')}`; }
+    const mSlash = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (mSlash) s = `${mSlash[3]}-${mSlash[1].padStart(2,'0')}-${mSlash[2].padStart(2,'0')}`;
+    return s;
+  };
+  const normKey = r => dedup_fields.map(f => normVal(r[f])).join('|');
+
+  // Build key sets: stored in GitHub + previously tested this session
+  const storedKeys  = new Set(existing.map(normKey));
+  // Debug: log stored key info to console
+  console.log(`[dedup ${vendor}] stored rows: ${existing.length}, unique keys: ${storedKeys.size}`);
+  if (existing.length > 0) {
+    const sampleRow = existing[0];
+    console.log(`[dedup ${vendor}] sample stored row keys:`, Object.keys(sampleRow).join(', '));
+    console.log(`[dedup ${vendor}] sample stored normKey:`, normKey(sampleRow));
+  }
+  if (!SESSION_KEYS[vendor]) SESSION_KEYS[vendor] = new Set();
+  const sessionKeys = SESSION_KEYS[vendor];
+
+  // Pre-build rowCount map so we don't do O(n) filter inside the O(n) loop
+  const rowCountMap = {};
+  rows.forEach(r => {
+    const id = (r[cfg.csv_join_field]||'').trim();
+    rowCountMap[id] = (rowCountMap[id]||0) + 1;
+  });
+
+  let totalRows = 0, skippedIf = 0;
+  let dupeVsStored = 0;   // would dupe against what's in GitHub
+  let dupeVsSession = 0;  // would dupe against a previous test run this session
+  let dupeWithinFile = 0; // row is a duplicate of an earlier row in this same file
+  let newRows = 0;
+  const matched    = [];
+  const unmatched  = [];
+  const flaggedIds = new Set();
+  const newRowSamples   = [];
+  const dupeRows_detail = [];  // [{key, source: 'stored'|'session'|'file', row}]
+  const seenInFile  = new Set();
+
+  for (const row of rows) {
+    totalRows++;
+
+    // skip_if
+    if (cfg.skip_if) {
+      const sf = Object.keys(cfg.skip_if)[0];
+      if ((row[sf]||'').toUpperCase().includes(cfg.skip_if[sf].toUpperCase())) {
+        skippedIf++; continue;
+      }
+    }
+
+    // Dedup
+    const skipDedupField = cfg.skip_dedup_when_empty;
+    const skipDedup = skipDedupField && !(row[skipDedupField]||'').trim();
+    if (!skipDedup) {
+      const key = normKey(row);
+      console.log(`[dedup ${vendor}] row ${totalRows} key: "${key}" → stored:${storedKeys.has(key)}`);
+      if (storedKeys.has(key)) {
+        dupeVsStored++;
+        dupeRows_detail.push({key, source: 'stored', row});
+        continue;
+      }
+      if (sessionKeys.has(key)) {
+        dupeVsSession++;
+        dupeRows_detail.push({key, source: 'session', row});
+        continue;
+      }
+      if (seenInFile.has(key)) {
+        dupeWithinFile++;
+        dupeRows_detail.push({key, source: 'file', row});
+        continue;
+      }
+      seenInFile.add(key);
+    }
+
+    // ID resolution
+    let moxie_id = null;
+    const csvId = (row[cfg.csv_join_field]||'').trim();
+
+    if (cfg.id_source === 'omni') {
+      const omniField = cfg.omni_field === 'Supplies - MKID' ? 'mk' : 'al';
+      // Galderma SHIP TO has a leading zero (e.g. '0100877484'); Omni mk stores '100877484'
+      const lookupId = omniField === 'mk' ? csvId.replace(/^0+/, '') : csvId;
+      const m = OMNI_MEDSPAS.find(m => (m[omniField]||'').toString().trim() === lookupId);
+      moxie_id = m ? m.id : null;
+      if (csvId && !flaggedIds.has(csvId)) {
+        flaggedIds.add(csvId);
+        const rowCount = rowCountMap[csvId] || 1;
+        if (moxie_id) {
+          matched.push({csvId, moxieId: moxie_id, name: m.n, rowCount});
+        } else {
+          unmatched.push({csvId, suggestions: fuzzyMatch(csvId, 3), rowCount, sampleRow: row});
+        }
+      }
+    } else if (cfg.id_source === 'name_map') {
+      moxie_id = NAME_MAP[cfg.name_map_vendor]?.[csvId] || null;
+      if (csvId && !flaggedIds.has(csvId)) {
+        flaggedIds.add(csvId);
+        const rowCount = rows.filter(r => (r[cfg.csv_join_field]||'').trim() === csvId).length;
+        if (moxie_id) {
+          const m = OMNI_MEDSPAS.find(m => m.id === moxie_id);
+          matched.push({csvId, moxieId: moxie_id, name: m ? m.n : `ID ${moxie_id}`, rowCount});
+        } else {
+          unmatched.push({csvId, suggestions: fuzzyMatch(csvId, 3), rowCount, sampleRow: row});
+        }
+      }
+    } else if (cfg.id_source === 'csv') {
+      const hasMoxieIdCol = cfg.csv_moxie_id_field && (cfg.csv_moxie_id_field in row);
+      if (hasMoxieIdCol) {
+        const rawId = (row[cfg.csv_moxie_id_field] || '').trim();
+        moxie_id = rawId ? (parseInt(rawId) || rawId) : null;
+        if (!moxie_id) continue;
+        if (csvId && !flaggedIds.has(csvId)) {
+          flaggedIds.add(csvId);
+          const rowCount = rows.filter(r => (r[cfg.csv_join_field]||'').trim() === csvId).length;
+          const m = OMNI_MEDSPAS.find(m => m.id === moxie_id);
+          matched.push({csvId, moxieId: moxie_id, name: m ? m.n : `ID ${moxie_id}`, rowCount});
+        }
+      } else {
+        moxie_id = NAME_MAP[cfg.id]?.[csvId] || null;
+        if (csvId && !flaggedIds.has(csvId)) {
+          flaggedIds.add(csvId);
+          const rowCount = rows.filter(r => (r[cfg.csv_join_field]||'').trim() === csvId).length;
+          if (moxie_id) {
+            const m = OMNI_MEDSPAS.find(m => m.id === moxie_id);
+            matched.push({csvId, moxieId: moxie_id, name: m ? m.n : `ID ${moxie_id}`, rowCount});
+          } else {
+            unmatched.push({csvId, suggestions: fuzzyMatch(csvId, 3), rowCount, sampleRow: row});
+          }
+        }
+      }
+    }
+
+    newRows++;
+    newRowSamples.push(row);
+  }
+
+  // Add this run's new keys to the session cache so a re-upload shows them as dupes
+  seenInFile.forEach(k => sessionKeys.add(k));
+
+  const totalDupes = dupeVsStored + dupeVsSession + dupeWithinFile;
+  slot.className = 'slot loaded';
+  st.textContent = `+${newRows} new · ${totalDupes} dupes`;
+  renderResult(vendor, file.name, {
+    totalRows, skippedIf, dupeVsStored, dupeVsSession, dupeWithinFile,
+    newRows, matched, unmatched, newRowSamples, dupeRows_detail, cfg,
+    storedRowsLoaded: existing.length, storedKeysBuilt: storedKeys.size
+  });
+}
+
+// ── Result rendering ──────────────────────────────────────────────────────────
+function renderResult(vendor, filename, r) {
+  const {totalRows, skippedIf, dupeVsStored, dupeVsSession, dupeWithinFile,
+         newRows, matched, unmatched, newRowSamples, dupeRows_detail, cfg,
+         storedRowsLoaded, storedKeysBuilt} = r;
+  const totalDupes = dupeVsStored + dupeVsSession + dupeWithinFile;
+
+  let html = `<div class="card result">
+    <div class="card-title">Test result — ${vendor} &nbsp;<span style="font-weight:400;color:var(--muted)">${filename}</span></div>
+    <div class="card-sub">Dry run complete. Nothing was saved. Re-upload the same file to verify dupes are caught on a repeat upload.</div>
+    <div class="result-section">
+      <h3>Row summary</h3>
+      <div class="stat-row">
+        <div class="stat"><div class="stat-lbl">Total in file</div><div class="stat-val">${totalRows}</div></div>
+        ${skippedIf > 0 ? `<div class="stat amber"><div class="stat-lbl">Skipped (${cfg.skip_if ? Object.keys(cfg.skip_if)[0] : 'filter rule'})</div><div class="stat-val">${skippedIf}</div></div>` : ''}
+        <div class="stat ${totalDupes > 0 ? 'amber' : ''}"><div class="stat-lbl">Dupes (total)</div><div class="stat-val">${totalDupes}</div></div>
+        <div class="stat ${storedRowsLoaded === 0 ? 'red' : ''}"><div class="stat-lbl">Stored rows loaded</div><div class="stat-val">${storedRowsLoaded ?? '?'}</div></div>
+        <div class="stat green"><div class="stat-lbl">Net new rows</div><div class="stat-val">${newRows}</div></div>
+      </div>
+      ${totalDupes > 0 ? `
+      <div style="font-size:12px;margin-bottom:12px">
+        ${dupeVsStored > 0 ? `<div style="margin-bottom:4px">• <strong>${dupeVsStored}</strong> already exist in stored data (GitHub)</div>` : ''}
+        ${dupeVsSession > 0 ? `<div style="margin-bottom:4px">• <strong>${dupeVsSession}</strong> match a row from a <em>previous test run this session</em> — confirms re-upload dedup works</div>` : ''}
+        ${dupeWithinFile > 0 ? `<div style="margin-bottom:4px">• <strong>${dupeWithinFile}</strong> duplicate of an earlier row <em>within this same file</em></div>` : ''}
+      </div>` : `<div style="font-size:12px;color:var(--muted);margin-bottom:12px">No dupes found against stored data. Re-upload this same file — all rows should then show as dupes.</div>`}
+    </div>
+    <div class="result-section">
+      <h3>Dedup key preview — fields used: <code style="font-size:11px">${cfg.dedup_fields.join(' + ')}</code></h3>
+      <div style="overflow-x:auto"><table>
+        <thead><tr><th>#</th><th>Dedup key (what the system compares)</th><th>Status</th></tr></thead>
+        <tbody>
+          ${[...newRowSamples, ...dupeRows_detail.map(d=>d.row)].slice(0,20).map((row, i) => {
+            const key = cfg.dedup_fields.map(f => row[f]||'').join(' | ');
+            const isDupe = dupeRows_detail.find(d => d.row === row);
+            const badge = isDupe
+              ? isDupe.source === 'stored'  ? '<span class="badge badge-red">dupe vs stored</span>'
+              : isDupe.source === 'session' ? '<span class="badge badge-amber">dupe vs prev test</span>'
+              :                               '<span class="badge badge-amber">dupe within file</span>'
+              : '<span class="badge badge-green">new</span>';
+            return `<tr><td style="color:var(--muted)">${i+1}</td><td style="font-family:monospace;font-size:11px">${esc(key)}</td><td>${badge}</td></tr>`;
+          }).join('')}
+        </tbody>
+      </table></div>
+    </div>`;
+
+  html += `<div class="result-section">
+    <h3>ID resolution — ${matched.length + unmatched.length} unique ${cfg.id_source === 'omni' ? 'IDs' : 'names'} found</h3>`;
+
+  if (matched.length) {
+    html += `<p style="font-size:12px;color:var(--green);margin-bottom:10px">✓ ${matched.length} matched to a medspa</p>
+    <table><thead><tr><th>CSV ${cfg.id_source === 'omni' ? 'ID' : 'Name'}</th><th>Moxie ID</th><th>Medspa name</th><th>Rows</th></tr></thead><tbody>`;
+    matched.forEach(m => {
+      html += `<tr><td style="font-family:monospace;font-size:11px">${esc(m.csvId)}</td><td style="font-family:monospace;font-size:11px">${m.moxieId}</td><td>${esc(m.name)}</td><td>${m.rowCount}</td></tr>`;
+    });
+    html += `</tbody></table>`;
+  }
+
+  if (unmatched.length) {
+    const isAllergan = cfg.id === 'allergan';
+    const flagType = cfg.id_source === 'omni' ? 'id_not_in_omni' : 'name_not_in_map';
+    const flagBadgeLabel = flagType === 'id_not_in_omni' ? 'ID not in Omni' : 'Name not mapped';
+    const flagBadgeClass = flagType === 'id_not_in_omni' ? 'badge-id' : 'badge-name';
+    html += `<p style="font-size:12px;color:var(--red);margin:14px 0 10px">✗ ${unmatched.length} unmatched — would go to review queue</p>
+    <div class="flag-list">`;
+    unmatched.forEach(u => {
+      const r = u.sampleRow || {};
+      const displayName = isAllergan ? esc(r['Sold-to Name'] || u.csvId) : esc(u.csvId);
+      const metaParts = [
+        `${u.rowCount} row${u.rowCount!==1?'s':''} affected`, `ID: ${u.csvId}`
+      ];
+      if (isAllergan) {
+        if (r['Ship to Attn']) metaParts.push(esc(r['Ship to Attn']));
+        if (r['Ship-to City']) metaParts.push(`${esc(r['Ship-to City'])}, ${esc(r['Ship-to State']||'')}`);
+      }
+      const suggestions = u.suggestions.length
+        ? `<div style="font-size:11px;color:var(--muted);margin-bottom:6px">Suggestions:</div>
+           <div class="flag-suggestions">${u.suggestions.map(s => `<div class="suggestion">${esc(s.name)} <span style="color:var(--muted);font-size:10px">— ${s.id}</span></div>`).join('')}</div>`
+        : `<div style="font-size:12px;color:var(--muted);margin-bottom:10px">No Omni suggestions — would need manual Moxie ID entry.</div>`;
+      html += `<div class="flag-item">
+        <div class="flag-header">
+          <div>
+            <div class="flag-name">${displayName}</div>
+            <div class="flag-meta">${metaParts.join(' · ')}</div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+            <span style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--aug2)">${cfg.display_name || cfg.id}</span>
+            <span class="flag-badge ${flagBadgeClass}">${flagBadgeLabel}</span>
+          </div>
+        </div>
+        ${suggestions}
+        <div style="font-size:11px;color:var(--muted);font-style:italic">Preview only — Link / Skip actions appear in the real Review Queue tab.</div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  html += `</div>`;
+
+  if (newRowSamples.length) {
+    const cols = Object.keys(newRowSamples[0]).filter(k => k !== '_moxie_id' && k !== '_vendor');
+    html += `<div class="result-section">
+      <h3>New rows (${newRowSamples.length})</h3>
+      <div style="overflow-x:auto"><table><thead><tr>${cols.map(c=>`<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>`;
+    newRowSamples.forEach(row => {
+      html += `<tr>${cols.map(c=>`<td style="font-size:11px">${esc(row[c]||'')}</td>`).join('')}</tr>`;
+    });
+    html += `</tbody></table></div></div>`;
+  }
+
+  html += `<div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);font-size:12px;color:var(--muted)">
+    Dedup fields: <code>${cfg.dedup_fields.join(', ')}</code> &nbsp;·&nbsp;
+    ID source: <code>${cfg.id_source}</code> &nbsp;·&nbsp;
+    Join field: <code>${cfg.csv_join_field}</code>
+  </div></div>`;
+
+  document.getElementById('result').innerHTML = html;
+  document.getElementById('result').scrollIntoView({behavior:'smooth'});
+}
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+init();
+</script>
+</body>
+</html>

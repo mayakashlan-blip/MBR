@@ -1,0 +1,94 @@
+[
+  {
+    "id": "galderma",
+    "display_name": "Galderma",
+    "id_source": "omni",
+    "omni_field": "Supplies - MKID",
+    "csv_join_field": "SHIP TO",
+    "csv_name_field": "SHIP TONAME",
+    "date_field": "ORDER DATE",
+    "dedup_fields": [
+      "SHIP TO",
+      "DELIVERY #",
+      "DESCRIPTION",
+      "ORDER DATE"
+    ],
+    "skip_dedup_when_empty": "DELIVERY #",
+    "skip_header_rows": 0,
+    "skip_if": {
+      "DESCRIPTION": "SHIPPING"
+    },
+    "skip_promo": true,
+    "formula": "galderma",
+    "cadence": "monthly",
+    "active": true
+  },
+  {
+    "id": "allergan",
+    "display_name": "Allergan",
+    "id_source": "omni",
+    "omni_field": "Supplies - Allergan ID",
+    "csv_join_field": "Sold-to #",
+    "date_field": "Date",
+    "dedup_fields": [
+      "Sold-to #",
+      "Invoice or Credit Memo",
+      "Description"
+    ],
+    "skip_promo": true,
+    "formula": "allergan",
+    "cadence": "monthly",
+    "active": true
+  },
+  {
+    "id": "evolus",
+    "display_name": "Evolus",
+    "id_source": "name_map",
+    "name_map_vendor": "evolus",
+    "csv_join_field": "Facility",
+    "date_field": "Date",
+    "dedup_fields": [
+      "Facility",
+      "Order Number",
+      "Date"
+    ],
+    "skip_promo": true,
+    "formula": "evolus",
+    "cadence": "monthly",
+    "active": true
+  },
+  {
+    "id": "merz",
+    "display_name": "Merz",
+    "id_source": "name_map",
+    "name_map_vendor": "merz",
+    "csv_join_field": "Ship_To_Name",
+    "date_field": "Invoice_Date",
+    "dedup_fields": [
+      "Billing_Document",
+      "Invoice_Date",
+      "MaterialDescription",
+      "Ship_To_Party"
+    ],
+    "skip_if": {
+      "Billing_qty_in_SKU": "0"
+    },
+    "formula": "merz",
+    "cadence": "monthly",
+    "active": true
+  },
+  {
+    "id": "revance",
+    "display_name": "Revance",
+    "id_source": "csv",
+    "csv_moxie_id_field": "Moxie Medspa ID",
+    "csv_join_field": "Account Name",
+    "csv_city_field": "City",
+    "csv_state_field": "State",
+    "date_field": "Date",
+    "dedup_fields": ["Account Name", "Date", "Product", "Sales $"],
+    "formula": "revance",
+    "cadence": "monthly",
+    "active": true
+  }
+]

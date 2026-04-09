@@ -1,0 +1,202 @@
+[
+  {
+    "timestamp": "2026-04-06T23:25:34.238Z",
+    "vendor": "merz",
+    "filename": "Merz Q1 upload - Sheet1.csv",
+    "rows_added": 28,
+    "dupes_skipped": 904,
+    "flags_raised": 18
+  },
+  {
+    "timestamp": "2026-04-01T22:24:00.378Z",
+    "vendor": "merz",
+    "filename": "Merz March 2026 Order Line.xlsx - Sheet 1 (1).csv",
+    "rows_added": 394,
+    "dupes_skipped": 0,
+    "flags_raised": 34
+  },
+  {
+    "timestamp": "2026-04-01T20:50:18.055Z",
+    "vendor": "revance",
+    "filename": "Revance March 2026.xlsm - Sheet1.csv",
+    "rows_added": 124,
+    "dupes_skipped": 219,
+    "flags_raised": 15
+  },
+  {
+    "timestamp": "2026-04-01T18:33:50.952Z",
+    "vendor": "galderma",
+    "filename": "Galderma Mar 2026.xlsx - Sheet2 (1).csv",
+    "rows_added": 677,
+    "dupes_skipped": 0,
+    "flags_raised": 10
+  },
+  {
+    "timestamp": "2026-04-01T18:23:12.069Z",
+    "vendor": "galderma",
+    "filename": "Galderma Mar 2026.xlsx - Sheet2 (1).csv",
+    "rows_added": 677,
+    "dupes_skipped": 0,
+    "flags_raised": 10
+  },
+  {
+    "timestamp": "2026-04-01T18:20:04.022Z",
+    "vendor": "galderma",
+    "filename": "Galderma Mar 2026.xlsx - Sheet2 (1).csv",
+    "rows_added": 677,
+    "dupes_skipped": 0,
+    "flags_raised": 10
+  },
+  {
+    "timestamp": "2026-04-01T18:14:35.057Z",
+    "vendor": "galderma",
+    "filename": "Galderma Mar 2026.xlsx - Sheet2 (1).csv",
+    "rows_added": 677,
+    "dupes_skipped": 0,
+    "flags_raised": 10
+  },
+  {
+    "timestamp": "2026-04-01T18:01:35.831Z",
+    "vendor": "galderma",
+    "filename": "Galderma Mar 2026.xlsx - Sheet2 (1).csv",
+    "rows_added": 673,
+    "dupes_skipped": 0,
+    "flags_raised": 0
+  },
+  {
+    "timestamp": "2026-04-01T16:46:39.952Z",
+    "vendor": "evolus",
+    "filename": "All time Evolus - march 2026 - Sheet1.csv",
+    "rows_added": 4402,
+    "dupes_skipped": 11,
+    "flags_raised": 2
+  },
+  {
+    "timestamp": "2026-04-01T16:45:20.402Z",
+    "vendor": "evolus",
+    "filename": "All time Evolus - march 2026 - Sheet1.csv",
+    "rows_added": 4402,
+    "dupes_skipped": 11,
+    "flags_raised": 2
+  },
+  {
+    "timestamp": "2026-04-01T16:44:16.788Z",
+    "vendor": "evolus",
+    "filename": "All time Evolus - march 2026 - Sheet1.csv",
+    "rows_added": 4402,
+    "dupes_skipped": 11,
+    "flags_raised": 2
+  },
+  {
+    "timestamp": "2026-04-01T16:38:55.328Z",
+    "vendor": "evolus",
+    "filename": "All time Evolus - march 2026 - Sheet1.csv",
+    "rows_added": 4402,
+    "dupes_skipped": 11,
+    "flags_raised": 2
+  },
+  {
+    "timestamp": "2026-04-01T16:37:04.387Z",
+    "vendor": "evolus",
+    "filename": "All time Evolus - march 2026 - Sheet1.csv",
+    "rows_added": 0,
+    "dupes_skipped": 4413,
+    "flags_raised": 0
+  },
+  {
+    "timestamp": "2026-04-01T16:35:28.792Z",
+    "vendor": "evolus",
+    "filename": "All time Evolus - march 2026 - Sheet1.csv",
+    "rows_added": 0,
+    "dupes_skipped": 4413,
+    "flags_raised": 0
+  },
+  {
+    "timestamp": "2026-04-01T16:34:03.180Z",
+    "vendor": "evolus",
+    "filename": "All time Evolus - march 2026 - Sheet1.csv",
+    "rows_added": 0,
+    "dupes_skipped": 4413,
+    "flags_raised": 0
+  },
+  {
+    "timestamp": "2026-04-01T16:05:36.673Z",
+    "vendor": "evolus",
+    "filename": "Pharma purchasing Reports for Calculating Savings - V2 - Evolus Transactions.csv",
+    "rows_added": 4009,
+    "dupes_skipped": 404,
+    "flags_raised": 8
+  },
+  {
+    "timestamp": "2026-04-01T14:41:08.912Z",
+    "vendor": "evolus",
+    "filename": "Mar 2026 Evolus.xlsx - Evolus.csv",
+    "rows_added": 393,
+    "dupes_skipped": 0,
+    "flags_raised": 26
+  },
+  {
+    "timestamp": "2026-04-01T13:41:40.014Z",
+    "vendor": "allergan",
+    "filename": "Allergan - March 2026 - 20260401082949.csv",
+    "rows_added": 610,
+    "dupes_skipped": 2,
+    "flags_raised": 2
+  },
+  {
+    "timestamp": "2026-03-30T23:47:05.028Z",
+    "vendor": "revance",
+    "filename": "Moxie order detail.xlsx - New Revance upload.csv",
+    "rows_added": 214,
+    "dupes_skipped": 11,
+    "flags_raised": 0
+  },
+  {
+    "timestamp": "2026-03-28T01:03:02.041Z",
+    "vendor": "revance",
+    "filename": "Moxie order detail.xlsx - Revance (3).csv",
+    "rows_added": 3302,
+    "dupes_skipped": 6,
+    "flags_raised": 0
+  },
+  {
+    "timestamp": "2026-03-28T00:54:35.734Z",
+    "vendor": "revance",
+    "filename": "Moxie order detail.xlsx - Revance (3).csv",
+    "rows_added": 0,
+    "dupes_skipped": 0,
+    "flags_raised": 0
+  },
+  {
+    "timestamp": "2026-03-21T19:46:50.258Z",
+    "vendor": "galderma",
+    "filename": "Pharma purchasing Reports for Calculating Savings - V2 - Galderma Transactions (4).csv",
+    "rows_added": 11668,
+    "dupes_skipped": 8,
+    "flags_raised": 0
+  },
+  {
+    "timestamp": "2026-03-21T19:36:46.512Z",
+    "vendor": "galderma",
+    "filename": "Pharma purchasing Reports for Calculating Savings - V2 - Galderma Transactions (3).csv",
+    "rows_added": 11683,
+    "dupes_skipped": 0,
+    "flags_raised": 0
+  },
+  {
+    "timestamp": "2026-03-21T19:32:08.141Z",
+    "vendor": "galderma",
+    "filename": "Pharma purchasing Reports for Calculating Savings - V2 - Galderma Transactions (2).csv",
+    "rows_added": 11683,
+    "dupes_skipped": 0,
+    "flags_raised": 0
+  },
+  {
+    "timestamp": "2026-03-21T19:14:54.621Z",
+    "vendor": "galderma",
+    "filename": "Pharma purchasing Reports for Calculating Savings - V2 - Galderma Transactions (2).csv",
+    "rows_added": 1,
+    "dupes_skipped": 11682,
+    "flags_raised": 0
+  }
+]
