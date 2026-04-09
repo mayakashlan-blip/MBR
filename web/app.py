@@ -43,14 +43,14 @@ batch_jobs = {}
 # Omni API key from environment
 OMNI_KEY = os.environ.get("OMNI_API_KEY", "")
 
+# Persistent storage base — use PERSISTENT_DIR env var on Render, falls back to data/ locally
+_persist_base = os.environ.get("PERSISTENT_DIR", str(Path(__file__).parent.parent / "data"))
+
 # Persistent session storage
 SESSIONS_DIR = Path(_persist_base) / "sessions"
 SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
 
 # Monthly assets storage (launches & brand bank shared across all practices)
-# Use PERSISTENT_DIR env var on Render (mount a persistent disk there)
-# Falls back to data/monthly/ locally
-_persist_base = os.environ.get("PERSISTENT_DIR", str(Path(__file__).parent.parent / "data"))
 MONTHLY_DIR = Path(_persist_base) / "monthly"
 MONTHLY_DIR.mkdir(parents=True, exist_ok=True)
 
