@@ -218,18 +218,26 @@ def api_practices():
         queries = {q["name"]: q["query"] for q in dash.get("queries", [])}
 
         q = copy.deepcopy(queries["Medspa Name"])
+        # Add tier field (provider_segment_post_launch) so the dashboard segment browser
+        # always reflects the current Omni tier
+        tier_field = "dbt__moxie_medspas_mart.provider_segment_post_launch"
+        if tier_field not in q.get("fields", []):
+            q.setdefault("fields", []).append(tier_field)
         q["limit"] = 50000  # no practical cap — Moxie adds practices over time
         result = _run_query(q, key)
 
         names = []
         ids = []
+        tiers = []
         for k, v in result.items():
             if "medspa_name" in k and "with_id" not in k:
                 names = v
             elif "medspa_id" in k:
                 ids = v
+            elif "provider_segment_post_launch" in k:
+                tiers = v
 
-        # Build list of {name, id} pairs, filtering out deactivated
+        # Build list of {name, id, tier} pairs, filtering out deactivated
         practices = []
         seen = set()
         for i in range(len(names)):
@@ -237,9 +245,10 @@ def api_practices():
             if not n or n.startswith("(DEACTIVATED"):
                 continue
             mid = int(ids[i]) if i < len(ids) and ids[i] is not None else None
+            tier = tiers[i] if i < len(tiers) and tiers[i] else ""
             if n not in seen:
                 seen.add(n)
-                practices.append({"name": n, "id": mid})
+                practices.append({"name": n, "id": mid, "tier": tier})
         practices.sort(key=lambda p: p["name"])
 
         return jsonify({"practices": practices})

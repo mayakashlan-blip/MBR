@@ -208,20 +208,11 @@ document.getElementById('practice').addEventListener('keypress', e => {
 });
 
 // ── Segment / Tier Browser ──
-let segmentsData = {};   // { medspaId: { tier, status } }
 let currentTier = 'all';
 
-// Load segments and medspas list together
-Promise.all([
-  fetch('/static/supplies-savings/data/medspa_segments.json').then(r => r.json()).catch(() => null),
-  fetch('/api/practices').then(r => r.json()).catch(() => ({practices: []})),
-]).then(([segData, practiceData]) => {
-  if (segData && segData.segments) {
-    segmentsData = segData.segments;
-  }
-  // Wait briefly for allPractices to populate from the earlier fetch
-  setTimeout(renderTierList, 200);
-});
+// Tier data now comes directly from /api/practices (Omni's provider_segment_post_launch)
+// Wait briefly for allPractices to populate, then render
+setTimeout(renderTierList, 500);
 
 function filterByTier(tier) {
   currentTier = tier;
@@ -235,15 +226,11 @@ function renderTierList() {
   const list = document.getElementById('tier-list');
   const search = (document.getElementById('tier-search').value || '').toLowerCase().trim();
 
-  // Build filtered set of practices with their tier info
+  // Build filtered set of practices using tier from /api/practices (Omni)
   const filtered = allPractices
-    .map(p => {
-      const seg = p.id ? segmentsData[String(p.id)] : null;
-      return { ...p, tier: (seg && seg.tier) || '', status: (seg && seg.status) || '' };
-    })
     .filter(p => {
-      if (p.status === 'churned') return false;
-      if (currentTier !== 'all' && p.tier !== currentTier) return false;
+      const tier = p.tier || '';
+      if (currentTier !== 'all' && tier !== currentTier) return false;
       if (search && !p.name.toLowerCase().includes(search) && !String(p.id || '').includes(search)) return false;
       return true;
     })
@@ -261,7 +248,7 @@ function renderTierList() {
     <div class="tier-row" onclick="selectPracticeFromTier('${p.name.replace(/'/g, "\\'")}')">
       <div>
         <div class="tier-name">${escapeHtml(p.name)}</div>
-        <div class="tier-meta">ID: ${p.id || '—'}${p.status ? ' &middot; ' + p.status : ''}</div>
+        <div class="tier-meta">ID: ${p.id || '—'}</div>
       </div>
       ${p.tier ? `<span class="tier-badge ${p.tier}">${p.tier}</span>` : '<span style="color:#c8c0bb;font-size:11px;">No tier</span>'}
     </div>
