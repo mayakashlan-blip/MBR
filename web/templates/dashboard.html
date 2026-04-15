@@ -242,6 +242,7 @@ function renderTierList() {
       return { ...p, tier: (seg && seg.tier) || '', status: (seg && seg.status) || '' };
     })
     .filter(p => {
+      if (p.status === 'churned') return false;
       if (currentTier !== 'all' && p.tier !== currentTier) return false;
       if (search && !p.name.toLowerCase().includes(search) && !String(p.id || '').includes(search)) return false;
       return true;
