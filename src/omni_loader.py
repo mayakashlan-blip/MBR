@@ -165,6 +165,26 @@ def load_from_omni(practice_name: str, month: int, year: int,
 
     data = MBRData(practice_name=practice_name, month=month, year=year)
 
+    # Get practice tier (provider_segment_post_launch) from Medspa Name query
+    try:
+        tier_q = copy.deepcopy(queries.get("Medspa Name", {}))
+        if tier_q:
+            tier_q["filters"]["dbt__moxie_medspas_mart.medspa_name"] = {
+                "kind": "EQUALS", "type": "string",
+                "values": [practice_name], "is_negative": False,
+            }
+            tier_field = "dbt__moxie_medspas_mart.provider_segment_post_launch"
+            if tier_field not in tier_q.get("fields", []):
+                tier_q.setdefault("fields", []).append(tier_field)
+            tier_q["limit"] = 5
+            tier_r = _run_query(tier_q, api_key)
+            tiers = tier_r.get(tier_field, [])
+            if tiers and tiers[0]:
+                data.tier = str(tiers[0])
+                print(f"  Tier: {data.tier}")
+    except Exception as e:
+        print(f"  Warning: Could not load tier: {e}")
+
     def run(name: str) -> dict:
         q = _find_query(queries, name)
         date_field = QUERY_DATE_FIELDS.get(name)

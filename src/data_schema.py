@@ -130,6 +130,7 @@ class MBRData:
     month: int
     year: int
     moxie_start_month: str = ""  # e.g. "October 2025"
+    tier: str = ""  # provider_segment_post_launch from Omni: Momentum, Growth, Silver, Gold, Enterprise
 
     # Tile 1 - Key Metrics
     monthly_net_revenue: float = 0.0
