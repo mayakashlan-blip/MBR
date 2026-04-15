@@ -54,6 +54,67 @@
     <div id="error" class="error-msg hidden"></div>
   </div>
 
+  <div class="card" style="margin-top: 24px;">
+    <h3 style="margin: 0 0 4px 0; font-size: 16px;">Browse by Segment</h3>
+    <p style="color: #8C8580; font-size: 13px; margin: 0 0 16px 0;">
+      Filter practices by their post-launch segment tier. Click a practice to use it above.
+    </p>
+
+    <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px;" id="tier-buttons">
+      <button class="tier-btn" data-tier="all" onclick="filterByTier('all')">All</button>
+      <button class="tier-btn" data-tier="Momentum" onclick="filterByTier('Momentum')">Momentum</button>
+      <button class="tier-btn" data-tier="Growth" onclick="filterByTier('Growth')">Growth</button>
+      <button class="tier-btn" data-tier="Silver" onclick="filterByTier('Silver')">Silver</button>
+      <button class="tier-btn" data-tier="Gold" onclick="filterByTier('Gold')">Gold</button>
+      <button class="tier-btn" data-tier="Enterprise" onclick="filterByTier('Enterprise')">Enterprise</button>
+    </div>
+
+    <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 12px;">
+      <input type="text" id="tier-search" placeholder="Search within selected tier..."
+             oninput="renderTierList()"
+             style="flex: 1; border: 1px solid #d2cbc4; border-radius: 8px; padding: 8px 12px; font-size: 13px;">
+      <span id="tier-count" style="color: #8C8580; font-size: 12px; white-space: nowrap;"></span>
+    </div>
+
+    <div id="tier-list" style="max-height: 360px; overflow-y: auto; border: 1px solid #e8e0d8; border-radius: 8px;">
+      <div style="padding: 20px; text-align: center; color: #8C8580; font-size: 13px;">Loading segments…</div>
+    </div>
+  </div>
+
+  <style>
+    .tier-btn {
+      padding: 6px 14px;
+      font-size: 13px;
+      font-weight: 500;
+      border: 1.5px solid #d2cbc4;
+      border-radius: 999px;
+      background: white;
+      color: #4A4744;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .tier-btn:hover { border-color: #4D1751; color: #4D1751; }
+    .tier-btn.active { background: #4D1751; color: white; border-color: #4D1751; }
+    .tier-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 8px 12px; border-bottom: 1px solid #f0ebe6;
+      cursor: pointer; font-size: 13px;
+    }
+    .tier-row:hover { background: #FAFAF7; }
+    .tier-row:last-child { border-bottom: none; }
+    .tier-name { font-weight: 500; color: #2D2A28; }
+    .tier-meta { font-size: 11px; color: #8C8580; }
+    .tier-badge {
+      font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 10px;
+      text-transform: uppercase; letter-spacing: 0.04em;
+    }
+    .tier-badge.Momentum { background: #E8F4FD; color: #1E5B8E; }
+    .tier-badge.Growth { background: #E8F5E9; color: #2E7D32; }
+    .tier-badge.Silver { background: #F0F0F0; color: #5A5550; }
+    .tier-badge.Gold { background: #FFF8E1; color: #B8933A; }
+    .tier-badge.Enterprise { background: #F3EDF4; color: #4D1751; }
+  </style>
+
   <div class="recent-section" id="recent-section" style="display:none">
     <h3>Recent Reports</h3>
     <div id="recent-list"></div>
@@ -146,6 +207,79 @@ document.getElementById('practice').addEventListener('keypress', e => {
   if (e.key === 'Enter') generateReport();
 });
 
+// ── Segment / Tier Browser ──
+let segmentsData = {};   // { medspaId: { tier, status } }
+let currentTier = 'all';
 
+// Load segments and medspas list together
+Promise.all([
+  fetch('/static/supplies-savings/data/medspa_segments.json').then(r => r.json()).catch(() => null),
+  fetch('/api/practices').then(r => r.json()).catch(() => ({practices: []})),
+]).then(([segData, practiceData]) => {
+  if (segData && segData.segments) {
+    segmentsData = segData.segments;
+  }
+  // Wait briefly for allPractices to populate from the earlier fetch
+  setTimeout(renderTierList, 200);
+});
+
+function filterByTier(tier) {
+  currentTier = tier;
+  document.querySelectorAll('.tier-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tier === tier);
+  });
+  renderTierList();
+}
+
+function renderTierList() {
+  const list = document.getElementById('tier-list');
+  const search = (document.getElementById('tier-search').value || '').toLowerCase().trim();
+
+  // Build filtered set of practices with their tier info
+  const filtered = allPractices
+    .map(p => {
+      const seg = p.id ? segmentsData[String(p.id)] : null;
+      return { ...p, tier: (seg && seg.tier) || '', status: (seg && seg.status) || '' };
+    })
+    .filter(p => {
+      if (currentTier !== 'all' && p.tier !== currentTier) return false;
+      if (search && !p.name.toLowerCase().includes(search) && !String(p.id || '').includes(search)) return false;
+      return true;
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  document.getElementById('tier-count').textContent =
+    filtered.length + ' practice' + (filtered.length === 1 ? '' : 's');
+
+  if (!filtered.length) {
+    list.innerHTML = '<div style="padding: 20px; text-align: center; color: #8C8580; font-size: 13px;">No practices match this filter.</div>';
+    return;
+  }
+
+  list.innerHTML = filtered.slice(0, 200).map(p => `
+    <div class="tier-row" onclick="selectPracticeFromTier('${p.name.replace(/'/g, "\\'")}')">
+      <div>
+        <div class="tier-name">${escapeHtml(p.name)}</div>
+        <div class="tier-meta">ID: ${p.id || '—'}${p.status ? ' &middot; ' + p.status : ''}</div>
+      </div>
+      ${p.tier ? `<span class="tier-badge ${p.tier}">${p.tier}</span>` : '<span style="color:#c8c0bb;font-size:11px;">No tier</span>'}
+    </div>
+  `).join('') + (filtered.length > 200 ? `<div style="padding:10px;text-align:center;color:#8C8580;font-size:11px;">Showing first 200 of ${filtered.length} — refine search to narrow down</div>` : '');
+}
+
+function selectPracticeFromTier(name) {
+  const input = document.getElementById('practice');
+  input.value = name;
+  input.scrollIntoView({behavior: 'smooth', block: 'center'});
+  input.focus();
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// Default to "All" active
+filterByTier('all');
 </script>
 {% endblock %}
