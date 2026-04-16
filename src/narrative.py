@@ -35,7 +35,7 @@ PERFORMANCE GAUGES:
 - % of AOV Goal: {data.pct_aov_goal*100:.0f}%
 - Utilization Rate: {data.utilization_rate*100:.1f}%
 - Rebooking Rate: {data.rebooking_rate*100:.0f}%
-- Retention (180D): {data.retention_180d*100:.0f}%
+- Retention (180D): {data.retention_180d*100:.0f}% (target: 65%)
 
 MEMBERSHIPS:
 - Active: {data.memberships_active}
@@ -69,6 +69,7 @@ BENCHMARKS FOR ASSESSMENT:
 | % of Revenue Goal | <85% | 85-99% | 100%+ |
 | Utilization | <40% | 40-59% | 60%+ |
 | Rebooking Rate | <40% | 40-59% | 60%+ |
+| Retention (180D) | <45% | 45-64% | 65%+ (target: 65%) |
 | Retail-to-Service Ratio | <5% | 5-19% | 20%+ |
 | Membership Churn | >10% | 5-10% | <5% |
 """
@@ -279,8 +280,13 @@ def _generate_rule_based(data: MBRData):
                f"Revenue reached ${data.monthly_net_revenue:,.0f} ({rev_pct:.0f}% of goal), "
                f"with room to close the gap through volume and retention improvements.")
 
-    # Paragraph 2: Opportunity
-    if data.rebooking_rate < 0.40:
+    # Paragraph 2: Opportunity (pick the biggest gap)
+    if data.retention_180d < 0.45:
+        opp = (f"There's an opportunity to strengthen client retention, currently at "
+               f"{data.retention_180d*100:.0f}% against the 65% target. Building stronger "
+               f"follow-up touchpoints and rebooking habits could help bring more patients back "
+               f"and support steadier month-over-month growth.")
+    elif data.rebooking_rate < 0.40:
         opp = (f"There's an opportunity to further strengthen client retention, as the rebooking rate "
                f"is currently at {data.rebooking_rate*100:.0f}%, below the 40% goal. Focusing on "
                f"encouraging follow-up scheduling at checkout could help support more consistent growth.")
@@ -288,11 +294,15 @@ def _generate_rule_based(data: MBRData):
         opp = (f"There's also an opportunity to strengthen utilization, currently at "
                f"{data.utilization_rate*100:.0f}%. Filling a few more hours each week could "
                f"meaningfully increase revenue without additional staffing cost.")
+    elif data.retention_180d < 0.65:
+        opp = (f"Retention is at {data.retention_180d*100:.0f}%, approaching the 65% target. "
+               f"Continuing to invest in follow-up communication and rebooking protocols "
+               f"will help close the gap and strengthen the returning client base.")
     elif data.rebooking_rate < 0.60:
         opp = (f"Rebooking rate at {data.rebooking_rate*100:.0f}% has room to grow toward the 60% benchmark. "
                f"Even a small lift here builds a more predictable revenue base month over month.")
     else:
-        opp = (f"With utilization and rebooking both above benchmark, the next opportunity is "
+        opp = (f"With utilization, rebooking, and retention all above benchmark, the next opportunity is "
                f"growing average order value through add-on services or bundled packages.")
 
     # Paragraph 3: Staff (only if multiple providers)
@@ -436,6 +446,26 @@ def _generate_rule_based_assessments(data: MBRData):
             "tag": "WARNING",
             "title": "Low Rebooking Rate",
             "text": f"At {data.rebooking_rate*100:.0f}%, too many clients leave without scheduling. Train staff to rebook at checkout — this is low-hanging fruit."
+        })
+
+    # Retention (target: 65%)
+    if data.retention_180d >= 0.65:
+        assessments.append({
+            "tag": "STRENGTH",
+            "title": "Strong Client Retention",
+            "text": f"Retention at {data.retention_180d*100:.0f}% meets the 65% target. Clients are returning for follow-up visits, building a stable recurring base."
+        })
+    elif data.retention_180d >= 0.45:
+        assessments.append({
+            "tag": "OPPORTUNITY",
+            "title": "Retention Room to Grow",
+            "text": f"Retention at {data.retention_180d*100:.0f}% is approaching the 65% target. Strengthening follow-up touchpoints and rebooking at checkout can help close the gap."
+        })
+    elif data.retention_180d > 0:
+        assessments.append({
+            "tag": "WARNING",
+            "title": "Retention Below Target",
+            "text": f"Retention at {data.retention_180d*100:.0f}% is below the 65% target. Focus on post-visit follow-up, appointment reminders, and building treatment plans that encourage return visits."
         })
 
     # Retail

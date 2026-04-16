@@ -68,9 +68,9 @@ def _gauge_params(pct: float, label: str, mom_pct: float = None) -> dict:
         else:
             css_class = "gauge-warning"
     elif "Retention" in label or "2nd Visit" in label:
-        if pct >= 0.30:
+        if pct >= 0.65:
             css_class = "gauge-strength"
-        elif pct >= 0.15:
+        elif pct >= 0.45:
             css_class = "gauge-opportunity"
         else:
             css_class = "gauge-warning"
