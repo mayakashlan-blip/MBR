@@ -301,6 +301,105 @@
       <div class="formatting-hint">Use **text** for bold. Separate paragraphs with a blank line.</div>
     </div>
 
+    {# ── Key Metrics ── #}
+    <div class="sidebar-section">
+      <div class="section-header" onclick="toggleSection('metrics')">
+        <label>Key Metrics</label>
+        <span class="section-toggle collapsed" id="metrics-toggle">&#9662;</span>
+      </div>
+      <div class="section-body hidden" id="metrics-body">
+        <div class="mkt-grid" style="grid-template-columns: 1fr 1fr; gap: 6px;">
+          <div><label style="font-size:10px;">Net Revenue ($)</label><input type="number" id="ed-net-rev" value="{{ data.monthly_net_revenue }}" step="0.01" oninput="debounceSave();" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:5px 8px; font-size:11px;"></div>
+          <div><label style="font-size:10px;">Total Appointments</label><input type="number" id="ed-appts" value="{{ data.total_appointments }}" oninput="debounceSave();" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:5px 8px; font-size:11px;"></div>
+          <div><label style="font-size:10px;">AOV ($)</label><input type="number" id="ed-aov" value="{{ data.aov }}" step="0.01" oninput="debounceSave();" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:5px 8px; font-size:11px;"></div>
+          <div><label style="font-size:10px;">Quarter to Date ($)</label><input type="number" id="ed-qtd" value="{{ data.quarter_to_date or '' }}" step="0.01" oninput="debounceSave();" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:5px 8px; font-size:11px;"></div>
+        </div>
+      </div>
+    </div>
+
+    {# ── Gauges ── #}
+    <div class="sidebar-section">
+      <div class="section-header" onclick="toggleSection('gauges')">
+        <label>Performance Gauges</label>
+        <span class="section-toggle collapsed" id="gauges-toggle">&#9662;</span>
+      </div>
+      <div class="section-body hidden" id="gauges-body">
+        <div class="mkt-grid" style="grid-template-columns: 1fr 1fr; gap: 6px;">
+          <div><label style="font-size:10px;">% Rev Goal (decimal)</label><input type="number" id="ed-rev-goal" value="{{ data.pct_net_revenue_goal }}" step="0.01" oninput="debounceSave();" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:5px 8px; font-size:11px;"></div>
+          <div><label style="font-size:10px;">% AOV Goal (decimal)</label><input type="number" id="ed-aov-goal" value="{{ data.pct_aov_goal }}" step="0.01" oninput="debounceSave();" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:5px 8px; font-size:11px;"></div>
+          <div><label style="font-size:10px;">Utilization (decimal)</label><input type="number" id="ed-util" value="{{ data.utilization_rate }}" step="0.01" oninput="debounceSave();" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:5px 8px; font-size:11px;"></div>
+          <div><label style="font-size:10px;">Rebooking (decimal)</label><input type="number" id="ed-rebook" value="{{ data.rebooking_rate }}" step="0.01" oninput="debounceSave();" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:5px 8px; font-size:11px;"></div>
+          <div><label style="font-size:10px;">Retention 180D (decimal)</label><input type="number" id="ed-retention" value="{{ data.retention_180d }}" step="0.01" oninput="debounceSave();" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:5px 8px; font-size:11px;"></div>
+        </div>
+      </div>
+    </div>
+
+    {# ── Client Mix ── #}
+    <div class="sidebar-section">
+      <div class="section-header" onclick="toggleSection('clients')">
+        <label>Client Mix</label>
+        <span class="section-toggle collapsed" id="clients-toggle">&#9662;</span>
+      </div>
+      <div class="section-body hidden" id="clients-body">
+        <div class="mkt-grid" style="grid-template-columns: 1fr 1fr; gap: 6px;">
+          <div><label style="font-size:10px;">New Clients</label><input type="number" id="ed-new-clients" value="{{ data.new_clients }}" oninput="debounceSave();" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:5px 8px; font-size:11px;"></div>
+          <div><label style="font-size:10px;">Existing Clients</label><input type="number" id="ed-existing-clients" value="{{ data.existing_clients }}" oninput="debounceSave();" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:5px 8px; font-size:11px;"></div>
+        </div>
+      </div>
+    </div>
+
+    {# ── Revenue Breakdown ── #}
+    <div class="sidebar-section">
+      <div class="section-header" onclick="toggleSection('revenue')">
+        <label>Revenue Breakdown</label>
+        <span class="section-toggle collapsed" id="revenue-toggle">&#9662;</span>
+      </div>
+      <div class="section-body hidden" id="revenue-body">
+        <div class="mkt-grid" style="grid-template-columns: 1fr 1fr; gap: 6px;">
+          <div><label style="font-size:10px;">Service Revenue ($)</label><input type="number" id="ed-svc-rev" value="{{ data.service_revenue }}" step="0.01" oninput="debounceSave();" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:5px 8px; font-size:11px;"></div>
+          <div><label style="font-size:10px;">Prepayment Revenue ($)</label><input type="number" id="ed-prepay-rev" value="{{ data.prepayment_revenue }}" step="0.01" oninput="debounceSave();" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:5px 8px; font-size:11px;"></div>
+          <div><label style="font-size:10px;">Membership Sales ($)</label><input type="number" id="ed-mem-sales" value="{{ data.membership_sales }}" step="0.01" oninput="debounceSave();" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:5px 8px; font-size:11px;"></div>
+          <div><label style="font-size:10px;">Custom Items ($)</label><input type="number" id="ed-custom" value="{{ data.custom_items }}" step="0.01" oninput="debounceSave();" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:5px 8px; font-size:11px;"></div>
+          <div><label style="font-size:10px;">Retail Revenue ($)</label><input type="number" id="ed-retail-rev" value="{{ data.retail_revenue }}" step="0.01" oninput="debounceSave();" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:5px 8px; font-size:11px;"></div>
+          <div><label style="font-size:10px;">Total Gross ($)</label><input type="number" id="ed-total-gross" value="{{ data.total_gross }}" step="0.01" oninput="debounceSave();" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:5px 8px; font-size:11px;"></div>
+          <div><label style="font-size:10px;">Discounts ($)</label><input type="number" id="ed-discounts" value="{{ data.discounts }}" step="0.01" oninput="debounceSave();" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:5px 8px; font-size:11px;"></div>
+          <div><label style="font-size:10px;">Client Fees ($)</label><input type="number" id="ed-fees" value="{{ data.client_fees }}" step="0.01" oninput="debounceSave();" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:5px 8px; font-size:11px;"></div>
+        </div>
+      </div>
+    </div>
+
+    {# ── Memberships ── #}
+    <div class="sidebar-section">
+      <div class="section-header" onclick="toggleSection('memberships')">
+        <label>Memberships</label>
+        <span class="section-toggle collapsed" id="memberships-toggle">&#9662;</span>
+      </div>
+      <div class="section-body hidden" id="memberships-body">
+        <div class="mkt-grid" style="grid-template-columns: 1fr 1fr; gap: 6px;">
+          <div><label style="font-size:10px;">Active</label><input type="number" id="ed-mem-active" value="{{ data.memberships_active }}" oninput="debounceSave();" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:5px 8px; font-size:11px;"></div>
+          <div><label style="font-size:10px;">New</label><input type="number" id="ed-mem-new" value="{{ data.memberships_new }}" oninput="debounceSave();" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:5px 8px; font-size:11px;"></div>
+          <div><label style="font-size:10px;">Cancelled</label><input type="number" id="ed-mem-cancelled" value="{{ data.memberships_cancelled }}" oninput="debounceSave();" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:5px 8px; font-size:11px;"></div>
+          <div><label style="font-size:10px;">MRR ($)</label><input type="number" id="ed-mrr" value="{{ data.mrr }}" step="0.01" oninput="debounceSave();" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:5px 8px; font-size:11px;"></div>
+        </div>
+      </div>
+    </div>
+
+    {# ── Version History ── #}
+    <div class="sidebar-section">
+      <div class="section-header" onclick="toggleSection('versions'); loadVersions();">
+        <label>Version History</label>
+        <span class="section-toggle collapsed" id="versions-toggle">&#9662;</span>
+      </div>
+      <div class="section-body hidden" id="versions-body">
+        <div style="font-size: 11px; color: #8C8580; margin-bottom: 8px;">
+          Previous saves are kept automatically. Click Restore to revert to an earlier version.
+        </div>
+        <div id="versions-list" style="max-height: 250px; overflow-y: auto;">
+          <div style="font-size: 11px; color: #8C8580;">Click to load version history.</div>
+        </div>
+      </div>
+    </div>
+
     {# ── Reviews ── #}
     <div class="sidebar-section">
       <div class="section-header" onclick="toggleSection('reviews')">
@@ -574,6 +673,12 @@ function collectData() {
     }
   });
 
+  // Helper to read numeric input (returns null if empty)
+  function numVal(id) {
+    const v = document.getElementById(id)?.value;
+    return v !== '' && v !== undefined ? parseFloat(v) : null;
+  }
+
   return {
     executive_summary: document.getElementById('exec-summary').value,
     psm_feedback: document.getElementById('psm-feedback').value,
@@ -585,6 +690,34 @@ function collectData() {
     marketing_analysis: marketing_analysis,
     launches: launches,
     brand_bank_items: brand_bank_items,
+    // Key Metrics
+    monthly_net_revenue: numVal('ed-net-rev'),
+    total_appointments: numVal('ed-appts'),
+    aov: numVal('ed-aov'),
+    quarter_to_date: numVal('ed-qtd'),
+    // Gauges
+    pct_net_revenue_goal: numVal('ed-rev-goal'),
+    pct_aov_goal: numVal('ed-aov-goal'),
+    utilization_rate: numVal('ed-util'),
+    rebooking_rate: numVal('ed-rebook'),
+    retention_180d: numVal('ed-retention'),
+    // Client Mix
+    new_clients: numVal('ed-new-clients'),
+    existing_clients: numVal('ed-existing-clients'),
+    // Revenue Breakdown
+    service_revenue: numVal('ed-svc-rev'),
+    prepayment_revenue: numVal('ed-prepay-rev'),
+    membership_sales: numVal('ed-mem-sales'),
+    custom_items: numVal('ed-custom'),
+    retail_revenue: numVal('ed-retail-rev'),
+    total_gross: numVal('ed-total-gross'),
+    discounts: numVal('ed-discounts'),
+    client_fees: numVal('ed-fees'),
+    // Memberships
+    memberships_active: numVal('ed-mem-active'),
+    memberships_new: numVal('ed-mem-new'),
+    memberships_cancelled: numVal('ed-mem-cancelled'),
+    mrr: numVal('ed-mrr'),
   };
 }
 
@@ -1024,5 +1157,51 @@ function generateMarketingRecs() {
 
 // Init marketing calcs on page load
 updateMarketingCalcs();
+
+// ── Version History ──
+function loadVersions() {
+  fetch('/api/versions/' + SESSION_ID)
+    .then(r => r.json())
+    .then(resp => {
+      const list = document.getElementById('versions-list');
+      if (!resp.versions || resp.versions.length === 0) {
+        list.innerHTML = '<div style="font-size:11px; color:#8C8580;">No previous versions yet. Versions are saved automatically when you edit.</div>';
+        return;
+      }
+      list.innerHTML = resp.versions.map(v => `
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid #f0ebe6;">
+          <span style="font-size:11px; color:#4A4744;">${v.display}</span>
+          <button class="btn btn-secondary" style="font-size:10px; padding:2px 8px;"
+                  onclick="restoreVersion('${v.filename}')">Restore</button>
+        </div>
+      `).join('');
+    })
+    .catch(() => {
+      document.getElementById('versions-list').innerHTML = '<div style="font-size:11px; color:#B53631;">Could not load versions.</div>';
+    });
+}
+
+function restoreVersion(filename) {
+  if (!confirm('Restore this version? Your current version will be saved first so you can undo this.')) return;
+  document.getElementById('save-indicator').textContent = 'Restoring...';
+  fetch('/api/restore/' + SESSION_ID, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({filename: filename}),
+  })
+  .then(r => r.json())
+  .then(resp => {
+    if (resp.ok) {
+      window.location.reload();
+    } else {
+      alert('Restore failed: ' + (resp.error || 'unknown'));
+      document.getElementById('save-indicator').textContent = '';
+    }
+  })
+  .catch(err => {
+    alert('Restore failed: ' + err.message);
+    document.getElementById('save-indicator').textContent = '';
+  });
+}
 </script>
 {% endblock %}

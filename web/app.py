@@ -112,8 +112,47 @@ def _deserialize_data(d: dict):
                    membership_types=membership_types)
 
 
-def _save_session(session_id: str, sess: dict):
-    """Persist a session to disk."""
+MAX_VERSIONS = 20  # keep last 20 versions per session
+
+
+def _snapshot_version(session_id: str, current_path: Path):
+    """Copy current session file to a timestamped version."""
+    versions_dir = SESSIONS_DIR / f"{session_id}_versions"
+    versions_dir.mkdir(exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    dest = versions_dir / f"v_{timestamp}.json"
+    shutil.copy2(current_path, dest)
+    # Prune old versions
+    versions = sorted(versions_dir.glob("v_*.json"))
+    while len(versions) > MAX_VERSIONS:
+        versions.pop(0).unlink()
+
+
+def _list_versions(session_id: str) -> list:
+    """Return list of available versions with timestamps."""
+    versions_dir = SESSIONS_DIR / f"{session_id}_versions"
+    if not versions_dir.exists():
+        return []
+    versions = []
+    for f in sorted(versions_dir.glob("v_*.json"), reverse=True):
+        ts_str = f.stem[2:]  # strip "v_"
+        try:
+            ts = datetime.strptime(ts_str, "%Y%m%d_%H%M%S")
+            versions.append({"filename": f.name, "timestamp": ts.isoformat(),
+                             "display": ts.strftime("%b %d, %Y %I:%M:%S %p")})
+        except ValueError:
+            pass
+    return versions
+
+
+def _save_session(session_id: str, sess: dict, snapshot: bool = True):
+    """Persist a session to disk, keeping version history."""
+    path = SESSIONS_DIR / f"{session_id}.json"
+
+    # Snapshot current version before overwriting
+    if snapshot and path.exists():
+        _snapshot_version(session_id, path)
+
     payload = {
         "data": _serialize_data(sess["data"]),
         "brand_bank_path": sess.get("brand_bank_path"),
@@ -121,7 +160,6 @@ def _save_session(session_id: str, sess: dict):
         "launches_image_path": sess.get("launches_image_path"),
         "created": sess["created"].isoformat(),
     }
-    path = SESSIONS_DIR / f"{session_id}.json"
     with open(path, "w") as f:
         json.dump(payload, f, default=str)
 
@@ -157,6 +195,118 @@ def _get_session(session_id: str) -> dict:
     if sess:
         sessions[session_id] = sess
     return sess
+
+
+def _apply_payload(data, payload):
+    """Apply a JSON payload of editable fields to an MBRData object."""
+    # Text fields
+    for text_field in ["executive_summary", "psm_feedback", "psm_name", "marketing_recommendations"]:
+        if text_field in payload:
+            setattr(data, text_field, payload[text_field])
+
+    # Assessments
+    if "assessments" in payload:
+        data.assessments = payload["assessments"]
+
+    # All numeric scalar fields
+    numeric_fields = [
+        "monthly_net_revenue", "total_appointments", "aov", "quarter_to_date",
+        "revenue_mom_pct", "appointments_mom_pct", "aov_mom_pct",
+        "pct_net_revenue_goal", "pct_aov_goal", "utilization_rate", "rebooking_rate",
+        "retention_180d", "utilization_mom_pct", "rebooking_mom_pct", "retention_mom_pct",
+        "memberships_active", "memberships_new", "memberships_cancelled", "mrr",
+        "new_clients", "existing_clients",
+        "service_revenue", "prepayment_revenue", "membership_sales", "custom_items",
+        "retail_revenue", "total_gross", "retail_to_service_ratio",
+        "discounts", "redemptions", "client_fees",
+        "supplies_total_savings",
+    ]
+    for field in numeric_fields:
+        if field in payload and payload[field] is not None:
+            try:
+                val = float(payload[field]) if "." in str(payload[field]) else int(payload[field])
+                setattr(data, field, val)
+            except (ValueError, TypeError):
+                pass
+
+    # Marketing data
+    if "marketing" in payload:
+        if payload["marketing"]:
+            from src.data_schema import MarketingData
+            data.marketing = MarketingData(**payload["marketing"])
+        else:
+            data.marketing = None
+
+    # Marketing analysis (legacy)
+    if "marketing_analysis" in payload and payload["marketing_analysis"]:
+        data.marketing_analysis = _build_marketing_analysis(payload["marketing_analysis"])
+
+    # Reviews
+    if "reviews" in payload:
+        from src.data_schema import ReviewsPlatform
+        data.reviews = []
+        for r in payload["reviews"]:
+            if any(r.get(k) for k in ("new_reviews", "avg_new_rating", "total_reviews", "overall_rating")):
+                data.reviews.append(ReviewsPlatform(
+                    platform=r.get("platform", ""),
+                    new_reviews=int(r["new_reviews"]) if r.get("new_reviews") else None,
+                    avg_new_rating=float(r["avg_new_rating"]) if r.get("avg_new_rating") else None,
+                    total_reviews=int(r["total_reviews"]) if r.get("total_reviews") else None,
+                    overall_rating=float(r["overall_rating"]) if r.get("overall_rating") else None,
+                ))
+
+    # Staff
+    if "staff" in payload:
+        from src.data_schema import StaffMember
+        data.staff = []
+        for s in payload["staff"]:
+            if s.get("name"):
+                data.staff.append(StaffMember(
+                    name=s["name"],
+                    net_revenue=float(s.get("net_revenue", 0)),
+                    aov=float(s.get("aov", 0)),
+                    utilization=float(s["utilization"]) if s.get("utilization") is not None else None,
+                    rebooking_rate=float(s["rebooking_rate"]) if s.get("rebooking_rate") is not None else None,
+                    service_revenue=float(s.get("service_revenue", 0)),
+                    retail_revenue=float(s.get("retail_revenue", 0)),
+                    gross_revenue=float(s.get("gross_revenue", 0)),
+                    hours_worked=float(s["hours_worked"]) if s.get("hours_worked") else None,
+                ))
+
+    # Services
+    if "services" in payload:
+        from src.data_schema import ServiceItem
+        data.services = [ServiceItem(name=s["name"], revenue=float(s.get("revenue", 0)))
+                         for s in payload["services"] if s.get("name")]
+        data.compute_service_percentages()
+
+    # Launches
+    if "launches" in payload:
+        from src.data_schema import LaunchFeature
+        data.launches = [LaunchFeature(**l) for l in payload["launches"] if l.get("title")]
+
+    # Brand bank items
+    if "brand_bank_items" in payload:
+        from src.data_schema import BrandBankItem
+        data.brand_bank_items = [BrandBankItem(**b) for b in payload["brand_bank_items"] if b.get("title")]
+
+    # Membership types
+    if "membership_types" in payload:
+        from src.data_schema import MembershipType
+        data.membership_types = []
+        for m in payload["membership_types"]:
+            if m.get("name"):
+                data.membership_types.append(MembershipType(
+                    name=m["name"],
+                    active=int(m.get("active", 0)),
+                    new=int(m.get("new", 0)),
+                    churned=int(m.get("churned", 0)),
+                    mrr=float(m.get("mrr", 0)),
+                ))
+
+    # Supplies by brand
+    if "supplies_by_brand" in payload:
+        data.supplies_by_brand = payload["supplies_by_brand"]
 
 
 
@@ -507,75 +657,9 @@ def api_update(session_id):
     sess = _get_session(session_id)
     if not sess:
         return jsonify({"error": "Session not found"}), 404
-    data = sess["data"]
-    payload = request.json
-
-    # Update editable fields
-    if "executive_summary" in payload:
-        data.executive_summary = payload["executive_summary"]
-    if "psm_feedback" in payload:
-        data.psm_feedback = payload["psm_feedback"]
-    if "psm_name" in payload:
-        data.psm_name = payload["psm_name"]
-    if "assessments" in payload:
-        data.assessments = payload["assessments"]
-
-    # Marketing data
-    if "marketing" in payload:
-        if payload["marketing"]:
-            from src.data_schema import MarketingData
-            data.marketing = MarketingData(**payload["marketing"])
-        else:
-            data.marketing = None
-
-    # Optional metric overrides
-    for field in ["monthly_net_revenue", "total_appointments", "aov",
-                  "memberships_active", "memberships_new", "memberships_cancelled", "mrr"]:
-        if field in payload and payload[field] is not None:
-            try:
-                val = float(payload[field]) if "." in str(payload[field]) else int(payload[field])
-                setattr(data, field, val)
-            except (ValueError, TypeError):
-                pass
-
-    # Reviews data
-    if "reviews" in payload:
-        from src.data_schema import ReviewsPlatform
-        data.reviews = []
-        for r in payload["reviews"]:
-            if any(r.get(k) for k in ("new_reviews", "avg_new_rating", "total_reviews", "overall_rating")):
-                data.reviews.append(ReviewsPlatform(
-                    platform=r.get("platform", ""),
-                    new_reviews=int(r["new_reviews"]) if r.get("new_reviews") else None,
-                    avg_new_rating=float(r["avg_new_rating"]) if r.get("avg_new_rating") else None,
-                    total_reviews=int(r["total_reviews"]) if r.get("total_reviews") else None,
-                    overall_rating=float(r["overall_rating"]) if r.get("overall_rating") else None,
-                ))
-
-    # Update marketing recommendations if provided
-    if "marketing_recommendations" in payload:
-        data.marketing_recommendations = payload["marketing_recommendations"]
-
-    # Update structured marketing analysis if provided
-    if "marketing_analysis" in payload and payload["marketing_analysis"]:
-        data.marketing_analysis = _build_marketing_analysis(payload["marketing_analysis"])
-
-    # Launches
-    if "launches" in payload:
-        from src.data_schema import LaunchFeature
-        data.launches = [LaunchFeature(**l) for l in payload["launches"] if l.get("title")]
-
-    # Brand bank items
-    if "brand_bank_items" in payload:
-        from src.data_schema import BrandBankItem
-        data.brand_bank_items = [BrandBankItem(**b) for b in payload["brand_bank_items"] if b.get("title")]
-
-    # Re-render and persist to disk
-    sess["needs_render"] = True
+    _apply_payload(sess["data"], request.json)
     _rerender(sess)
-    sess["needs_render"] = False
     _save_session(session_id, sess)
-
     return jsonify({"ok": True})
 
 
@@ -585,61 +669,52 @@ def api_save(session_id):
     sess = _get_session(session_id)
     if not sess:
         return jsonify({"error": "Session not found"}), 404
-
-    data = sess["data"]
-    payload = request.json
-
-    # Update editable fields
-    if "executive_summary" in payload:
-        data.executive_summary = payload["executive_summary"]
-    if "psm_feedback" in payload:
-        data.psm_feedback = payload["psm_feedback"]
-    if "psm_name" in payload:
-        data.psm_name = payload["psm_name"]
-    if "assessments" in payload:
-        data.assessments = payload["assessments"]
-    if "marketing_recommendations" in payload:
-        data.marketing_recommendations = payload["marketing_recommendations"]
-
-    # Marketing data
-    if "marketing" in payload:
-        if payload["marketing"]:
-            from src.data_schema import MarketingData
-            data.marketing = MarketingData(**payload["marketing"])
-        else:
-            data.marketing = None
-
-    # Update structured marketing analysis if provided
-    if "marketing_analysis" in payload and payload["marketing_analysis"]:
-        data.marketing_analysis = _build_marketing_analysis(payload["marketing_analysis"])
-
-    # Reviews data
-    if "reviews" in payload:
-        from src.data_schema import ReviewsPlatform
-        data.reviews = []
-        for r in payload["reviews"]:
-            if any(r.get(k) for k in ("new_reviews", "avg_new_rating", "total_reviews", "overall_rating")):
-                data.reviews.append(ReviewsPlatform(
-                    platform=r.get("platform", ""),
-                    new_reviews=int(r["new_reviews"]) if r.get("new_reviews") else None,
-                    avg_new_rating=float(r["avg_new_rating"]) if r.get("avg_new_rating") else None,
-                    total_reviews=int(r["total_reviews"]) if r.get("total_reviews") else None,
-                    overall_rating=float(r["overall_rating"]) if r.get("overall_rating") else None,
-                ))
-
-    # Launches and Brand Bank
-    if "launches" in payload:
-        from src.data_schema import LaunchFeature
-        data.launches = [LaunchFeature(**l) for l in payload["launches"] if l.get("title")]
-    if "brand_bank_items" in payload:
-        from src.data_schema import BrandBankItem
-        data.brand_bank_items = [BrandBankItem(**b) for b in payload["brand_bank_items"] if b.get("title")]
-
-    # Mark for lazy re-render and persist to disk
-    sess["needs_render"] = True
-    _rerender(sess)  # render once for the save
-    sess["needs_render"] = False
+    _apply_payload(sess["data"], request.json)
+    _rerender(sess)
     _save_session(session_id, sess)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/versions/<session_id>")
+def api_versions(session_id):
+    """List available versions for a session."""
+    sess = _get_session(session_id)
+    if not sess:
+        return jsonify({"error": "Session not found"}), 404
+    versions = _list_versions(session_id)
+    return jsonify({"versions": versions})
+
+
+@app.route("/api/restore/<session_id>", methods=["POST"])
+def api_restore(session_id):
+    """Restore a previous version."""
+    sess = _get_session(session_id)
+    if not sess:
+        return jsonify({"error": "Session not found"}), 404
+
+    filename = request.json.get("filename", "")
+    if ".." in filename or "/" in filename:
+        return jsonify({"error": "Invalid filename"}), 400
+
+    versions_dir = SESSIONS_DIR / f"{session_id}_versions"
+    version_path = versions_dir / filename
+    if not version_path.exists():
+        return jsonify({"error": "Version not found"}), 404
+
+    # Snapshot current state before restoring (so restore is undoable)
+    current_path = SESSIONS_DIR / f"{session_id}.json"
+    if current_path.exists():
+        _snapshot_version(session_id, current_path)
+
+    # Load version and replace current session
+    with open(version_path) as f:
+        payload = json.load(f)
+    data = _deserialize_data(payload["data"])
+    sess["data"] = data
+    _rerender(sess)
+    _save_session(session_id, sess, snapshot=False)  # don't double-snapshot
+    sessions[session_id] = sess
+
     return jsonify({"ok": True})
 
 
