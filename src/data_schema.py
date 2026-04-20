@@ -74,7 +74,31 @@ class MarketingData:
     lead_to_booking_rate: Optional[float] = None
     first_visit_aov: Optional[float] = None
     estimated_booked_revenue: Optional[float] = None
+    campaigns: list[CampaignData] = field(default_factory=list)
     next_steps: list[str] = field(default_factory=list)
+
+
+@dataclass
+class CampaignData:
+    """Per-campaign marketing breakdown."""
+    campaign_name: str
+    ad_spend: float = 0.0
+    leads: int = 0
+    booked: int = 0
+    completed: int = 0
+    revenue: float = 0.0
+
+    @property
+    def roi(self) -> float:
+        return self.revenue / self.ad_spend if self.ad_spend > 0 else 0
+
+    @property
+    def cpl(self) -> float:
+        return self.ad_spend / self.leads if self.leads > 0 else 0
+
+    @property
+    def lead_to_booking_rate(self) -> float:
+        return self.booked / self.leads if self.leads > 0 else 0
 
 
 @dataclass

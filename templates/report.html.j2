@@ -528,6 +528,41 @@
     </div>
   </div>
 
+  {# ── Campaign Breakdown (Enterprise only) ── #}
+  {% if data.tier == 'Enterprise' and data.marketing.campaigns %}
+  <div class="card" style="margin-bottom: 0.15in;">
+    <div class="section-subtitle">Performance by Campaign</div>
+    <table style="width: 100%; border-collapse: collapse; font-size: 8.5pt; margin-top: 0.08in;">
+      <thead>
+        <tr style="border-bottom: 2px solid var(--purple); text-align: left;">
+          <th style="padding: 4px 6px; font-weight: 600; color: var(--purple);">Campaign</th>
+          <th style="padding: 4px 6px; font-weight: 600; color: var(--purple); text-align: right;">Spend</th>
+          <th style="padding: 4px 6px; font-weight: 600; color: var(--purple); text-align: center;">Leads</th>
+          <th style="padding: 4px 6px; font-weight: 600; color: var(--purple); text-align: center;">Booked</th>
+          <th style="padding: 4px 6px; font-weight: 600; color: var(--purple); text-align: center;">Completed</th>
+          <th style="padding: 4px 6px; font-weight: 600; color: var(--purple); text-align: right;">Revenue</th>
+          <th style="padding: 4px 6px; font-weight: 600; color: var(--purple); text-align: right;">ROI</th>
+          <th style="padding: 4px 6px; font-weight: 600; color: var(--purple); text-align: right;">CPL</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in data.marketing.campaigns %}
+        <tr style="border-bottom: 1px solid #e8e3de;">
+          <td style="padding: 5px 6px; font-weight: 500;">{{ c.campaign_name }}</td>
+          <td style="padding: 5px 6px; text-align: right;">{{ "${:,.0f}".format(c.ad_spend) }}</td>
+          <td style="padding: 5px 6px; text-align: center;">{{ "{:,}".format(c.leads) }}</td>
+          <td style="padding: 5px 6px; text-align: center;">{{ "{:,}".format(c.booked) }}</td>
+          <td style="padding: 5px 6px; text-align: center;">{{ "{:,}".format(c.completed) }}</td>
+          <td style="padding: 5px 6px; text-align: right;">{{ "${:,.0f}".format(c.revenue) }}</td>
+          <td style="padding: 5px 6px; text-align: right; font-weight: 600; color: {% if c.roi >= 3 %}#2E7D32{% elif c.roi >= 1 %}#B8933A{% else %}#B53631{% endif %};">{{ "{:.1f}".format(c.roi) }}x</td>
+          <td style="padding: 5px 6px; text-align: right;">{% if c.cpl > 0 %}{{ "${:,.0f}".format(c.cpl) }}{% else %}—{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
   {# ── Funnel Conversion Analysis ── #}
   {% if data.marketing.leads > 0 %}
   <div class="card" style="margin-bottom: 0.15in;">

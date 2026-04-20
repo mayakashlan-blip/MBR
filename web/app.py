@@ -93,7 +93,8 @@ def _serialize_data(data) -> dict:
 def _deserialize_data(d: dict):
     """Restore MBRData from a JSON dict."""
     from src.data_schema import (MBRData, StaffMember, ServiceItem, ReviewsPlatform,
-                                  MarketingData, LaunchFeature, BrandBankItem, MembershipType)
+                                  MarketingData, LaunchFeature, BrandBankItem, MembershipType,
+                                  CampaignData)
     staff = [StaffMember(**s) for s in d.pop("staff", [])]
     services = [ServiceItem(**s) for s in d.pop("services", [])]
     reviews = [ReviewsPlatform(**r) for r in d.pop("reviews", [])]
@@ -101,7 +102,11 @@ def _deserialize_data(d: dict):
     brand_bank_items = [BrandBankItem(**b) for b in d.pop("brand_bank_items", [])]
     membership_types = [MembershipType(**m) for m in d.pop("membership_types", [])]
     mkt = d.pop("marketing", None)
-    marketing = MarketingData(**mkt) if mkt else None
+    if mkt:
+        campaigns = [CampaignData(**c) for c in mkt.pop("campaigns", [])]
+        marketing = MarketingData(**mkt, campaigns=campaigns)
+    else:
+        marketing = None
     ma = d.pop("marketing_analysis", None)
     marketing_analysis = None
     if ma:

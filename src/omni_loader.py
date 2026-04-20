@@ -889,6 +889,64 @@ def load_from_omni(practice_name: str, month: int, year: int,
                     print(f"  Marketing: spend=${ad_spend:,.0f}, leads={leads}, "
                           f"booked={booked}, completed={completed}, "
                           f"revenue=${revenue:,.0f}, ROI={roi:.1f}x")
+
+                    # Campaign-level breakdown for enterprise practices
+                    if data.tier == 'Enterprise' and ad_spend > 0:
+                        try:
+                            from .data_schema import CampaignData
+                            cq = copy.deepcopy(mkt_queries[0]["query"])
+                            cq["filters"].pop("dbt__moxie_medspas_mart.provider_success_manager_name", None)
+                            cq["filters"]["dbt__moxie_medspas_mart.medspa_name"] = {
+                                "kind": "EQUALS", "type": "string",
+                                "values": [practice_name], "is_negative": False,
+                            }
+                            cq["filters"]["dbt__marketing_medspa_performance_daily_mart.series_date"] = {
+                                "kind": "TIME_FOR_INTERVAL_DURATION", "type": "date",
+                                "ui_type": "PAST",
+                                "left_side": start_date, "right_side": "1 months",
+                                "is_negative": False,
+                            }
+                            camp_field = "dbt__marketing_medspa_performance_daily_mart.campaign_category"
+                            if camp_field not in cq.get("fields", []):
+                                cq["fields"].append(camp_field)
+                            if rev_field not in cq.get("fields", []):
+                                cq["fields"].append(rev_field)
+                            camp_r = _run_query(cq, api_key)
+
+                            camp_names_col = camp_r.get(camp_field, [])
+                            camp_medspa = camp_r.get("dbt__moxie_medspas_mart.medspa_name", [])
+                            camp_spends = camp_r.get("dbt__marketing_medspa_performance_daily_mart.meta_spend_sum", [])
+                            camp_leads = camp_r.get("dbt__marketing_medspa_performance_daily_mart.meta_leads_sum", [])
+                            camp_booked = camp_r.get("dbt__marketing_medspa_performance_daily_mart.meta_new_clients_booked_appointment_sum", [])
+                            camp_completed = camp_r.get("dbt__marketing_medspa_performance_daily_mart.meta_new_clients_completed_appointment_sum", [])
+                            camp_revenue = camp_r.get(rev_field, [])
+                            camp_totals = camp_r.get("$omni_column_total_indicator", [])
+
+                            campaigns = []
+                            for ci in range(len(camp_names_col)):
+                                if ci < len(camp_totals) and camp_totals[ci] == "column_total":
+                                    continue
+                                cn = camp_names_col[ci] if ci < len(camp_names_col) else None
+                                cm = camp_medspa[ci] if ci < len(camp_medspa) else None
+                                if not cn or not cm or cm != practice_name:
+                                    continue
+                                cs = float(camp_spends[ci]) if ci < len(camp_spends) and camp_spends[ci] else 0
+                                cl = int(camp_leads[ci]) if ci < len(camp_leads) and camp_leads[ci] else 0
+                                cb = int(camp_booked[ci]) if ci < len(camp_booked) and camp_booked[ci] else 0
+                                cc = int(camp_completed[ci]) if ci < len(camp_completed) and camp_completed[ci] else 0
+                                cr = float(camp_revenue[ci]) if ci < len(camp_revenue) and camp_revenue[ci] else 0
+                                # Only include campaigns with activity
+                                if cs > 0 or cl > 0 or cc > 0:
+                                    campaigns.append(CampaignData(
+                                        campaign_name=cn, ad_spend=cs, leads=cl,
+                                        booked=cb, completed=cc, revenue=cr,
+                                    ))
+                            campaigns.sort(key=lambda c: c.ad_spend, reverse=True)
+                            data.marketing.campaigns = campaigns
+                            print(f"  Campaigns: {len(campaigns)} active ({', '.join(c.campaign_name for c in campaigns)})")
+                        except Exception as e:
+                            print(f"  Warning: Could not load campaign data: {e}")
+
                 else:
                     print("  Marketing: no ad spend for this month")
             else:
