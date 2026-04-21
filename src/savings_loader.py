@@ -1,4 +1,4 @@
-"""Load supplies savings — exact port of Shannon's dashboard calculations."""
+"""Load supplies savings — reads pricing from Shannon's dashboard at runtime."""
 
 import json
 import re
@@ -6,27 +6,84 @@ from datetime import datetime, date
 from pathlib import Path
 
 DATA_DIR = Path(__file__).parent.parent / "web" / "static" / "supplies-savings" / "data"
+DASHBOARD_HTML = Path(__file__).parent.parent / "web" / "static" / "supplies-savings" / "app" / "dashboard.html"
 
-# ── PRICING TABLES (exact copy from dashboard.html) ──────────────────────────
 
-G_ERA1 = {"DYSPORT":0.2787,"RESTYLANE L":0.5931,"RESTYLANE 1ML":0.5931,"RESTYLANE SILK":0.6755,"RESTYLANE LYFT":0.5931,"RESTYLANE L LYFT":0.5931,"RESTYLANE REFYNE":0.6196,"RESTYLANE DEFYNE":0.5931,"RESTYLANE KYSSE":0.5425,"RESTYLANE CONTOUR":0.5931,"RESTYLANE EYELIGHT":0.5931,"SCULPTRA":0.9055}
-G_ERA2 = {"DYSPORT":[622,466.5],"RESTYLANE L":[344,209.84],"RESTYLANE 1ML":[344,209.84],"RESTYLANE SILK":[351,200.07],"RESTYLANE LYFT":[366,219.6],"RESTYLANE L LYFT":[366,219.6],"RESTYLANE REFYNE":[407,240.13],"RESTYLANE DEFYNE":[407,244.2],"RESTYLANE KYSSE":[425,263.5],"RESTYLANE CONTOUR":[425,255],"RESTYLANE EYELIGHT":[255,153],"SCULPTRA":[1040,509.6]}
-G_E2_DATE = date(2024, 4, 1)
+def _extract_js_obj(js: str, pattern: str) -> dict:
+    """Extract a JS object literal from the dashboard source."""
+    m = re.search(pattern, js, re.DOTALL)
+    if not m:
+        return {}
+    raw = m.group(1)
+    # JS keys may be unquoted — wrap them in quotes for JSON
+    raw = re.sub(r'(\b[A-Za-z_][\w\s/().\-+]*?):', lambda x: f'"{x.group(1).strip()}":', raw)
+    # Remove trailing commas before } or ]
+    raw = re.sub(r',\s*([}\]])', r'\1', raw)
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        return {}
 
-AL_BOTOX_MOXIE = {"100 UNIT":656,"50 UNIT":362,"200 UNIT":1312}
-AL_ERA1 = {"ULTRA PLUS XC 1 ML":[755,551.42],"ULTRA XC 0.55 ML":[621,453.46],"ULTRA XC 1 ML":[755,551.42],"ULTRA PLUS XC 0.55 ML":[621,453.46],"VOLBELLA XC 0.55 ML":[420,356.70],"VOLBELLA XC 1 ML":[770,654.24],"VOLLURE XC 1 ML":[770,654.24],"VOLUMA XC 1 ML":[853,724.71],"VOLUX XC 2 X 1ML":[880,748.20],"SKINVIVE":[380,368.60],"25G CANNULA/23G NEEDLE KIT 10X10":[74,62.64],"25G CANNULA/23G NEEDLE KIT 4X4":[35,29.58]}
-AL_ERA2 = {"ULTRA PLUS XC 1 ML":[781,523.50],"ULTRA XC 0.55 ML":[643,430.50],"ULTRA XC 1 ML":[781,523.50],"ULTRA PLUS XC 0.55 ML":[643,430.50],"VOLBELLA XC 0.55 ML":[431,332.10],"VOLBELLA XC 1 ML":[791,609.12],"VOLLURE XC 1 ML":[791,609.12],"VOLUMA XC 1 ML":[876,674.73],"VOLUX XC 2 X 1ML":[905,696.60],"SKINVIVE":[380,368.60],"25G CANNULA/23G NEEDLE KIT 10X10":[76,58.32],"25G CANNULA/23G NEEDLE KIT 4X4":[36,27.54]}
-AL_ERA3 = {"ULTRA PLUS XC 1 ML":[698,418.80],"ULTRA XC 0.55 ML":[574,344.40],"ULTRA XC 1 ML":[698,418.80],"ULTRA PLUS XC 0.55 ML":[574,344.40],"VOLBELLA XC 0.55 ML":[410,266.50],"VOLBELLA XC 1 ML":[752,488.80],"VOLLURE XC 1 ML":[752,488.80],"VOLUMA XC 1 ML":[833,541.45],"VOLUX XC 2 X 1ML":[860,559.00],"SKINVIVE":[380,368.60],"25G CANNULA/23G NEEDLE KIT 10X10":[72,46.80],"25G CANNULA/23G NEEDLE KIT 4X4":[34,22.10],"27G CANNULA / 25G NEEDLE KIT 10X10":[72,46.80],"27G CANNULA / 25G NEEDLE KIT 4X4":[34,22.10],"KYBELLA":[1200,1080],"LATISSE 5":[131,114.99],"LATISSE 3":[108,94.99]}
-AL_E2_DATE = date(2024, 3, 1)
-AL_E3_DATE = date(2024, 8, 27)
-SKM_BRANDS = ['SKINMEDICA','LATISSE','KYBELLA','DIAMONDGLOW','TNS','HA5','AHA/BHA','ESD ','LUMIVIVE','RETINOL','NECK CORRECT','INSTANT BRIGHT','EVEN & CORRECT','ULTRA SHEER','TOTAL DEFENSE','VITAMIN C+E','PORE PURIFYING','FACIAL CLEANSER','REJUVENIZE','VITALIZE','ILLUMINIZE','CALMING MASQUE','PURIFYING','SCAR RECOVERY','RESTORATIVE']
 
-MZ_XEO = {"Xeomin 100-U Vials":511,"Xeomin 50 U Vials":268}
-MZ_STD = {"BELOTERO Balance 1.0cc US":[285,213.75],"Belotero Balance Lido US 1x1.0ml":[329,246.75],"Belotero 1.0 Lido":[329,246.75],"RADIESSE (Refresh) - 2 X 1.5cc Kit":[780,468],"RADIESSE (+) Lidocaine (Refresh) - 2 X 1.5cc Kit":[780,468]}
-MZ_NEO = {"Lumiere Firm Riche 15ml","Journee Firm Riche 50ml","Journee Firm Riche 15ml","Journee Firm 50ml","Journee Firm 15ml","Neo Firm 50g","NeoGentle Cleanser 125ml","NeoCleanse Exfoliating 125ml","Neo Body 200ml","Lumiere Firm 15ml","Perle 30ml RB","Bio Cream Firm Riche 15ml","Bio Cream Firm 15ml","Bio Cream Firm 50ml","Bio Cream Firm 200ml","Bio Gel Firm 15ml","Bio Gel Firm 50ml","Bio Gel Firm 200ml","Bio Serum Firm 30ml","Daily Essentials Kit","Hyalis+ 30ml","Hyalis+ 15ml","Lumiere Firm 200ml","Micro-Gel 50ml","Neocutis After Care 15ml","Neocutis After Care 200ml","NEOCUTIS Neo Restore (6 sachets)"}
-MZ_BOGO_DATE = date(2025, 1, 1)
+def _extract_js_array_as_set(js: str, pattern: str) -> set:
+    """Extract a JS array of strings as a Python set."""
+    m = re.search(pattern, js, re.DOTALL)
+    if not m:
+        return set()
+    raw = m.group(1)
+    return set(re.findall(r'"([^"]+)"', raw))
 
-RV_LP = {"RHA2":600, "RHA3":600, "RHA4":600, "Redensity":600, "Daxxify":420}
+
+def _load_pricing():
+    """Read all pricing tables from Shannon's dashboard.html at runtime."""
+    try:
+        with open(DASHBOARD_HTML) as f:
+            js = f.read()
+    except FileNotFoundError:
+        print("  Warning: Shannon's dashboard.html not found, using empty pricing")
+        return {}
+
+    pricing = {
+        "G_ERA1": _extract_js_obj(js, r'const G_ERA1\s*=\s*(\{[^}]+\})'),
+        "G_ERA2": _extract_js_obj(js, r'const G_ERA2\s*=\s*(\{[^}]+\})'),
+        "AL_BOTOX_MOXIE": _extract_js_obj(js, r'(?:const|var) AL_BOTOX_MOXIE\s*=\s*(\{[^}]+\})'),
+        "AL_ERA1": _extract_js_obj(js, r'(?:const|var) AL_ERA1\s*=\s*(\{[^}]+\})'),
+        "AL_ERA2": _extract_js_obj(js, r'(?:const|var) AL_ERA2\s*=\s*(\{[^}]+\})'),
+        "AL_ERA3": _extract_js_obj(js, r'(?:const|var) AL_ERA3\s*=\s*(\{[^}]+\})'),
+        "MZ_XEO": _extract_js_obj(js, r'(?:const|var) MZ_XEO\s*=\s*(\{[^}]+\})'),
+        "MZ_STD": _extract_js_obj(js, r'(?:const|var) MZ_STD\s*=\s*(\{[^}]+\})'),
+        "RV_LP": _extract_js_obj(js, r'(?:const|var) RV_LP\s*=\s*(\{[^}]+\})'),
+    }
+    # MZ_NEO is a Set in JS — extract as Python set
+    pricing["MZ_NEO"] = _extract_js_array_as_set(js, r'(?:const|var) MZ_NEO\s*=\s*new Set\(\[([^\]]+)\]\)')
+    # SKM_BRANDS is an array
+    m = re.search(r'(?:const|var) SKM_BRANDS\s*=\s*\[([^\]]+)\]', js)
+    if m:
+        pricing["SKM_BRANDS"] = re.findall(r"'([^']+)'", m.group(1))
+    else:
+        pricing["SKM_BRANDS"] = []
+
+    # Extract era dates
+    m = re.search(r"var G_E2\s*=\s*new Date\('(\d{4}-\d{2}-\d{2})'\)", js)
+    pricing["G_E2_DATE"] = date.fromisoformat(m.group(1)) if m else date(2024, 4, 1)
+    m = re.search(r"var AL_E2\s*=\s*new Date\('(\d{4}-\d{2}-\d{2})'\)", js)
+    pricing["AL_E2_DATE"] = date.fromisoformat(m.group(1)) if m else date(2024, 3, 1)
+    m = re.search(r"var AL_E3\s*=\s*new Date\('(\d{4}-\d{2}-\d{2})'\)", js)
+    pricing["AL_E3_DATE"] = date.fromisoformat(m.group(1)) if m else date(2024, 8, 27)
+    m = re.search(r"var MZ_BOGO\s*=\s*new Date\('(\d{4}-\d{2}-\d{2})'\)", js)
+    pricing["MZ_BOGO_DATE"] = date.fromisoformat(m.group(1)) if m else date(2025, 1, 1)
+
+    return pricing
+
+
+# Load pricing once at import time (re-reads from disk on each server restart)
+_PRICING = None
+
+def _get_pricing():
+    global _PRICING
+    if _PRICING is None:
+        _PRICING = _load_pricing()
+    return _PRICING
 
 
 def _load_json(filename):
@@ -89,6 +146,11 @@ def _mk_periods():
 
 def _calc_galderma(rows, mk_id, moxie_id, bounds):
     """Exact port of calcGalderma()."""
+    P = _get_pricing()
+    G_ERA1 = P.get("G_ERA1", {})
+    G_ERA2 = P.get("G_ERA2", {})
+    G_E2_DATE = P.get("G_E2_DATE", date(2024, 4, 1))
+
     clean = mk_id.lstrip("0") if mk_id else None
     matched = [r for r in rows if
                (moxie_id and r.get("_moxie_id") == moxie_id) or
@@ -122,6 +184,15 @@ def _calc_galderma(rows, mk_id, moxie_id, bounds):
 
 def _calc_allergan(rows, al_id, bounds):
     """Exact port of calcAllergan()."""
+    P = _get_pricing()
+    AL_BOTOX_MOXIE = P.get("AL_BOTOX_MOXIE", {})
+    AL_ERA1 = P.get("AL_ERA1", {})
+    AL_ERA2 = P.get("AL_ERA2", {})
+    AL_ERA3 = P.get("AL_ERA3", {})
+    AL_E2_DATE = P.get("AL_E2_DATE", date(2024, 3, 1))
+    AL_E3_DATE = P.get("AL_E3_DATE", date(2024, 8, 27))
+    SKM_BRANDS = P.get("SKM_BRANDS", [])
+
     if not al_id:
         return None
     al_clean = al_id.strip()
@@ -198,6 +269,9 @@ def _calc_evolus(rows, moxie_id, name_map, bounds):
 
 def _calc_revance(rows, moxie_id, bounds):
     """Exact port of calcRevance()."""
+    P = _get_pricing()
+    RV_LP = P.get("RV_LP", {})
+
     matched = [r for r in rows if
                r.get("_moxie_id") == moxie_id or
                str(r.get("_moxie_id", "")) == str(moxie_id)]
@@ -220,6 +294,12 @@ def _calc_revance(rows, moxie_id, bounds):
 
 def _calc_merz(rows, moxie_id, name_map, bounds):
     """Exact port of calcMerz()."""
+    P = _get_pricing()
+    MZ_XEO = P.get("MZ_XEO", {})
+    MZ_STD = P.get("MZ_STD", {})
+    MZ_NEO = P.get("MZ_NEO", set())
+    MZ_BOGO_DATE = P.get("MZ_BOGO_DATE", date(2025, 1, 1))
+
     mmap = name_map.get("merz", {})
     mz_name = next((n for n, mid in mmap.items() if mid == moxie_id), None)
     matched = [r for r in rows if
