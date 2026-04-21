@@ -1,5 +1,6 @@
 """Data schema for MBR reports. Normalizes all metrics into a clean internal structure."""
 
+from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Optional
 
