@@ -712,25 +712,25 @@ def api_preview(session_id):
 
 @app.route("/api/update/<session_id>", methods=["POST"])
 def api_update(session_id):
-    """Update editable fields and re-render."""
+    """Update editable fields and re-render (auto-save, no version snapshot)."""
     sess = _get_session(session_id)
     if not sess:
         return jsonify({"error": "Session not found"}), 404
     _apply_payload(sess["data"], request.json)
     _rerender(sess)
-    _save_session(session_id, sess)
+    _save_session(session_id, sess, snapshot=False)
     return jsonify({"ok": True})
 
 
 @app.route("/api/save/<session_id>", methods=["POST"])
 def api_save(session_id):
-    """Save report — updates data and persists to disk."""
+    """Explicit save — updates data, re-renders, and creates version snapshot."""
     sess = _get_session(session_id)
     if not sess:
         return jsonify({"error": "Session not found"}), 404
     _apply_payload(sess["data"], request.json)
     _rerender(sess)
-    _save_session(session_id, sess)
+    _save_session(session_id, sess, snapshot=True)
     return jsonify({"ok": True})
 
 
