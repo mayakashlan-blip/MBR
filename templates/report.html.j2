@@ -547,6 +547,7 @@
       </thead>
       <tbody>
         {% for c in data.marketing.campaigns %}
+        {% if c.campaign_name != 'Other' %}
         <tr style="border-bottom: 1px solid #e8e3de;">
           <td style="padding: 5px 6px; font-weight: 500;">{{ c.campaign_name }}</td>
           <td style="padding: 5px 6px; text-align: right;">{{ "${:,.0f}".format(c.ad_spend) }}</td>
@@ -557,6 +558,7 @@
           <td style="padding: 5px 6px; text-align: right; font-weight: 600; color: {% if c.roi >= 3 %}#2E7D32{% elif c.roi >= 1 %}#B8933A{% else %}#B53631{% endif %};">{{ "{:.1f}".format(c.roi) }}x</td>
           <td style="padding: 5px 6px; text-align: right;">{% if c.cpl > 0 %}{{ "${:,.0f}".format(c.cpl) }}{% else %}—{% endif %}</td>
         </tr>
+        {% endif %}
         {% endfor %}
       </tbody>
     </table>
@@ -587,26 +589,6 @@
         <div style="font-size: 18pt; font-weight: 700; color: #4D1751;">{% if data.marketing.leads > 0 %}{{ "{:.1f}".format(data.marketing.completed / data.marketing.leads * 100) }}%{% else %}—{% endif %}</div>
         <div style="font-size: 7pt; color: #918A85; margin-top: 0.02in;">{{ data.marketing.completed }} patients</div>
       </div>
-    </div>
-  </div>
-  {% endif %}
-
-  {# ── Budget Efficiency Context ── #}
-  {% if data.marketing.leads > 0 %}
-  {% set cpl = data.marketing.ad_spend / data.marketing.leads %}
-  <div class="card" style="margin-bottom: 0.15in; background: #FAFAF7;">
-    <div class="section-subtitle">Budget Efficiency</div>
-    <div style="font-size: 9pt; line-height: 1.6; color: #5a5550; margin-top: 0.06in;">
-      At a cost per lead of <strong>${{ "{:,.0f}".format(cpl) }}</strong>, this campaign is
-      {% if cpl < 15 %}well below{% elif cpl < 30 %}within{% else %}above{% endif %}
-      the $15–$30 industry benchmark.
-      {% if (data.marketing.first_visit_roi or 0) >= 3 %}
-        With an ROI above 3x, there may be room to scale spend incrementally while monitoring cost-per-lead and conversion rates for any decline in efficiency.
-      {% elif (data.marketing.first_visit_roi or 0) >= 1 %}
-        Before increasing budget, focus on improving funnel conversion rates — a higher booking rate from existing leads will have more impact than additional spend.
-      {% else %}
-        The priority should be improving the return on current spend before considering any budget increase. Focus on lead follow-up speed and first-visit patient value.
-      {% endif %}
     </div>
   </div>
   {% endif %}
