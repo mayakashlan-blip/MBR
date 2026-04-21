@@ -169,7 +169,7 @@ function generateReport() {
 
   document.getElementById('status').classList.remove('hidden');
   document.getElementById('error').classList.add('hidden');
-  document.getElementById('status-text').textContent = 'Loading data from Omni...';
+  document.getElementById('status-text').textContent = 'Loading data from Omni... This typically takes 30–60 seconds.';
 
   fetch('/api/generate', {
     method: 'POST',
