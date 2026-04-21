@@ -224,6 +224,15 @@ class MBRData:
     # Tile 12 - Supplies Savings
     supplies_total_savings: float = 0.0
     supplies_by_brand: list[dict] = field(default_factory=list)  # [{brand, savings}]
+    supplies_spend_month: float = 0.0
+    supplies_savings_month: float = 0.0
+    supplies_spend_3mo: float = 0.0
+    supplies_savings_3mo: float = 0.0
+    supplies_spend_ytd: float = 0.0
+    supplies_savings_ytd: float = 0.0
+    supplies_spend_all: float = 0.0
+    supplies_savings_all: float = 0.0
+    supplies_by_vendor_3mo: list[dict] = field(default_factory=list)  # [{vendor, spend, savings}]
 
     # AI-generated content (filled by narrative engine)
     executive_summary: str = ""

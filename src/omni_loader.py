@@ -826,6 +826,28 @@ def load_from_omni(practice_name: str, month: int, year: int,
     except Exception as e:
         print(f"  Warning: Could not load supplies data: {e}")
 
+    # ── Supplies Savings from transaction data (multi-period) ──
+    print("  Loading supplies transaction data...")
+    try:
+        from .savings_loader import load_savings_for_practice
+        sav = load_savings_for_practice(practice_name, month, year)
+        if sav:
+            data.supplies_spend_month = sav["month"]["spend"]
+            data.supplies_savings_month = sav["month"]["savings"]
+            data.supplies_spend_3mo = sav["m3"]["spend"]
+            data.supplies_savings_3mo = sav["m3"]["savings"]
+            data.supplies_spend_ytd = sav["ytd"]["spend"]
+            data.supplies_savings_ytd = sav["ytd"]["savings"]
+            data.supplies_spend_all = sav["all"]["spend"]
+            data.supplies_savings_all = sav["all"]["savings"]
+            data.supplies_by_vendor_3mo = sav.get("by_vendor_3mo", [])
+            print(f"  Supplies: month=${data.supplies_spend_month:,.0f}, "
+                  f"3mo=${data.supplies_spend_3mo:,.0f}, "
+                  f"YTD=${data.supplies_spend_ytd:,.0f}, "
+                  f"all=${data.supplies_spend_all:,.0f}")
+    except Exception as e:
+        print(f"  Warning: Could not load supplies transaction data: {e}")
+
     # ── Marketing Performance (separate dashboard) ──
     print("  Loading marketing performance...")
     try:
