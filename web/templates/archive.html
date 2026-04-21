@@ -1,0 +1,124 @@
+{% extends "layout.html" %}
+{% block title %}Report Archive — MBR Generator{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="hero">
+    <h1>Report Archive</h1>
+    <p>Browse all saved MBR reports by practice and month. Click to edit or export.</p>
+  </div>
+
+  <div class="card" style="margin-bottom: 20px;">
+    <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 16px;">
+      <input type="text" id="archive-search" placeholder="Search by practice name..."
+             oninput="filterArchive()"
+             style="flex: 1; border: 1px solid #d2cbc4; border-radius: 8px; padding: 8px 12px; font-size: 13px;">
+      <select id="archive-month" onchange="filterArchive()" style="border: 1px solid #d2cbc4; border-radius: 8px; padding: 8px 12px; font-size: 13px;">
+        <option value="">All Months</option>
+        <option value="1">January</option>
+        <option value="2">February</option>
+        <option value="3">March</option>
+        <option value="4">April</option>
+        <option value="5">May</option>
+        <option value="6">June</option>
+        <option value="7">July</option>
+        <option value="8">August</option>
+        <option value="9">September</option>
+        <option value="10">October</option>
+        <option value="11">November</option>
+        <option value="12">December</option>
+      </select>
+      <select id="archive-year" onchange="filterArchive()" style="border: 1px solid #d2cbc4; border-radius: 8px; padding: 8px 12px; font-size: 13px;">
+        <option value="">All Years</option>
+        <option value="2026">2026</option>
+        <option value="2025">2025</option>
+      </select>
+      <span id="archive-count" style="color: #8C8580; font-size: 12px; white-space: nowrap;"></span>
+    </div>
+
+    <div id="archive-list" style="max-height: 600px; overflow-y: auto;">
+      <div style="padding: 20px; text-align: center; color: #8C8580;">Loading reports...</div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .archive-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 14px;
+    border-bottom: 1px solid #f0ebe6;
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+  .archive-row:hover { background: #FAFAF7; }
+  .archive-row:last-child { border-bottom: none; }
+  .archive-practice { font-weight: 600; font-size: 14px; color: #2D2A28; }
+  .archive-period { font-size: 13px; color: #4D1751; font-weight: 500; }
+  .archive-meta { font-size: 11px; color: #8C8580; margin-top: 2px; }
+  .archive-actions { display: flex; gap: 8px; align-items: center; }
+</style>
+
+<script>
+let allReports = [];
+
+fetch('/api/archive')
+  .then(r => r.json())
+  .then(data => {
+    allReports = data.reports || [];
+    filterArchive();
+  })
+  .catch(() => {
+    document.getElementById('archive-list').innerHTML =
+      '<div style="padding:20px; text-align:center; color:#B53631;">Failed to load reports.</div>';
+  });
+
+function filterArchive() {
+  const search = (document.getElementById('archive-search').value || '').toLowerCase().trim();
+  const monthFilter = document.getElementById('archive-month').value;
+  const yearFilter = document.getElementById('archive-year').value;
+
+  const filtered = allReports.filter(r => {
+    if (search && !r.practice_name.toLowerCase().includes(search)) return false;
+    if (monthFilter && String(r.month) !== monthFilter) return false;
+    if (yearFilter && String(r.year) !== yearFilter) return false;
+    return true;
+  });
+
+  document.getElementById('archive-count').textContent =
+    filtered.length + ' report' + (filtered.length === 1 ? '' : 's');
+
+  const list = document.getElementById('archive-list');
+  if (!filtered.length) {
+    list.innerHTML = '<div style="padding:20px; text-align:center; color:#8C8580;">No reports match your search.</div>';
+    return;
+  }
+
+  list.innerHTML = filtered.map(r => {
+    const created = r.created ? new Date(r.created).toLocaleDateString('en-US', {
+      month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit'
+    }) : '';
+    return `
+      <div class="archive-row" onclick="window.location.href='/editor/${r.session_id}'">
+        <div>
+          <div class="archive-practice">${escapeHtml(r.practice_name)}</div>
+          <div class="archive-meta">
+            ${created ? 'Last saved: ' + created : ''}
+            ${r.versions > 0 ? ' &middot; ' + r.versions + ' version' + (r.versions > 1 ? 's' : '') : ''}
+          </div>
+        </div>
+        <div class="archive-actions">
+          <span class="archive-period">${escapeHtml(r.period)}</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+</script>
+{% endblock %}

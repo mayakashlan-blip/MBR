@@ -202,6 +202,48 @@ def _get_session(session_id: str) -> dict:
     return sess
 
 
+def _practice_key(practice_name: str, month: int, year: int) -> str:
+    """Generate a deterministic session key from practice name + month/year."""
+    import re
+    safe = re.sub(r'[^a-z0-9]+', '-', practice_name.lower()).strip('-')
+    return f"{safe}_{year}-{month:02d}"
+
+
+def _list_archived_reports() -> list:
+    """List all archived reports with metadata."""
+    reports = []
+    for f in sorted(SESSIONS_DIR.glob("*.json"), reverse=True):
+        if f.stem.startswith("."):
+            continue
+        try:
+            with open(f) as fh:
+                payload = json.load(fh)
+            d = payload.get("data", {})
+            practice = d.get("practice_name", "")
+            month = d.get("month", 0)
+            year = d.get("year", 0)
+            month_name = ""
+            if month:
+                import calendar
+                month_name = calendar.month_name[month]
+            versions_dir = SESSIONS_DIR / f"{f.stem}_versions"
+            version_count = len(list(versions_dir.glob("v_*.json"))) if versions_dir.exists() else 0
+            created = payload.get("created", "")
+            reports.append({
+                "session_id": f.stem,
+                "practice_name": practice,
+                "month": month,
+                "year": year,
+                "month_name": month_name,
+                "period": f"{month_name} {year}" if month_name else "",
+                "created": created,
+                "versions": version_count,
+            })
+        except Exception:
+            continue
+    return reports
+
+
 def _apply_payload(data, payload):
     """Apply a JSON payload of editable fields to an MBRData object."""
     # Text fields
@@ -344,6 +386,18 @@ def editor(session_id):
     return render_template("editor.html",
                            session_id=session_id,
                            data=sess["data"])
+
+
+@app.route("/archive")
+def archive_page():
+    return render_template("archive.html")
+
+
+@app.route("/api/archive")
+def api_archive():
+    """Return list of all saved reports."""
+    reports = _list_archived_reports()
+    return jsonify({"reports": reports})
 
 
 @app.route("/monthly-assets")
@@ -626,8 +680,8 @@ def api_generate():
         # Render HTML
         html = render_html(data)
 
-        # Store in session
-        session_id = str(uuid.uuid4())[:8]
+        # Store in session — keyed by practice+month for persistent archive
+        session_id = _practice_key(practice, month, year)
         sessions[session_id] = {
             "data": data,
             "html": html,
