@@ -317,12 +317,18 @@ def load_from_omni(practice_name: str, month: int, year: int,
         data.existing_clients = existing_client_appts
 
     # Memberships
-    r = run("Active Members")
+    # Active Members — add mrr_sum field to get MRR from all active members
+    active_q = _find_query(queries, "Active Members")
+    active_q = _add_filters(active_q, practice_name, start_date, QUERY_DATE_FIELDS.get("Active Members"))
+    mrr_field = "dbt__moxie_client_memberships_mart.mrr_sum"
+    if mrr_field not in active_q.get("fields", []):
+        active_q.setdefault("fields", []).append(mrr_field)
+    r = _run_query(active_q, api_key)
     data.memberships_active = int(_val(r, "count"))
+    data.mrr = _val(r, "mrr_sum")
 
     r = run("New Memberships")
     data.memberships_new = int(_val(r, "count"))
-    data.mrr = _val(r, "mrr_sum")
 
     r = run("Churned Memberships")
     data.memberships_cancelled = int(_val(r, "count"))
