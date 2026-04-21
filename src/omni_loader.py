@@ -185,26 +185,86 @@ def load_from_omni(practice_name: str, month: int, year: int,
     except Exception as e:
         print(f"  Warning: Could not load tier: {e}")
 
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
     def run(name: str) -> dict:
         q = _find_query(queries, name)
         date_field = QUERY_DATE_FIELDS.get(name)
         q = _add_filters(q, practice_name, start_date, date_field)
         return _run_query(q, api_key)
 
-    # ── Execute queries ──
+    def run_safe(name: str) -> dict:
+        """Run a query, returning empty dict on failure."""
+        try:
+            return run(name)
+        except Exception as e:
+            print(f"  Warning: query '{name}' failed: {e}")
+            return {}
+
+    # ── Execute queries in parallel ──
     print(f"  Querying Omni for {practice_name}, {calendar.month_name[month]} {year}...")
 
-    # KPI: Net Revenue
-    r = run("KPI: Net Revenue")
+    # Batch 1: all independent current-month queries
+    batch1_names = [
+        "KPI: Net Revenue", "KPI: Paid Appointments", "KPI: AOV",
+        "Client Counts", "New Memberships", "Churned Memberships",
+        "Total Membership Revenue", "Gross Revenue Breakdown Summary",
+        "Retail to Service Revenue", "Gross Revenue By Official Service Type",
+        "Utilization", "Payments & Refunds",
+    ]
+    batch1 = {}
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        futures = {pool.submit(run_safe, name): name for name in batch1_names}
+        for future in as_completed(futures):
+            batch1[futures[future]] = future.result()
+
+    # Active Members needs mrr_sum field added — run separately
+    try:
+        active_q = _find_query(queries, "Active Members")
+        active_q = _add_filters(active_q, practice_name, start_date, QUERY_DATE_FIELDS.get("Active Members"))
+        mrr_field = "dbt__moxie_client_memberships_mart.mrr_sum"
+        if mrr_field not in active_q.get("fields", []):
+            active_q.setdefault("fields", []).append(mrr_field)
+        batch1["Active Members"] = _run_query(active_q, api_key)
+    except Exception as e:
+        print(f"  Warning: Active Members query failed: {e}")
+        batch1["Active Members"] = {}
+
+    # ── Process batch 1 results ──
+    r = batch1.get("KPI: Net Revenue", {})
     data.monthly_net_revenue = _val(r, "net_revenue_sum")
     revenue_goal = _val(r, "revenue_goal_sum")
     data.pct_net_revenue_goal = (data.monthly_net_revenue / revenue_goal
                                   if revenue_goal > 0 else 0)
 
-    # Quarter to Date — sum net revenue from quarter start through current month
-    quarter_start_month = ((month - 1) // 3) * 3 + 1  # Q1=1, Q2=4, Q3=7, Q4=10
-    months_in_quarter = month - quarter_start_month + 1
-    if months_in_quarter > 1:
+    r = batch1.get("KPI: Paid Appointments", {})
+    data.total_appointments = int(_val(r, "paid_appointments"))
+
+    r = batch1.get("KPI: AOV", {})
+    data.aov = _val(r, "aov")
+    aov_goal = _val(r, "aov_goal")
+    data.pct_aov_goal = data.aov / aov_goal if aov_goal > 0 else 0
+
+    # ── Previous Month MoM + QTD (parallel batch 2) ──
+    prev_month = month - 1 if month > 1 else 12
+    prev_year = year if month > 1 else year - 1
+    prev_start = f"{prev_year}-{prev_month:02d}-01"
+    print(f"  Loading prior month + QTD in parallel...")
+
+    def run_prev(name: str):
+        try:
+            q = _find_query(queries, name)
+            date_field = QUERY_DATE_FIELDS.get(name)
+            q = _add_filters(q, practice_name, prev_start, date_field)
+            return _run_query(q, api_key)
+        except Exception:
+            return None
+
+    def run_qtd():
+        quarter_start_month = ((month - 1) // 3) * 3 + 1
+        months_in_quarter = month - quarter_start_month + 1
+        if months_in_quarter <= 1:
+            return data.monthly_net_revenue
         qtd_start = f"{year}-{quarter_start_month:02d}-01"
         qtd_q = _find_query(queries, "KPI: Net Revenue")
         qtd_date_field = QUERY_DATE_FIELDS.get("KPI: Net Revenue")
@@ -219,59 +279,42 @@ def load_from_omni(practice_name: str, month: int, year: int,
             "right_side": f"{months_in_quarter} months", "is_negative": False,
         }
         try:
-            qtd_r = _run_query(qtd_q, api_key)
-            data.quarter_to_date = _val(qtd_r, "net_revenue_sum")
-        except Exception as e:
-            print(f"  Warning: Could not load QTD: {e}")
-            data.quarter_to_date = data.monthly_net_revenue
-    else:
-        # First month of quarter — QTD equals current month
-        data.quarter_to_date = data.monthly_net_revenue
+            return _val(_run_query(qtd_q, api_key), "net_revenue_sum")
+        except Exception:
+            return data.monthly_net_revenue
 
-    # KPI: Paid Appointments
-    r = run("KPI: Paid Appointments")
-    data.total_appointments = int(_val(r, "paid_appointments"))
+    mom_results = {}
+    with ThreadPoolExecutor(max_workers=5) as pool:
+        mom_futures = {
+            pool.submit(run_prev, "KPI: Net Revenue"): "prev_rev",
+            pool.submit(run_prev, "KPI: Paid Appointments"): "prev_appt",
+            pool.submit(run_prev, "KPI: AOV"): "prev_aov",
+            pool.submit(run_prev, "Utilization"): "prev_util",
+            pool.submit(run_qtd): "qtd",
+        }
+        for future in as_completed(mom_futures):
+            mom_results[mom_futures[future]] = future.result()
 
-    # KPI: AOV
-    r = run("KPI: AOV")
-    data.aov = _val(r, "aov")
-    aov_goal = _val(r, "aov_goal")
-    data.pct_aov_goal = data.aov / aov_goal if aov_goal > 0 else 0
+    data.quarter_to_date = mom_results.get("qtd", data.monthly_net_revenue)
 
-    # ── Previous Month MoM comparison ──
-    prev_month = month - 1 if month > 1 else 12
-    prev_year = year if month > 1 else year - 1
-    prev_start = f"{prev_year}-{prev_month:02d}-01"
-    print(f"  Loading prior month ({calendar.month_name[prev_month]} {prev_year}) for MoM...")
-
-    def run_prev_safe(name: str):
-        """Run a query for the previous month, returning None on failure."""
-        try:
-            q = _find_query(queries, name)
-            date_field = QUERY_DATE_FIELDS.get(name)
-            q = _add_filters(q, practice_name, prev_start, date_field)
-            return _run_query(q, api_key)
-        except Exception as e:
-            print(f"  Warning: MoM query '{name}' failed: {e}")
-            return None
-
-    prev_rev_r = run_prev_safe("KPI: Net Revenue")
+    prev_rev_r = mom_results.get("prev_rev")
     if prev_rev_r:
         prev_revenue = _val(prev_rev_r, "net_revenue_sum")
         data.revenue_mom_pct = _safe_mom(data.monthly_net_revenue, prev_revenue, 100)
 
-    prev_appt_r = run_prev_safe("KPI: Paid Appointments")
+    prev_appt_r = mom_results.get("prev_appt")
     if prev_appt_r:
         prev_appointments = int(_val(prev_appt_r, "paid_appointments"))
         data.appointments_mom_pct = _safe_mom(data.total_appointments, prev_appointments, 5)
 
-    prev_aov_r = run_prev_safe("KPI: AOV")
+    prev_aov_r = mom_results.get("prev_aov")
     if prev_aov_r:
         prev_aov = _val(prev_aov_r, "aov")
         data.aov_mom_pct = _safe_mom(data.aov, prev_aov, 20)
 
     # MoM for utilization
-    prev_util_r = run_prev_safe("Utilization")
+    prev_util_r = mom_results.get("prev_util")
+    prev_util = None
     if prev_util_r:
         prev_util = _val(prev_util_r, "column_b_divided_by_column_a", default=None)
         if prev_util is not None:
@@ -280,14 +323,13 @@ def load_from_omni(practice_name: str, month: int, year: int,
             pa = _val(prev_util_r, "total_available_hours")
             pt = _val(prev_util_r, "total_appointment_hours")
             prev_util = pt / pa if pa and pa > 0 else None
-        # Store prev_util for later (after current utilization is loaded)
 
     print(f"  MoM: Rev {'N/A' if data.revenue_mom_pct is None else f'{data.revenue_mom_pct:+.1%}'}, "
           f"Appts {'N/A' if data.appointments_mom_pct is None else f'{data.appointments_mom_pct:+.1%}'}, "
           f"AOV {'N/A' if data.aov_mom_pct is None else f'{data.aov_mom_pct:+.1%}'}")
 
-    # Utilization
-    r = run("Utilization")
+    # Utilization (from batch1)
+    r = batch1.get("Utilization", {})
     util_pct = _val(r, "column_b_divided_by_column_a", default=None)
     if util_pct is not None:
         data.utilization_rate = util_pct if util_pct <= 1.0 else util_pct / 100
@@ -300,13 +342,11 @@ def load_from_omni(practice_name: str, month: int, year: int,
     if prev_util_r and prev_util:
         data.utilization_mom_pct = _safe_mom(data.utilization_rate, prev_util, 0.05)
 
-    # Client Counts
-    r = run("Client Counts")
+    # Client Counts (from batch1)
+    r = batch1.get("Client Counts", {})
     new_client_appts = int(_val(r, "count_new_client_appointments"))
     existing_client_appts = int(_val(r, "count_existing_client_appointments"))
     total_unique_clients = int(_val(r, "paid_appointment_clients"))
-    # Use unique client count for new/existing split proportionally
-    # count_new/existing_client_appointments are appointment counts, not unique clients
     total_appts_for_split = new_client_appts + existing_client_appts
     if total_appts_for_split > 0 and total_unique_clients > 0:
         new_pct = new_client_appts / total_appts_for_split
@@ -316,26 +356,19 @@ def load_from_omni(practice_name: str, month: int, year: int,
         data.new_clients = new_client_appts
         data.existing_clients = existing_client_appts
 
-    # Memberships
-    # Active Members — add mrr_sum field to get MRR from all active members
-    active_q = _find_query(queries, "Active Members")
-    active_q = _add_filters(active_q, practice_name, start_date, QUERY_DATE_FIELDS.get("Active Members"))
-    mrr_field = "dbt__moxie_client_memberships_mart.mrr_sum"
-    if mrr_field not in active_q.get("fields", []):
-        active_q.setdefault("fields", []).append(mrr_field)
-    r = _run_query(active_q, api_key)
+    # Memberships (Active Members from batch1 with mrr_sum)
+    r = batch1.get("Active Members", {})
     data.memberships_active = int(_val(r, "count"))
     data.mrr = _val(r, "mrr_sum")
 
-    r = run("New Memberships")
+    r = batch1.get("New Memberships", {})
     data.memberships_new = int(_val(r, "count"))
 
-    r = run("Churned Memberships")
+    r = batch1.get("Churned Memberships", {})
     data.memberships_cancelled = int(_val(r, "count"))
 
     # Total Membership Revenue
-    r = run("Total Membership Revenue")
-    data.membership_sales = _val(r, "subtotal__membership_sum")
+    data.membership_sales = _val(batch1.get("Total Membership Revenue", {}), "subtotal__membership_sum")
 
     # Membership breakdown by type
     try:
@@ -420,38 +453,32 @@ def load_from_omni(practice_name: str, month: int, year: int,
     except Exception as e:
         print(f"  Warning: Could not load membership breakdown: {e}")
 
-    # Gross Revenue Breakdown
-    r = run("Gross Revenue Breakdown Summary")
+    # Gross Revenue Breakdown (from batch1)
+    r = batch1.get("Gross Revenue Breakdown Summary", {})
     data.service_revenue = _val(r, "subtotal__service_sum")
     data.retail_revenue = _val(r, "subtotal__retail_product_sum")
     data.prepayment_revenue = _val(r, "subtotal__package_sum")
     data.custom_items = _val(r, "subtotal__custom_item_sum")
-    # Total gross = sum of all revenue categories
     data.total_gross = (data.service_revenue + data.retail_revenue +
                         data.prepayment_revenue + data.custom_items +
                         data.membership_sales)
-
-    # Discounts and fees from Omni
     data.discounts = _val(r, "discounts_sum")
     data.client_fees = _val(r, "fees_sum")
 
-    # Payments & Refunds
-    try:
-        pr = run("Payments & Refunds")
-        data.redemptions = _val(pr, "refund_amount_sum")
-    except Exception:
-        pass
+    # Payments & Refunds (from batch1)
+    pr = batch1.get("Payments & Refunds", {})
+    data.redemptions = _val(pr, "refund_amount_sum")
 
-    # Retail to Service Ratio
-    r = run("Retail to Service Revenue")
+    # Retail to Service Ratio (from batch1)
+    r = batch1.get("Retail to Service Revenue", {})
     ratio = _val(r, "calc_1", default=None)
     if ratio is not None:
         data.retail_to_service_ratio = ratio if ratio <= 1.0 else ratio / 100
     elif data.service_revenue > 0:
         data.retail_to_service_ratio = data.retail_revenue / data.service_revenue
 
-    # Service Mix
-    r = run("Gross Revenue By Official Service Type")
+    # Service Mix (from batch1)
+    r = batch1.get("Gross Revenue By Official Service Type", {})
     svc_names = []
     svc_revs = []
     svc_pcts = []
