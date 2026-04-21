@@ -75,52 +75,66 @@
 
 <script>
 let allReports = [];
+let allPractices = [];
 
-fetch('/api/archive')
-  .then(r => r.json())
-  .then(data => {
-    allReports = data.reports || [];
-  })
-  .catch(() => {
-    document.getElementById('archive-list').innerHTML =
-      '<div style="padding:20px; text-align:center; color:#B53631;">Failed to load reports.</div>';
-  });
+// Load both practices list and saved reports
+Promise.all([
+  fetch('/api/practices').then(r => r.json()).catch(() => ({practices: []})),
+  fetch('/api/archive').then(r => r.json()).catch(() => ({reports: []})),
+]).then(([practiceData, archiveData]) => {
+  allPractices = practiceData.practices || [];
+  allReports = archiveData.reports || [];
+});
 
 function filterArchive() {
   const search = (document.getElementById('archive-search').value || '').toLowerCase().trim();
   const list = document.getElementById('archive-list');
 
-  if (!search) {
+  if (!search || search.length < 2) {
     list.innerHTML = '<div style="padding:30px; text-align:center; color:#8C8580; font-size:13px;">Type a practice name above to find their saved reports.</div>';
     return;
   }
 
-  // Group reports by practice name
-  const grouped = {};
+  // Group saved reports by practice name
+  const reportsByPractice = {};
   allReports.forEach(r => {
-    if (!r.practice_name.toLowerCase().includes(search)) return;
-    if (!grouped[r.practice_name]) grouped[r.practice_name] = [];
-    grouped[r.practice_name].push(r);
+    if (!reportsByPractice[r.practice_name]) reportsByPractice[r.practice_name] = [];
+    reportsByPractice[r.practice_name].push(r);
   });
 
-  const practices = Object.keys(grouped).sort();
+  // Filter practices from Omni that match the search
+  const matchedPractices = allPractices
+    .filter(p => p.name.toLowerCase().includes(search))
+    .slice(0, 50);
+
+  const practices = matchedPractices.map(p => p.name).sort();
 
   if (!practices.length) {
-    list.innerHTML = '<div style="padding:20px; text-align:center; color:#8C8580; font-size:13px;">No saved reports found for that practice.</div>';
+    list.innerHTML = '<div style="padding:20px; text-align:center; color:#8C8580; font-size:13px;">No practices found matching that name.</div>';
     return;
   }
 
   list.innerHTML = practices.map(name => {
-    const reports = grouped[name].sort((a, b) => {
+    const reports = (reportsByPractice[name] || []).sort((a, b) => {
       if (a.year !== b.year) return b.year - a.year;
       return b.month - a.month;
     });
     const groupId = name.replace(/[^a-zA-Z0-9]/g, '-');
+    if (!reports.length) {
+      return `
+        <div class="archive-practice-group">
+          <div class="archive-practice-header" style="cursor: default;">
+            <span class="archive-practice-name">${escapeHtml(name)}</span>
+            <span class="archive-practice-count" style="color: #c8c0bb;">No saved reports</span>
+          </div>
+        </div>
+      `;
+    }
     return `
       <div class="archive-practice-group">
         <div class="archive-practice-header" onclick="toggleGroup('${groupId}')">
           <span class="archive-practice-name">${escapeHtml(name)}</span>
-          <span class="archive-practice-count">${reports.length} report${reports.length > 1 ? 's' : ''}</span>
+          <span class="archive-practice-count">${reports.length} report${reports.length > 1 ? 's' : ''} &#9662;</span>
         </div>
         <div class="archive-reports" id="group-${groupId}">
           ${reports.map(r => {
