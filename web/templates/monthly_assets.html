@@ -31,6 +31,21 @@
 </style>
 
 <div class="container">
+
+  {# Password gate #}
+  <div id="assets-lock" style="text-align: center; padding: 60px 20px;">
+    <div style="font-size: 36px; margin-bottom: 16px;">&#128274;</div>
+    <h2 style="margin-bottom: 8px;">Monthly Assets</h2>
+    <p style="color: #8C8580; margin-bottom: 20px;">Enter the password to access monthly assets.</p>
+    <div style="max-width: 300px; margin: 0 auto;">
+      <input type="password" id="assets-pw" placeholder="Password" onkeypress="if(event.key==='Enter') unlockAssets();"
+             style="width:100%; border:1px solid #d2cbc4; border-radius:8px; padding:10px 14px; font-size:14px; margin-bottom:10px;">
+      <button class="btn btn-primary" onclick="unlockAssets()" style="width:100%;">Unlock</button>
+      <div id="assets-pw-error" style="color:#B53631; font-size:13px; margin-top:8px; display:none;">Incorrect password.</div>
+    </div>
+  </div>
+
+  <div id="assets-content" style="display:none;">
   <div class="hero">
     <h1>Monthly Assets</h1>
     <p>Upload Launches and Brand Bank once per month — they'll be included in every MBR for that period.</p>
@@ -127,9 +142,22 @@
       <div id="saved-list"></div>
     </div>
   </div>
+  </div>{# close assets-content #}
 </div>
 
 <script>
+function unlockAssets() {
+  const pw = document.getElementById('assets-pw').value;
+  if (pw === 'operations') {
+    document.getElementById('assets-lock').style.display = 'none';
+    document.getElementById('assets-content').style.display = 'block';
+  } else {
+    document.getElementById('assets-pw-error').style.display = 'block';
+    document.getElementById('assets-pw').value = '';
+    document.getElementById('assets-pw').focus();
+  }
+}
+
 function getAssetMonth() { return document.getElementById('asset-month').value; }
 function getAssetYear() { return document.getElementById('asset-year').value; }
 
