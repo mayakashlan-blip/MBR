@@ -390,7 +390,7 @@
   {% endif %}
 
   <div class="card" style="margin-bottom: 0.15in;">
-    <div class="section-subtitle">Revenue by Service</div>
+    <div class="section-subtitle">Gross Revenue by Service</div>
     <div class="service-bars">
       {% set max_rev = data.services[0].revenue if (data.services and data.services[0].revenue > 0) else 1 %}
       {% for svc in data.services[:10] %}
@@ -399,7 +399,7 @@
         <div class="service-bar-track">
           <div class="service-bar-fill" style="width: {{ svc.revenue / max_rev * 100 }}%"></div>
         </div>
-        <div class="service-bar-pct">${{ "{:,.0f}".format(svc.revenue) }}</div>
+        <div class="service-bar-pct">${{ "{:,.0f}".format(svc.revenue) }} <span style="color: #8C8580; font-size: 7pt;">({{ "%.1f"|format(svc.pct_of_total) }}%)</span></div>
       </div>
       {% endfor %}
     </div>
