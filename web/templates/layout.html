@@ -9,6 +9,24 @@
 {% block head %}{% endblock %}
 </head>
 <body>
+
+{# Site-wide password gate #}
+<div id="site-lock" style="display:none; position:fixed; inset:0; background:var(--cream, #FDF6EE); z-index:9999; display:flex; align-items:center; justify-content:center;">
+  <div style="text-align:center; padding:40px;">
+    <div style="font-size:42px; margin-bottom:16px;">&#128274;</div>
+    <h1 style="font-family:'Playfair Display',Georgia,serif; font-size:28px; color:#4D1751; margin-bottom:6px;">Moxie MBR Generator</h1>
+    <p style="color:#8C8580; margin-bottom:24px; font-size:14px;">Enter the password to continue.</p>
+    <div style="max-width:320px; margin:0 auto;">
+      <input type="password" id="site-pw" placeholder="Password" autocomplete="off"
+             onkeypress="if(event.key==='Enter') unlockSite();"
+             style="width:100%; border:1.5px solid #d2cbc4; border-radius:10px; padding:12px 16px; font-size:15px; margin-bottom:12px; font-family:'Inter',sans-serif; outline:none;">
+      <button onclick="unlockSite()" style="width:100%; padding:12px; background:#4D1751; color:white; border:none; border-radius:10px; font-size:15px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif;">Unlock</button>
+      <div id="site-pw-error" style="color:#B53631; font-size:13px; margin-top:10px; display:none;">Incorrect password.</div>
+    </div>
+  </div>
+</div>
+
+<div id="site-content" style="display:none;">
 <nav class="nav">
   <div class="nav-inner">
     <a href="/" class="nav-brand">
@@ -28,7 +46,33 @@
 <main>
 {% block content %}{% endblock %}
 </main>
+</div>
+
 <script src="{{ url_for('static', filename='app.js') }}"></script>
+<script>
+(function() {
+  var KEY = 'mbr_auth';
+  if (sessionStorage.getItem(KEY) === '1') {
+    document.getElementById('site-lock').style.display = 'none';
+    document.getElementById('site-content').style.display = 'block';
+  } else {
+    document.getElementById('site-lock').style.display = 'flex';
+    document.getElementById('site-content').style.display = 'none';
+    setTimeout(function(){ document.getElementById('site-pw').focus(); }, 100);
+  }
+})();
+function unlockSite() {
+  if (document.getElementById('site-pw').value === 'moxie2026') {
+    sessionStorage.setItem('mbr_auth', '1');
+    document.getElementById('site-lock').style.display = 'none';
+    document.getElementById('site-content').style.display = 'block';
+  } else {
+    document.getElementById('site-pw-error').style.display = 'block';
+    document.getElementById('site-pw').value = '';
+    document.getElementById('site-pw').focus();
+  }
+}
+</script>
 {% block scripts %}{% endblock %}
 </body>
 </html>
