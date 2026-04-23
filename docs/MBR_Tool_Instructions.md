@@ -100,9 +100,21 @@ Use the Batch Export tab to generate PDFs for multiple practices at once:
 
 ---
 
+## Important: Saving Your Work
+
+After making any changes to an MBR, you **must click the Save button** to ensure your edits are saved. While the tool auto-saves drafts as you type, only clicking Save creates a permanent version that others can see and that will be preserved in the Report Archive.
+
+---
+
+## Supplies Savings
+
+The MBR includes a high-level Supplies Savings summary for each practice. For a deeper dive into a practice's savings data — including detailed vendor breakdowns, transaction history, and rebate tracking — use the **Supplies Savings** tab in the navigation bar.
+
+---
+
 ## Tips
 
-- **Auto-save**: Edits save automatically every few seconds. The "Save" button creates a version checkpoint you can restore later.
+- **Always click Save**: Auto-save keeps a working draft, but you must click Save to lock in your changes and create a restorable version.
 - **Version History**: In the Editor sidebar, expand "Version History" to see and restore previous saves.
 - **Segment Browser**: On the Dashboard, use the tier buttons to filter practices by Momentum, Growth, Silver, Gold, or Enterprise.
 - **Marketing Section**: For non-Enterprise practices, only metrics are shown. Enterprise practices also see campaign-level breakdowns and AI recommendations.
