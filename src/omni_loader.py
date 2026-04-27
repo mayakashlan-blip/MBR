@@ -182,6 +182,9 @@ def load_from_omni(practice_name: str, month: int, year: int,
             if tiers and tiers[0]:
                 data.tier = str(tiers[0])
                 print(f"  Tier: {data.tier}")
+                # Hide executive summary by default for Silver/Momentum/Growth tiers
+                if data.tier in ("Silver", "Momentum", "Growth"):
+                    data.show_executive_summary = False
     except Exception as e:
         print(f"  Warning: Could not load tier: {e}")
 

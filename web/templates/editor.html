@@ -265,7 +265,20 @@
 
     {# ── Executive Summary ── #}
     <div class="sidebar-section">
-      <label>Executive Summary</label>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+        <label style="margin: 0;">Executive Summary</label>
+        {% if data.tier in ['Silver', 'Momentum', 'Growth'] %}
+        <label style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: #4A4744; cursor: pointer; font-weight: 400;">
+          <input type="checkbox" id="show-exec-summary" {% if data.show_executive_summary %}checked{% endif %} onchange="debounceSave()">
+          Show on report
+        </label>
+        {% endif %}
+      </div>
+      {% if data.tier in ['Silver', 'Momentum', 'Growth'] %}
+      <div style="font-size: 11px; color: #8C8580; margin-bottom: 6px;">
+        Hidden by default for {{ data.tier }} tier. Check the box to include it on page 2.
+      </div>
+      {% endif %}
       <textarea id="exec-summary" rows="5" onchange="saveChanges()" oninput="debounceSave()">{{ data.executive_summary }}</textarea>
     </div>
 
@@ -679,8 +692,10 @@ function collectData() {
     return v !== '' && v !== undefined ? parseFloat(v) : null;
   }
 
+  const showExecEl = document.getElementById('show-exec-summary');
   return {
     executive_summary: document.getElementById('exec-summary').value,
+    show_executive_summary: showExecEl ? showExecEl.checked : true,
     psm_feedback: document.getElementById('psm-feedback').value,
     psm_name: document.getElementById('psm-name').value,
     assessments: assessments,

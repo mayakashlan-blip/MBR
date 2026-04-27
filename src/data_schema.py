@@ -237,6 +237,7 @@ class MBRData:
 
     # AI-generated content (filled by narrative engine)
     executive_summary: str = ""
+    show_executive_summary: bool = True  # Hide-able for Silver/Momentum/Growth tiers
     assessments: list[dict] = field(default_factory=list)  # [{tag, title, text}]
     psm_feedback: str = ""
     psm_name: str = ""

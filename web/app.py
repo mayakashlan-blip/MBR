@@ -251,6 +251,10 @@ def _apply_payload(data, payload):
         if text_field in payload:
             setattr(data, text_field, payload[text_field])
 
+    # Boolean toggles
+    if "show_executive_summary" in payload:
+        data.show_executive_summary = bool(payload["show_executive_summary"])
+
     # Assessments
     if "assessments" in payload:
         data.assessments = payload["assessments"]

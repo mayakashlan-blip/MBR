@@ -35,7 +35,7 @@
   <div class="section-title">Monthly Snapshot</div>
 
   {# Executive Summary #}
-  {% if data.executive_summary %}
+  {% if data.executive_summary and data.show_executive_summary %}
   <div class="exec-summary">{{ data.executive_summary }}</div>
   {% endif %}
 
