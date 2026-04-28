@@ -414,6 +414,11 @@ def batch_page():
     return render_template("batch.html", omni_key_set=bool(_get_omni_key()))
 
 
+@app.route("/beta")
+def beta_page():
+    return render_template("beta.html", omni_key_set=bool(_get_omni_key()))
+
+
 # ── API Endpoints ──
 
 @app.route("/api/practices")
@@ -686,6 +691,64 @@ def api_generate():
 
         # Store in session — keyed by practice+month for persistent archive
         session_id = _practice_key(practice, month, year)
+        sessions[session_id] = {
+            "data": data,
+            "html": html,
+            "brand_bank_path": None,
+            "marketing_image_path": None,
+            "launches_image_path": None,
+            "created": datetime.now(),
+        }
+        _save_session(session_id, sessions[session_id])
+
+        return jsonify({"session_id": session_id, "ok": True})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/generate-beta", methods=["POST"])
+def api_generate_beta():
+    """Generate an extended-period report (QBR, annual, custom range)."""
+    _cleanup_old_sessions()
+
+    practice = request.json.get("practice", "").strip()
+    month = int(request.json.get("month", 1))
+    year = int(request.json.get("year", 2026))
+    duration_months = int(request.json.get("duration_months", 1))
+
+    if not practice:
+        return jsonify({"error": "Practice name required"}), 400
+    if duration_months < 1 or duration_months > 24:
+        return jsonify({"error": "duration_months must be between 1 and 24"}), 400
+
+    try:
+        key = _get_omni_key()
+        if not key:
+            return jsonify({"error": "No Omni API key configured. Set OMNI_API_KEY environment variable."}), 400
+
+        from src.omni_loader import load_from_omni
+        from src.narrative import generate_narratives
+        from src.html_renderer import render_html
+        from src.data_schema import LaunchFeature, BrandBankItem
+
+        # Load data over extended period
+        data = load_from_omni(practice, month, year, api_key=key, duration_months=duration_months)
+
+        # Inject monthly assets only for single-month pulls
+        if duration_months == 1:
+            assets = _load_monthly_assets(month, year)
+            if assets.get("launches"):
+                data.launches = [LaunchFeature(**l) for l in assets["launches"]]
+            if assets.get("brand_bank_items"):
+                data.brand_bank_items = [BrandBankItem(**b) for b in assets["brand_bank_items"]]
+
+        generate_narratives(data)
+        html = render_html(data)
+
+        # Use a duration-aware session key so beta reports don't clobber monthly archives
+        base_key = _practice_key(practice, month, year)
+        session_id = base_key if duration_months == 1 else f"{base_key}_{duration_months}mo"
         sessions[session_id] = {
             "data": data,
             "html": html,

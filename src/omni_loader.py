@@ -79,11 +79,13 @@ def _run_query(query_body: dict, api_key: str, retries: int = 2) -> dict:
 
 
 def _add_filters(query: dict, practice_name: str, start_date: str,
-                 date_field: str = None) -> dict:
+                 date_field: str = None, duration: str = "1 months") -> dict:
     """Add practice name and date range filters to a query.
 
-    Uses TIME_FOR_INTERVAL_DURATION (start_date + "1 months") which is
+    Uses TIME_FOR_INTERVAL_DURATION (start_date + duration) which is
     the only date filter kind Omni actually respects via the API.
+
+    duration can be "1 months", "3 months", "12 months", etc.
     """
     q = copy.deepcopy(query)
     q["filters"]["dbt__moxie_medspas_mart.medspa_name"] = {
@@ -98,7 +100,7 @@ def _add_filters(query: dict, practice_name: str, start_date: str,
             "type": "date",
             "ui_type": "PAST",
             "left_side": start_date,
-            "right_side": "1 months",
+            "right_side": duration,
             "is_negative": False,
         }
     return q
@@ -138,14 +140,16 @@ def _find_query(queries: dict, name: str) -> dict:
 
 
 def load_from_omni(practice_name: str, month: int, year: int,
-                   api_key: str = None) -> MBRData:
+                   api_key: str = None, duration_months: int = 1) -> MBRData:
     """Load MBR data from Omni Analytics API.
 
     Args:
         practice_name: Exact practice name as it appears in Omni.
-        month: Month number (1-12).
-        year: Year.
+        month: Starting month number (1-12).
+        year: Starting year.
         api_key: Omni API key. Falls back to OMNI_API_KEY env var.
+        duration_months: How many months of data to pull (default 1).
+                         Use 3 for QBR, 12 for annual review, etc.
 
     Returns:
         Populated MBRData instance.
@@ -154,8 +158,9 @@ def load_from_omni(practice_name: str, month: int, year: int,
     if not api_key:
         raise ValueError("No Omni API key provided. Set OMNI_API_KEY or pass --omni-key.")
 
-    # First day of the month (TIME_FOR_INTERVAL_DURATION adds "1 months" from here)
+    # First day of the month (TIME_FOR_INTERVAL_DURATION adds duration from here)
     start_date = f"{year}-{month:02d}-01"
+    duration = f"{duration_months} months"
 
     # Fetch all query definitions from the dashboard
     print(f"  Connecting to Omni API...")
@@ -193,7 +198,7 @@ def load_from_omni(practice_name: str, month: int, year: int,
     def run(name: str) -> dict:
         q = _find_query(queries, name)
         date_field = QUERY_DATE_FIELDS.get(name)
-        q = _add_filters(q, practice_name, start_date, date_field)
+        q = _add_filters(q, practice_name, start_date, date_field, duration)
         return _run_query(q, api_key)
 
     def run_safe(name: str) -> dict:
@@ -380,7 +385,7 @@ def load_from_omni(practice_name: str, month: int, year: int,
         def _date_f(field):
             return {"kind": "TIME_FOR_INTERVAL_DURATION", "type": "date",
                     "ui_type": "PAST", "left_side": start_date,
-                    "right_side": "1 months", "is_negative": False}
+                    "right_side": duration, "is_negative": False}
 
         # Active by type
         aq = copy.deepcopy(queries["Active Members"])
@@ -523,7 +528,7 @@ def load_from_omni(practice_name: str, month: int, year: int,
         sq["filters"]["dbt__moxie_invoices_mart.invoice_issued_date"] = {
             "kind": "TIME_FOR_INTERVAL_DURATION", "type": "date",
             "ui_type": "PAST", "left_side": start_date,
-            "right_side": "1 months", "is_negative": False,
+            "right_side": duration, "is_negative": False,
         }
         # Add gross revenue field if not already present
         gross_field = "dbt__moxie_invoice_line_items_mart.gross_revenue_sum"
@@ -540,7 +545,7 @@ def load_from_omni(practice_name: str, month: int, year: int,
         rq["filters"]["dbt__moxie_appointments_mart.start_time"] = {
             "kind": "TIME_FOR_INTERVAL_DURATION", "type": "date",
             "ui_type": "PAST", "left_side": start_date,
-            "right_side": "1 months", "is_negative": False,
+            "right_side": duration, "is_negative": False,
         }
         rebook_r = _run_query(rq, api_key)
 
@@ -553,7 +558,7 @@ def load_from_omni(practice_name: str, month: int, year: int,
         util_q["filters"]["dbt__moxie_utilization_daily_mart.series_date"] = {
             "kind": "TIME_FOR_INTERVAL_DURATION", "type": "date",
             "ui_type": "PAST", "left_side": start_date,
-            "right_side": "1 months", "is_negative": False,
+            "right_side": duration, "is_negative": False,
         }
         util_q["fields"].append("dbt__moxie_utilization_daily_mart.provider_name")
         util_r = _run_query(util_q, api_key)
@@ -830,7 +835,7 @@ def load_from_omni(practice_name: str, month: int, year: int,
             sq["filters"]["dbt__shopify_orders_mart.created_at"] = {
                 "kind": "TIME_FOR_INTERVAL_DURATION", "type": "date",
                 "ui_type": "PAST", "left_side": start_date,
-                "right_side": "1 months", "is_negative": False,
+                "right_side": duration, "is_negative": False,
             }
             # Remove demo filter
             sq["filters"].pop("dbt__moxie_medspas_mart.is_demo_or_test_medspa", None)
@@ -901,7 +906,7 @@ def load_from_omni(practice_name: str, month: int, year: int,
             mq["filters"]["dbt__marketing_medspa_performance_daily_mart.series_date"] = {
                 "kind": "TIME_FOR_INTERVAL_DURATION", "type": "date",
                 "ui_type": "PAST",
-                "left_side": start_date, "right_side": "1 months",
+                "left_side": start_date, "right_side": duration,
                 "is_negative": False,
             }
             # Add revenue fields (not in the base dashboard query)
@@ -967,7 +972,7 @@ def load_from_omni(practice_name: str, month: int, year: int,
                             cq["filters"]["dbt__marketing_medspa_performance_daily_mart.series_date"] = {
                                 "kind": "TIME_FOR_INTERVAL_DURATION", "type": "date",
                                 "ui_type": "PAST",
-                                "left_side": start_date, "right_side": "1 months",
+                                "left_side": start_date, "right_side": duration,
                                 "is_negative": False,
                             }
                             camp_field = "dbt__marketing_medspa_performance_daily_mart.campaign_category"
