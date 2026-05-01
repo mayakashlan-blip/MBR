@@ -104,6 +104,7 @@ def _deserialize_data(d: dict):
     mkt = d.pop("marketing", None)
     if mkt:
         campaigns = [CampaignData(**c) for c in mkt.pop("campaigns", [])]
+        mkt.pop("estimated_booked_revenue", None)  # legacy field, removed
         marketing = MarketingData(**mkt, campaigns=campaigns)
     else:
         marketing = None

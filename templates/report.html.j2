@@ -482,14 +482,9 @@
       <div style="font-size: 6.5pt; color: #918A85;">First Visits</div>
     </div>
     <div style="text-align: center; padding: 0.12in 0.08in; background: white; border: 1px solid #e5e0db; border-radius: 8px;">
-      <div style="font-size: 6.5pt; text-transform: uppercase; letter-spacing: 0.04em; color: #8C8580; margin-bottom: 0.02in;">New Patient Revenue</div>
+      <div style="font-size: 6.5pt; text-transform: uppercase; letter-spacing: 0.04em; color: #8C8580; margin-bottom: 0.02in;">Total New Client Revenue</div>
       <div style="font-size: 16pt; font-weight: 700; color: #4D1751;">{{ "${:,.0f}".format(data.marketing.revenue) }}</div>
       <div style="font-size: 6.5pt; color: #918A85;">Attributed to Marketing</div>
-    </div>
-    <div style="text-align: center; padding: 0.12in 0.08in; background: white; border: 1px solid #e5e0db; border-radius: 8px;">
-      <div style="font-size: 6.5pt; text-transform: uppercase; letter-spacing: 0.04em; color: #8C8580; margin-bottom: 0.02in;">Est. Booked Revenue</div>
-      <div style="font-size: 16pt; font-weight: 700; color: #4D1751;">{% if data.marketing.estimated_booked_revenue %}{{ "${:,.0f}".format(data.marketing.estimated_booked_revenue) }}{% else %}—{% endif %}</div>
-      <div style="font-size: 6.5pt; color: #918A85;">Pipeline from Bookings</div>
     </div>
   </div>
 
