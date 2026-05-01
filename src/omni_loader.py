@@ -909,10 +909,12 @@ def load_from_omni(practice_name: str, month: int, year: int,
                 "left_side": start_date, "right_side": duration,
                 "is_negative": False,
             }
-            # Add revenue field (not in the base dashboard query)
+            # Add revenue fields (not in the base dashboard query)
             rev_field = "dbt__marketing_medspa_performance_daily_mart.meta_new_clients_completed_appointment_revenue_sum"
-            if rev_field not in mq.get("fields", []):
-                mq.setdefault("fields", []).append(rev_field)
+            all_rev_field = "dbt__marketing_medspa_performance_daily_mart.meta_completed_appointment_revenue_sum"
+            for extra_f in [rev_field, all_rev_field]:
+                if extra_f not in mq.get("fields", []):
+                    mq.setdefault("fields", []).append(extra_f)
             mkt_r = _run_query(mq, api_key)
 
             # Find the practice row (skip totals row where name is None)
@@ -934,6 +936,8 @@ def load_from_omni(practice_name: str, month: int, year: int,
 
                 # Revenue comes directly from Omni (net revenue from new clients)
                 revenue = mkt_val("meta_new_clients_completed_appointment_revenue_sum")
+                # Total revenue across all clients (new + existing) attributed to marketing
+                total_rev_all = mkt_val("meta_completed_appointment_revenue_sum")
 
                 # ROI = revenue / spend (New Client ROI)
                 roi = revenue / ad_spend if ad_spend > 0 and revenue > 0 else 0
@@ -945,6 +949,7 @@ def load_from_omni(practice_name: str, month: int, year: int,
                         booked=booked,
                         completed=completed,
                         revenue=round(revenue, 2),
+                        total_revenue_all_clients=round(total_rev_all, 2) if total_rev_all else 0.0,
                         first_visit_roi=round(roi, 2) if roi else None,
                         lead_to_booking_rate=booked / leads if leads > 0 else None,
                         first_visit_aov=revenue / completed if completed > 0 else None,

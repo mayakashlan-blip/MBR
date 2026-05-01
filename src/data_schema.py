@@ -70,7 +70,8 @@ class MarketingData:
     leads: int = 0
     booked: int = 0
     completed: int = 0
-    revenue: float = 0.0
+    revenue: float = 0.0  # Total New Client Revenue (meta_new_clients_completed_appointment_revenue_sum)
+    total_revenue_all_clients: float = 0.0  # All marketing-attributed completed revenue (meta_completed_appointment_revenue_sum)
     first_visit_roi: Optional[float] = None
     lead_to_booking_rate: Optional[float] = None
     first_visit_aov: Optional[float] = None

@@ -492,6 +492,11 @@
       <div style="font-size: 16pt; font-weight: 700; color: #4D1751;">{{ "${:,.0f}".format(data.marketing.revenue) }}</div>
       <div style="font-size: 6.5pt; color: #918A85;">Attributed to Marketing</div>
     </div>
+    <div style="text-align: center; padding: 0.12in 0.08in; background: white; border: 1px solid #e5e0db; border-radius: 8px;">
+      <div style="font-size: 6.5pt; text-transform: uppercase; letter-spacing: 0.04em; color: #8C8580; margin-bottom: 0.02in;">Total Revenue (All Clients)</div>
+      <div style="font-size: 16pt; font-weight: 700; color: #4D1751;">{{ "${:,.0f}".format(data.marketing.total_revenue_all_clients) }}</div>
+      <div style="font-size: 6.5pt; color: #918A85;">New &amp; Returning Patients</div>
+    </div>
   </div>
 
   {# ── Key Metrics ── #}

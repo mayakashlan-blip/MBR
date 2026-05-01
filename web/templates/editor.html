@@ -488,6 +488,10 @@
             <input type="number" id="mkt-revenue" value="{{ data.marketing.revenue if data.marketing else '' }}" placeholder="0" step="0.01" oninput="updateMarketingCalcs(); debounceSave();" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:5px 8px; font-size:11px;">
           </div>
           <div>
+            <label style="font-size:10px;">Total Revenue All Clients ($)</label>
+            <input type="number" id="mkt-revenue-all" value="{{ data.marketing.total_revenue_all_clients if data.marketing else '' }}" placeholder="0" step="0.01" oninput="debounceSave();" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:5px 8px; font-size:11px;">
+          </div>
+          <div>
             <label style="font-size:10px;">ROI</label>
             <input type="number" id="mkt-roi-input" value="{{ data.marketing.first_visit_roi if data.marketing and data.marketing.first_visit_roi else '' }}" placeholder="Auto" step="0.01" oninput="debounceSave();" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:5px 8px; font-size:11px;">
           </div>
@@ -669,6 +673,7 @@ function collectData() {
   const mktBooked = parseInt(document.getElementById('mkt-booked')?.value) || 0;
   const mktCompleted = parseInt(document.getElementById('mkt-completed')?.value) || 0;
   const mktRevenue = parseFloat(document.getElementById('mkt-revenue')?.value) || 0;
+  const mktRevenueAll = parseFloat(document.getElementById('mkt-revenue-all')?.value) || 0;
   // Use manual overrides if provided, otherwise compute
   const mktRoiInput = parseFloat(document.getElementById('mkt-roi-input')?.value);
   const mktLtbInput = parseFloat(document.getElementById('mkt-ltb-input')?.value);
@@ -695,6 +700,7 @@ function collectData() {
     booked: mktBooked,
     completed: mktCompleted,
     revenue: mktRevenue,
+    total_revenue_all_clients: mktRevenueAll,
     first_visit_roi: !isNaN(mktRoiInput) ? mktRoiInput : (mktSpend > 0 ? mktRevenue / mktSpend : null),
     lead_to_booking_rate: !isNaN(mktLtbInput) ? mktLtbInput / 100 : (mktLeads > 0 ? mktBooked / mktLeads : null),
     first_visit_aov: !isNaN(mktAovInput) ? mktAovInput : (mktCompleted > 0 ? mktRevenue / mktCompleted : null),
