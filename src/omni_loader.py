@@ -918,11 +918,13 @@ def load_from_omni(practice_name: str, month: int, year: int,
         mkt_queries = mkt_dash.get("queries", [])
         if mkt_queries:
             mq = copy.deepcopy(mkt_queries[0]["query"])
-            # Replace PSM filter with practice filter
+            # Replace PSM filter with practice filter — use CONTAINS so name
+            # variations ('&' vs 'and', extra whitespace) still match.
             mq["filters"].pop("dbt__moxie_medspas_mart.provider_success_manager_name", None)
             mq["filters"]["dbt__moxie_medspas_mart.medspa_name"] = {
-                "kind": "EQUALS", "type": "string",
-                "values": [practice_name], "is_negative": False,
+                "kind": "CONTAINS", "type": "string",
+                "values": [practice_name.split()[0]],
+                "is_negative": False,
             }
             mq["filters"]["dbt__marketing_medspa_performance_daily_mart.series_date"] = {
                 "kind": "TIME_FOR_INTERVAL_DURATION", "type": "date",
@@ -938,9 +940,19 @@ def load_from_omni(practice_name: str, month: int, year: int,
                     mq.setdefault("fields", []).append(extra_f)
             mkt_r = _run_query(mq, api_key)
 
-            # Find the practice row (skip totals row where name is None)
+            # Find the practice row using a normalized name comparison so
+            # punctuation / whitespace differences don't cause a miss.
+            def _norm(s):
+                import re as _re
+                return _re.sub(r"[^a-z0-9]", "", (s or "").lower())
+            target_norm = _norm(practice_name)
             mkt_names = mkt_r.get("dbt__moxie_medspas_mart.medspa_name", [])
-            mkt_idx = next((i for i, n in enumerate(mkt_names) if n and n == practice_name), None)
+            mkt_idx = next((i for i, n in enumerate(mkt_names)
+                            if n and _norm(n) == target_norm), None)
+            if mkt_idx is None:
+                print(f"  Warning: marketing dashboard had no row for "
+                      f"'{practice_name}'. Names returned: "
+                      f"{[n for n in mkt_names if n][:5]}")
 
             if mkt_idx is not None:
                 def mkt_val(field, default=0):

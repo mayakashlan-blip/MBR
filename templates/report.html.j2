@@ -414,7 +414,7 @@
 {# ════════════════════════════════════════════════════════════════════
    PAGE 4b — MARKETING PERFORMANCE (if marketing data exists)
    ════════════════════════════════════════════════════════════════════ #}
-{% if not data.marketing or data.marketing.ad_spend <= 20 %}
+{% if not data.marketing or data.marketing.ad_spend <= 0 %}
 <section class="page">
   {% include "components/header.html.j2" %}
   <div class="section-title">Marketing Performance</div>
