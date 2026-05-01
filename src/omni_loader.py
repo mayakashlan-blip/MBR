@@ -48,19 +48,38 @@ def _api_get(path: str, api_key: str):
         return json.loads(resp.read().decode())
 
 
-def _run_query(query_body: dict, api_key: str, retries: int = 2) -> dict:
-    """Execute an Omni query and return the parsed Arrow result as a dict."""
+def _run_query(query_body: dict, api_key: str, retries: int = 4) -> dict:
+    """Execute an Omni query and return the parsed Arrow result as a dict.
+
+    Retries on HTTP 429 (rate limit) and 5xx with exponential backoff,
+    honoring the Retry-After header when Omni provides one.
+    """
     import pyarrow.ipc
     import time
 
+    last_error = None
     for attempt in range(retries + 1):
         data = json.dumps({"query": query_body}).encode()
         req = urllib.request.Request(f"{BASE_URL}/v1/query/run", data=data, method="POST")
         req.add_header("Authorization", f"Bearer {api_key}")
         req.add_header("Content-Type", "application/json")
 
-        with urllib.request.urlopen(req, timeout=90) as resp:
-            raw = resp.read().decode()
+        try:
+            with urllib.request.urlopen(req, timeout=90) as resp:
+                raw = resp.read().decode()
+        except urllib.error.HTTPError as e:
+            # Retry on rate-limit (429) and transient server errors (5xx)
+            if e.code == 429 or 500 <= e.code < 600:
+                last_error = e
+                if attempt < retries:
+                    retry_after = e.headers.get("Retry-After")
+                    if retry_after and retry_after.isdigit():
+                        wait = min(int(retry_after), 30)
+                    else:
+                        wait = min(2 ** attempt, 16)  # 1, 2, 4, 8, 16
+                    time.sleep(wait)
+                    continue
+            raise
 
         for line in raw.strip().split("\n"):
             parsed = json.loads(line)
@@ -75,6 +94,8 @@ def _run_query(query_body: dict, api_key: str, retries: int = 2) -> dict:
         if attempt < retries:
             time.sleep(2)  # Brief pause before retry
 
+    if last_error is not None:
+        raise last_error
     raise RuntimeError("No result returned from Omni query")
 
 
@@ -221,7 +242,7 @@ def load_from_omni(practice_name: str, month: int, year: int,
         "Utilization", "Payments & Refunds",
     ]
     batch1 = {}
-    with ThreadPoolExecutor(max_workers=6) as pool:
+    with ThreadPoolExecutor(max_workers=3) as pool:
         futures = {pool.submit(run_safe, name): name for name in batch1_names}
         for future in as_completed(futures):
             batch1[futures[future]] = future.result()
@@ -292,7 +313,7 @@ def load_from_omni(practice_name: str, month: int, year: int,
             return data.monthly_net_revenue
 
     mom_results = {}
-    with ThreadPoolExecutor(max_workers=5) as pool:
+    with ThreadPoolExecutor(max_workers=3) as pool:
         mom_futures = {
             pool.submit(run_prev, "KPI: Net Revenue"): "prev_rev",
             pool.submit(run_prev, "KPI: Paid Appointments"): "prev_appt",
