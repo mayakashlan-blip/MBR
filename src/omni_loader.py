@@ -192,25 +192,42 @@ def load_from_omni(practice_name: str, month: int, year: int,
     data = MBRData(practice_name=practice_name, month=month, year=year)
 
     # Get practice tier (provider_segment_post_launch) from Medspa Name query
+    # Use CONTAINS + normalized name matching so '&'/'and', whitespace, and
+    # case variations don't drop the row.
     try:
+        import re as _re
+        def _norm_name(s):
+            return _re.sub(r"[^a-z0-9]", "", (s or "").lower())
+
         tier_q = copy.deepcopy(queries.get("Medspa Name", {}))
         if tier_q:
             tier_q["filters"]["dbt__moxie_medspas_mart.medspa_name"] = {
-                "kind": "EQUALS", "type": "string",
-                "values": [practice_name], "is_negative": False,
+                "kind": "CONTAINS", "type": "string",
+                "values": [practice_name.split()[0]],
+                "is_negative": False,
             }
             tier_field = "dbt__moxie_medspas_mart.provider_segment_post_launch"
-            if tier_field not in tier_q.get("fields", []):
-                tier_q.setdefault("fields", []).append(tier_field)
-            tier_q["limit"] = 5
+            name_field = "dbt__moxie_medspas_mart.medspa_name"
+            for f in [tier_field, name_field]:
+                if f not in tier_q.get("fields", []):
+                    tier_q.setdefault("fields", []).append(f)
+            tier_q["limit"] = 50
             tier_r = _run_query(tier_q, api_key)
+            tier_names = tier_r.get(name_field, [])
             tiers = tier_r.get(tier_field, [])
-            if tiers and tiers[0]:
-                data.tier = str(tiers[0])
+            target_norm = _norm_name(practice_name)
+            tier_idx = next((i for i, n in enumerate(tier_names)
+                             if n and _norm_name(n) == target_norm), None)
+            if tier_idx is not None and tier_idx < len(tiers) and tiers[tier_idx]:
+                data.tier = str(tiers[tier_idx])
                 print(f"  Tier: {data.tier}")
                 # Hide executive summary by default for Silver/Momentum/Growth tiers
                 if data.tier in ("Silver", "Momentum", "Growth"):
                     data.show_executive_summary = False
+            else:
+                print(f"  Warning: Medspa Name dashboard had no tier for "
+                      f"'{practice_name}'. Names returned: "
+                      f"{[n for n in tier_names if n][:5]}")
     except Exception as e:
         print(f"  Warning: Could not load tier: {e}")
 
