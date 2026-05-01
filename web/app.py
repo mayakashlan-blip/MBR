@@ -663,15 +663,30 @@ def api_upload_monthly_brand_bank():
 
 @app.route("/api/generate", methods=["POST"])
 def api_generate():
-    """Generate a report for a practice."""
+    """Generate a report for a practice.
+
+    If a saved session already exists for this practice+month and the
+    caller did not pass force_refresh=true, returns the saved session
+    untouched so prior edits are preserved.
+    """
     _cleanup_old_sessions()
 
     practice = request.json.get("practice", "").strip()
     month = int(request.json.get("month", 1))
     year = int(request.json.get("year", 2026))
+    force_refresh = bool(request.json.get("force_refresh", False))
 
     if not practice:
         return jsonify({"error": "Practice name required"}), 400
+
+    session_id = _practice_key(practice, month, year)
+
+    # Preserve previously saved versions: only pull fresh from Omni if no
+    # saved session exists or the caller explicitly asked to refresh.
+    if not force_refresh:
+        existing = _get_session(session_id)
+        if existing:
+            return jsonify({"session_id": session_id, "ok": True, "from_saved": True})
 
     try:
         key = _get_omni_key()
@@ -699,8 +714,6 @@ def api_generate():
         # Render HTML
         html = render_html(data)
 
-        # Store in session — keyed by practice+month for persistent archive
-        session_id = _practice_key(practice, month, year)
         sessions[session_id] = {
             "data": data,
             "html": html,
@@ -711,7 +724,7 @@ def api_generate():
         }
         _save_session(session_id, sessions[session_id])
 
-        return jsonify({"session_id": session_id, "ok": True})
+        return jsonify({"session_id": session_id, "ok": True, "from_saved": False})
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -726,11 +739,20 @@ def api_generate_beta():
     month = int(request.json.get("month", 1))
     year = int(request.json.get("year", 2026))
     duration_months = int(request.json.get("duration_months", 1))
+    force_refresh = bool(request.json.get("force_refresh", False))
 
     if not practice:
         return jsonify({"error": "Practice name required"}), 400
     if duration_months < 1 or duration_months > 24:
         return jsonify({"error": "duration_months must be between 1 and 24"}), 400
+
+    base_key = _practice_key(practice, month, year)
+    session_id = base_key if duration_months == 1 else f"{base_key}_{duration_months}mo"
+
+    if not force_refresh:
+        existing = _get_session(session_id)
+        if existing:
+            return jsonify({"session_id": session_id, "ok": True, "from_saved": True})
 
     try:
         key = _get_omni_key()
@@ -756,9 +778,6 @@ def api_generate_beta():
         generate_narratives(data)
         html = render_html(data)
 
-        # Use a duration-aware session key so beta reports don't clobber monthly archives
-        base_key = _practice_key(practice, month, year)
-        session_id = base_key if duration_months == 1 else f"{base_key}_{duration_months}mo"
         sessions[session_id] = {
             "data": data,
             "html": html,
@@ -769,7 +788,7 @@ def api_generate_beta():
         }
         _save_session(session_id, sessions[session_id])
 
-        return jsonify({"session_id": session_id, "ok": True})
+        return jsonify({"session_id": session_id, "ok": True, "from_saved": False})
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500

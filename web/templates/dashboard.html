@@ -46,6 +46,14 @@
       Generate Report
     </button>
 
+    <label style="display:flex; align-items:center; gap:8px; margin-top:12px; font-size:13px; color:#4A4744; cursor:pointer;">
+      <input type="checkbox" id="force-refresh" style="margin:0;">
+      Refresh from Omni (overwrites any saved edits for this practice/month)
+    </label>
+    <div style="font-size:12px; color:#8C8580; margin-top:4px;">
+      By default, regenerating returns your saved version. Tick this only when you want fresh Omni data.
+    </div>
+
     <div id="status" class="status hidden">
       <div class="spinner"></div>
       <span id="status-text">Loading data from Omni...</span>
@@ -167,14 +175,25 @@ function generateReport() {
   btn.disabled = true;
   btn.textContent = 'Generating...';
 
+  const forceRefresh = document.getElementById('force-refresh').checked;
+  if (forceRefresh) {
+    if (!confirm('This will overwrite any saved edits for this practice and month with fresh Omni data. Continue?')) {
+      btn.disabled = false;
+      btn.textContent = 'Generate Report';
+      return;
+    }
+  }
+
   document.getElementById('status').classList.remove('hidden');
   document.getElementById('error').classList.add('hidden');
-  document.getElementById('status-text').textContent = 'Loading data from Omni... This typically takes 30–60 seconds.';
+  document.getElementById('status-text').textContent = forceRefresh
+    ? 'Refreshing from Omni... This typically takes 30–60 seconds.'
+    : 'Opening report... If no saved version exists, fresh Omni data will load (30–60s).';
 
   fetch('/api/generate', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({practice, month: parseInt(month), year: parseInt(year)})
+    body: JSON.stringify({practice, month: parseInt(month), year: parseInt(year), force_refresh: forceRefresh})
   })
   .then(r => r.json())
   .then(data => {
