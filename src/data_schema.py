@@ -75,6 +75,7 @@ class MarketingData:
     lead_to_booking_rate: Optional[float] = None
     first_visit_aov: Optional[float] = None
     campaigns: list[CampaignData] = field(default_factory=list)
+    show_campaign_breakdown: bool = False  # toggle in editor; off by default, opt-in
     next_steps: list[str] = field(default_factory=list)
 
 

@@ -514,7 +514,10 @@
         <div style="border-top: 1px solid #e8e0d8; padding-top: 10px; margin-bottom: 10px;">
           <label style="display:flex; align-items:center; justify-content:space-between;">
             <span>Campaigns</span>
-            <span style="font-size:10px; color:#8C8580; font-weight:400;">Per-campaign breakdown shown when 2+ active</span>
+            <label style="font-size:10px; color:#4A4744; font-weight:400; display:flex; align-items:center; gap:4px; cursor:pointer;">
+              <input type="checkbox" id="mkt-show-campaigns" {% if data.marketing and data.marketing.show_campaign_breakdown %}checked{% endif %} onchange="debounceSave()" style="margin:0;">
+              Show Performance by Campaign on report
+            </label>
           </label>
           <div id="campaigns-list" style="margin-top: 6px;">
             {% if data.marketing and data.marketing.campaigns %}
@@ -685,6 +688,7 @@ function collectData() {
     });
   });
 
+  const showCampaignsEl = document.getElementById('mkt-show-campaigns');
   const marketing = mktSpend > 0 ? {
     ad_spend: mktSpend,
     leads: mktLeads,
@@ -695,6 +699,7 @@ function collectData() {
     lead_to_booking_rate: !isNaN(mktLtbInput) ? mktLtbInput / 100 : (mktLeads > 0 ? mktBooked / mktLeads : null),
     first_visit_aov: !isNaN(mktAovInput) ? mktAovInput : (mktCompleted > 0 ? mktRevenue / mktCompleted : null),
     campaigns: campaigns,
+    show_campaign_breakdown: showCampaignsEl ? showCampaignsEl.checked : false,
   } : null;
 
   // Legacy — keep for backward compat

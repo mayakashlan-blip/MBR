@@ -529,9 +529,9 @@
     </div>
   </div>
 
-  {# ── Campaign Breakdown (any practice running 2+ campaigns) ── #}
+  {# ── Campaign Breakdown — toggle in editor; default on for 2+ campaigns ── #}
   {% set named_campaigns = data.marketing.campaigns | selectattr("campaign_name", "ne", "Other") | list %}
-  {% if named_campaigns | length >= 2 %}
+  {% if data.marketing.show_campaign_breakdown and named_campaigns | length >= 2 %}
   <div class="card" style="margin-bottom: 0.15in;">
     <div class="section-subtitle">Performance by Campaign</div>
     <div style="font-size: 8pt; color: #8C8580; margin-top: 0.02in; margin-bottom: 0.1in;">
