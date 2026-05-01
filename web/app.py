@@ -281,6 +281,12 @@ def _apply_payload(data, payload):
             except (ValueError, TypeError):
                 pass
 
+    # Total gross is derived from the five revenue components so the bar chart
+    # and Total Gross row always agree.
+    data.total_gross = (data.service_revenue + data.prepayment_revenue +
+                        data.membership_sales + data.custom_items +
+                        data.retail_revenue)
+
     # Marketing data
     if "marketing" in payload:
         if payload["marketing"]:
