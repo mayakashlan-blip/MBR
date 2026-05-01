@@ -510,6 +510,34 @@
           <div style="display:flex; justify-content:space-between; margin-bottom:3px;"><span>Computed First-Visit AOV:</span> <strong id="mkt-aov-display">—</strong></div>
           <div style="display:flex; justify-content:space-between;"><span>Computed Cost per Lead:</span> <strong id="mkt-cpl-display">—</strong></div>
         </div>
+
+        <div style="border-top: 1px solid #e8e0d8; padding-top: 10px; margin-bottom: 10px;">
+          <label style="display:flex; align-items:center; justify-content:space-between;">
+            <span>Campaigns</span>
+            <span style="font-size:10px; color:#8C8580; font-weight:400;">Per-campaign breakdown shown when 2+ active</span>
+          </label>
+          <div id="campaigns-list" style="margin-top: 6px;">
+            {% if data.marketing and data.marketing.campaigns %}
+            {% for c in data.marketing.campaigns %}
+            <div class="campaign-item" style="border:1px solid #e8e0d8; border-radius:6px; padding:8px; margin-bottom:6px; background:#FAFAF7;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <input class="camp-name" type="text" value="{{ c.campaign_name }}" placeholder="Campaign name" oninput="debounceSave()" style="flex:1; border:1px solid #d2cbc4; border-radius:4px; padding:4px 6px; font-size:11px; font-weight:600;">
+                <button onclick="removeCampaign(this)" style="background:none; border:none; color:#B53631; cursor:pointer; font-size:11px; margin-left:6px;">&times; remove</button>
+              </div>
+              <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px;">
+                <div><label style="font-size:9px; color:#8C8580;">Spend ($)</label><input class="camp-spend" type="number" step="0.01" value="{{ c.ad_spend }}" oninput="debounceSave()" style="width:100%; border:1px solid #d2cbc4; border-radius:4px; padding:3px 5px; font-size:10px;"></div>
+                <div><label style="font-size:9px; color:#8C8580;">Leads</label><input class="camp-leads" type="number" value="{{ c.leads }}" oninput="debounceSave()" style="width:100%; border:1px solid #d2cbc4; border-radius:4px; padding:3px 5px; font-size:10px;"></div>
+                <div><label style="font-size:9px; color:#8C8580;">Booked</label><input class="camp-booked" type="number" value="{{ c.booked }}" oninput="debounceSave()" style="width:100%; border:1px solid #d2cbc4; border-radius:4px; padding:3px 5px; font-size:10px;"></div>
+                <div><label style="font-size:9px; color:#8C8580;">Completed</label><input class="camp-completed" type="number" value="{{ c.completed }}" oninput="debounceSave()" style="width:100%; border:1px solid #d2cbc4; border-radius:4px; padding:3px 5px; font-size:10px;"></div>
+                <div style="grid-column: span 2;"><label style="font-size:9px; color:#8C8580;">New Client Revenue ($)</label><input class="camp-revenue" type="number" step="0.01" value="{{ c.revenue }}" oninput="debounceSave()" style="width:100%; border:1px solid #d2cbc4; border-radius:4px; padding:3px 5px; font-size:10px;"></div>
+              </div>
+            </div>
+            {% endfor %}
+            {% endif %}
+          </div>
+          <button class="add-btn" onclick="addCampaign()" style="margin-top:4px;">+ Add Campaign</button>
+        </div>
+
         <label>Summary & Recommendations</label>
         <textarea id="marketing-recs-text" rows="5" oninput="debounceSave()" placeholder="AI-generated recommendations will appear here, or type your own..." style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:8px 10px; font-family:'Inter',sans-serif; font-size:11px; line-height:1.5; resize:vertical; color:#2D2A28;">{{ data.marketing_recommendations or '' }}</textarea>
         <div class="formatting-hint">Use **text** for bold. Leave empty to auto-generate.</div>
@@ -642,6 +670,21 @@ function collectData() {
   const mktRoiInput = parseFloat(document.getElementById('mkt-roi-input')?.value);
   const mktLtbInput = parseFloat(document.getElementById('mkt-ltb-input')?.value);
   const mktAovInput = parseFloat(document.getElementById('mkt-aov-input')?.value);
+  // Collect campaigns
+  const campaigns = [];
+  document.querySelectorAll('#campaigns-list .campaign-item').forEach(el => {
+    const name = el.querySelector('.camp-name')?.value.trim();
+    if (!name) return;
+    campaigns.push({
+      campaign_name: name,
+      ad_spend: parseFloat(el.querySelector('.camp-spend')?.value) || 0,
+      leads: parseInt(el.querySelector('.camp-leads')?.value) || 0,
+      booked: parseInt(el.querySelector('.camp-booked')?.value) || 0,
+      completed: parseInt(el.querySelector('.camp-completed')?.value) || 0,
+      revenue: parseFloat(el.querySelector('.camp-revenue')?.value) || 0,
+    });
+  });
+
   const marketing = mktSpend > 0 ? {
     ad_spend: mktSpend,
     leads: mktLeads,
@@ -651,6 +694,7 @@ function collectData() {
     first_visit_roi: !isNaN(mktRoiInput) ? mktRoiInput : (mktSpend > 0 ? mktRevenue / mktSpend : null),
     lead_to_booking_rate: !isNaN(mktLtbInput) ? mktLtbInput / 100 : (mktLeads > 0 ? mktBooked / mktLeads : null),
     first_visit_aov: !isNaN(mktAovInput) ? mktAovInput : (mktCompleted > 0 ? mktRevenue / mktCompleted : null),
+    campaigns: campaigns,
   } : null;
 
   // Legacy — keep for backward compat
@@ -782,6 +826,33 @@ function addAssessment() {
 
 function removeAssessment(btn) {
   btn.closest('.assessment-item').remove();
+  debounceSave();
+}
+
+function addCampaign() {
+  const list = document.getElementById('campaigns-list');
+  const div = document.createElement('div');
+  div.className = 'campaign-item';
+  div.style.cssText = 'border:1px solid #e8e0d8; border-radius:6px; padding:8px; margin-bottom:6px; background:#FAFAF7;';
+  div.innerHTML = `
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+      <input class="camp-name" type="text" value="" placeholder="Campaign name" oninput="debounceSave()" style="flex:1; border:1px solid #d2cbc4; border-radius:4px; padding:4px 6px; font-size:11px; font-weight:600;">
+      <button onclick="removeCampaign(this)" style="background:none; border:none; color:#B53631; cursor:pointer; font-size:11px; margin-left:6px;">&times; remove</button>
+    </div>
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px;">
+      <div><label style="font-size:9px; color:#8C8580;">Spend ($)</label><input class="camp-spend" type="number" step="0.01" value="0" oninput="debounceSave()" style="width:100%; border:1px solid #d2cbc4; border-radius:4px; padding:3px 5px; font-size:10px;"></div>
+      <div><label style="font-size:9px; color:#8C8580;">Leads</label><input class="camp-leads" type="number" value="0" oninput="debounceSave()" style="width:100%; border:1px solid #d2cbc4; border-radius:4px; padding:3px 5px; font-size:10px;"></div>
+      <div><label style="font-size:9px; color:#8C8580;">Booked</label><input class="camp-booked" type="number" value="0" oninput="debounceSave()" style="width:100%; border:1px solid #d2cbc4; border-radius:4px; padding:3px 5px; font-size:10px;"></div>
+      <div><label style="font-size:9px; color:#8C8580;">Completed</label><input class="camp-completed" type="number" value="0" oninput="debounceSave()" style="width:100%; border:1px solid #d2cbc4; border-radius:4px; padding:3px 5px; font-size:10px;"></div>
+      <div style="grid-column: span 2;"><label style="font-size:9px; color:#8C8580;">New Client Revenue ($)</label><input class="camp-revenue" type="number" step="0.01" value="0" oninput="debounceSave()" style="width:100%; border:1px solid #d2cbc4; border-radius:4px; padding:3px 5px; font-size:10px;"></div>
+    </div>
+  `;
+  list.appendChild(div);
+  debounceSave();
+}
+
+function removeCampaign(btn) {
+  btn.closest('.campaign-item').remove();
   debounceSave();
 }
 

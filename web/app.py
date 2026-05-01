@@ -284,8 +284,11 @@ def _apply_payload(data, payload):
     # Marketing data
     if "marketing" in payload:
         if payload["marketing"]:
-            from src.data_schema import MarketingData
-            data.marketing = MarketingData(**payload["marketing"])
+            from src.data_schema import MarketingData, CampaignData
+            mkt = dict(payload["marketing"])
+            camp_payload = mkt.pop("campaigns", None) or []
+            campaigns = [CampaignData(**c) for c in camp_payload]
+            data.marketing = MarketingData(**mkt, campaigns=campaigns)
         else:
             data.marketing = None
 
