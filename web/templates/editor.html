@@ -545,7 +545,15 @@
           <button class="add-btn" onclick="addCampaign()" style="margin-top:4px;">+ Add Campaign</button>
         </div>
 
-        <label>Summary & Recommendations</label>
+        <label style="display:flex; align-items:center; justify-content:space-between;">
+          <span>Summary & Recommendations</span>
+          {% if data.tier in ['Silver', 'Momentum', 'Growth'] %}
+          <label style="font-size:10px; color:#4A4744; font-weight:400; display:flex; align-items:center; gap:4px; cursor:pointer;">
+            <input type="checkbox" id="show-mkt-recs" {% if data.show_marketing_recommendations %}checked{% endif %} onchange="debounceSave()" style="margin:0;">
+            Show on report
+          </label>
+          {% endif %}
+        </label>
         <textarea id="marketing-recs-text" rows="5" oninput="debounceSave()" placeholder="AI-generated recommendations will appear here, or type your own..." style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:8px 10px; font-family:'Inter',sans-serif; font-size:11px; line-height:1.5; resize:vertical; color:#2D2A28;">{{ data.marketing_recommendations or '' }}</textarea>
         <div class="formatting-hint">Use **text** for bold. Leave empty to auto-generate.</div>
         <button class="btn btn-secondary" onclick="generateMarketingRecs()" id="gen-mkt-recs-btn" style="margin-top: 6px; font-size: 11px; padding: 4px 10px;">Generate Recommendations</button>
@@ -742,6 +750,7 @@ function collectData() {
   }
 
   const showExecEl = document.getElementById('show-exec-summary');
+  const showMktRecsEl = document.getElementById('show-mkt-recs');
   return {
     executive_summary: document.getElementById('exec-summary').value,
     show_executive_summary: showExecEl ? showExecEl.checked : true,
@@ -751,6 +760,7 @@ function collectData() {
     reviews: reviews,
     marketing: marketing,
     marketing_recommendations: marketing_recommendations,
+    show_marketing_recommendations: showMktRecsEl ? showMktRecsEl.checked : false,
     marketing_analysis: marketing_analysis,
     launches: launches,
     brand_bank_items: brand_bank_items,

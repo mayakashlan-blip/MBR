@@ -243,6 +243,7 @@ class MBRData:
     psm_feedback: str = ""
     psm_name: str = ""
     marketing_recommendations: str = ""  # AI-generated from uploaded marketing screenshot
+    show_marketing_recommendations: bool = False  # toggle for Silver/Momentum/Growth tiers; default off
     marketing_analysis: Optional[MarketingAnalysis] = None  # structured AI analysis
     launches: list[LaunchFeature] = field(default_factory=list)  # extracted from uploaded image
     brand_bank_items: list[BrandBankItem] = field(default_factory=list)  # extracted from uploaded image
