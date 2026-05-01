@@ -523,40 +523,51 @@
     </div>
   </div>
 
-  {# ── Campaign Breakdown (Enterprise only) ── #}
-  {% if data.tier == 'Enterprise' and data.marketing.campaigns %}
+  {# ── Campaign Breakdown (any practice running 2+ campaigns) ── #}
+  {% set named_campaigns = data.marketing.campaigns | selectattr("campaign_name", "ne", "Other") | list %}
+  {% if named_campaigns | length >= 2 %}
   <div class="card" style="margin-bottom: 0.15in;">
     <div class="section-subtitle">Performance by Campaign</div>
-    <table style="width: 100%; border-collapse: collapse; font-size: 8.5pt; margin-top: 0.08in;">
-      <thead>
-        <tr style="border-bottom: 2px solid var(--purple); text-align: left;">
-          <th style="padding: 4px 6px; font-weight: 600; color: var(--purple);">Campaign</th>
-          <th style="padding: 4px 6px; font-weight: 600; color: var(--purple); text-align: right;">Spend</th>
-          <th style="padding: 4px 6px; font-weight: 600; color: var(--purple); text-align: center;">Leads</th>
-          <th style="padding: 4px 6px; font-weight: 600; color: var(--purple); text-align: center;">Booked</th>
-          <th style="padding: 4px 6px; font-weight: 600; color: var(--purple); text-align: center;">Completed</th>
-          <th style="padding: 4px 6px; font-weight: 600; color: var(--purple); text-align: right;">Revenue</th>
-          <th style="padding: 4px 6px; font-weight: 600; color: var(--purple); text-align: right;">ROI</th>
-          <th style="padding: 4px 6px; font-weight: 600; color: var(--purple); text-align: right;">CPL</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for c in data.marketing.campaigns %}
-        {% if c.campaign_name != 'Other' %}
-        <tr style="border-bottom: 1px solid #e8e3de;">
-          <td style="padding: 5px 6px; font-weight: 500;">{{ c.campaign_name }}</td>
-          <td style="padding: 5px 6px; text-align: right;">{{ "${:,.0f}".format(c.ad_spend) }}</td>
-          <td style="padding: 5px 6px; text-align: center;">{{ "{:,}".format(c.leads) }}</td>
-          <td style="padding: 5px 6px; text-align: center;">{{ "{:,}".format(c.booked) }}</td>
-          <td style="padding: 5px 6px; text-align: center;">{{ "{:,}".format(c.completed) }}</td>
-          <td style="padding: 5px 6px; text-align: right;">{{ "${:,.0f}".format(c.revenue) }}</td>
-          <td style="padding: 5px 6px; text-align: right; font-weight: 600; color: {% if c.roi >= 3 %}#2E7D32{% elif c.roi >= 1 %}#B8933A{% else %}#B53631{% endif %};">{{ "{:.1f}".format(c.roi) }}x</td>
-          <td style="padding: 5px 6px; text-align: right;">{% if c.cpl > 0 %}{{ "${:,.0f}".format(c.cpl) }}{% else %}—{% endif %}</td>
-        </tr>
-        {% endif %}
-        {% endfor %}
-      </tbody>
-    </table>
+    <div style="font-size: 8pt; color: #8C8580; margin-top: 0.02in; margin-bottom: 0.1in;">
+      Per-campaign metrics for the {{ named_campaigns | length }} active campaigns this period.
+    </div>
+    {% for c in named_campaigns %}
+    <div style="border: 1px solid #e5e0db; border-radius: 8px; padding: 0.1in 0.12in; margin-bottom: 0.08in; background: #FAFAF7;">
+      <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.06in;">
+        <div style="font-size: 11pt; font-weight: 600; color: var(--purple);">{{ c.campaign_name }}</div>
+        <div style="font-size: 8pt; font-weight: 600; padding: 2px 10px; border-radius: 10px;
+                    {% if c.roi >= 3 %}background: #E8F5E9; color: #2E7D32;{% elif c.roi >= 2 %}background: #FFF8E1; color: #B8933A;{% elif c.roi >= 1 %}background: #FFF3E0; color: #C2691A;{% else %}background: #FDE8E7; color: #B53631;{% endif %}">
+          ROI: {{ "{:.1f}".format(c.roi) }}x
+        </div>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 0.08in;">
+        <div style="text-align: center; padding: 0.06in 0.04in; background: white; border: 1px solid #ece7e2; border-radius: 6px;">
+          <div style="font-size: 6pt; text-transform: uppercase; letter-spacing: 0.04em; color: #8C8580; margin-bottom: 0.02in;">Spend</div>
+          <div style="font-size: 11pt; font-weight: 700; color: #4D1751;">{{ "${:,.0f}".format(c.ad_spend) }}</div>
+        </div>
+        <div style="text-align: center; padding: 0.06in 0.04in; background: white; border: 1px solid #ece7e2; border-radius: 6px;">
+          <div style="font-size: 6pt; text-transform: uppercase; letter-spacing: 0.04em; color: #8C8580; margin-bottom: 0.02in;">Leads</div>
+          <div style="font-size: 11pt; font-weight: 700; color: #4D1751;">{{ "{:,}".format(c.leads) }}</div>
+        </div>
+        <div style="text-align: center; padding: 0.06in 0.04in; background: white; border: 1px solid #ece7e2; border-radius: 6px;">
+          <div style="font-size: 6pt; text-transform: uppercase; letter-spacing: 0.04em; color: #8C8580; margin-bottom: 0.02in;">Booked</div>
+          <div style="font-size: 11pt; font-weight: 700; color: #4D1751;">{{ "{:,}".format(c.booked) }}</div>
+        </div>
+        <div style="text-align: center; padding: 0.06in 0.04in; background: white; border: 1px solid #ece7e2; border-radius: 6px;">
+          <div style="font-size: 6pt; text-transform: uppercase; letter-spacing: 0.04em; color: #8C8580; margin-bottom: 0.02in;">Completed</div>
+          <div style="font-size: 11pt; font-weight: 700; color: #4D1751;">{{ "{:,}".format(c.completed) }}</div>
+        </div>
+        <div style="text-align: center; padding: 0.06in 0.04in; background: white; border: 1px solid #ece7e2; border-radius: 6px;">
+          <div style="font-size: 6pt; text-transform: uppercase; letter-spacing: 0.04em; color: #8C8580; margin-bottom: 0.02in;">New Client Rev.</div>
+          <div style="font-size: 11pt; font-weight: 700; color: #4D1751;">{{ "${:,.0f}".format(c.revenue) }}</div>
+        </div>
+        <div style="text-align: center; padding: 0.06in 0.04in; background: white; border: 1px solid #ece7e2; border-radius: 6px;">
+          <div style="font-size: 6pt; text-transform: uppercase; letter-spacing: 0.04em; color: #8C8580; margin-bottom: 0.02in;">CPL</div>
+          <div style="font-size: 11pt; font-weight: 700; color: #4D1751;">{% if c.cpl > 0 %}{{ "${:,.0f}".format(c.cpl) }}{% else %}—{% endif %}</div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
   </div>
   {% endif %}
 

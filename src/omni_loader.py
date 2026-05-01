@@ -953,8 +953,8 @@ def load_from_omni(practice_name: str, month: int, year: int,
                           f"booked={booked}, completed={completed}, "
                           f"revenue=${revenue:,.0f}, ROI={roi:.1f}x")
 
-                    # Campaign-level breakdown for enterprise practices
-                    if data.tier == 'Enterprise' and ad_spend > 0:
+                    # Campaign-level breakdown — shown when practice runs multiple campaigns
+                    if ad_spend > 0:
                         try:
                             from .data_schema import CampaignData
                             cq = copy.deepcopy(mkt_queries[0]["query"])
