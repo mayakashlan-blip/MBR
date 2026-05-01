@@ -457,7 +457,7 @@
       <div style="font-size: 28pt; font-weight: 700; line-height: 1;">{{ "{:.1f}".format(roi if roi else 0) }}x</div>
       <div style="font-size: 7pt; font-weight: 600; padding: 2px 10px; border-radius: 10px; margin-top: 0.04in;
                   {% if roi and roi >= 3 %}background: rgba(46,125,50,0.25);{% elif roi and roi >= 2 %}background: rgba(184,147,58,0.25);{% else %}background: rgba(181,54,49,0.25);{% endif %}">
-        {% if roi and roi >= 3 %}Excellent{% elif roi and roi >= 2 %}Good{% else %}Below Goal{% endif %} <span style="opacity:0.7;">(Goal: 3x)</span>
+        {% if roi and roi >= 3 %}Meets Goal{% elif roi and roi >= 2 %}On Track{% else %}Below Goal{% endif %} <span style="opacity:0.7;">(Goal: 3x)</span>
       </div>
     </div>
   </div>
@@ -505,7 +505,7 @@
         <div style="font-size: 20pt; font-weight: 700; color: #4D1751; margin-bottom: 0.04in;">{{ "{:.1f}".format(roi if roi else 0) }}x</div>
         <div style="display: inline-block; font-size: 7pt; font-weight: 600; padding: 2px 8px; border-radius: 10px;
                     {% if roi and roi >= 3 %}background: #E8F5E9; color: #2E7D32;{% elif roi and roi >= 2 %}background: #FFF8E1; color: #B8933A;{% else %}background: #FDE8E7; color: #B53631;{% endif %}">
-          {% if roi and roi >= 3 %}Above Target{% elif roi and roi >= 2 %}On Track{% else %}Below Target{% endif %}
+          {% if roi and roi >= 3 %}Meets Target{% elif roi and roi >= 2 %}On Track{% else %}Below Target{% endif %}
         </div>
         <div style="font-size: 7pt; color: #918A85; margin-top: 0.03in;">Goal: 3x</div>
       </div>
@@ -514,7 +514,7 @@
         <div style="font-size: 20pt; font-weight: 700; color: #4D1751; margin-bottom: 0.04in;">{{ "{:.0f}".format(data.marketing.lead_to_booking_rate * 100 if data.marketing.lead_to_booking_rate else 0) }}%</div>
         <div style="display: inline-block; font-size: 7pt; font-weight: 600; padding: 2px 8px; border-radius: 10px;
                     {% if data.marketing.lead_to_booking_rate and data.marketing.lead_to_booking_rate >= 0.15 %}background: #E8F5E9; color: #2E7D32;{% else %}background: #FDE8E7; color: #B53631;{% endif %}">
-          {% if data.marketing.lead_to_booking_rate and data.marketing.lead_to_booking_rate >= 0.15 %}On Track{% else %}Below Target{% endif %}
+          {% if data.marketing.lead_to_booking_rate and data.marketing.lead_to_booking_rate >= 0.15 %}Meets Target{% else %}Below Target{% endif %}
         </div>
         <div style="font-size: 7pt; color: #918A85; margin-top: 0.03in;">Goal: 15%</div>
       </div>

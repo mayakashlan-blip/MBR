@@ -783,7 +783,7 @@ def build_slide_4_services_marketing(prs, data: MBRData):
                          kval, font_size=Pt(11), font_color=PURPLE, bold=True)
 
             # Status badge
-            badge_text = "On Track" if on_track else "Below Target"
+            badge_text = "Meets Target" if on_track else "Below Target"
             badge_color = GREEN if on_track else GOLD
             badge = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE,
                                             Inches(3.37), ky, Inches(0.70), Inches(0.20))
