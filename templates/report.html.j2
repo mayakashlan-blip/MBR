@@ -188,12 +188,9 @@
       <div class="revenue-bar-row">
         <div class="revenue-bar-label">{{ item.label }}</div>
         <div class="revenue-bar-track">
-          <div class="revenue-bar-fill" style="width: {{ bar_width }}%">
-            {% if bar_width >= 18 %}<span class="revenue-bar-pct-inside">{{ "%.1f"|format(pct_of_total) }}%</span>{% endif %}
-          </div>
-          {% if bar_width < 18 %}<span class="revenue-bar-pct-outside" style="left: {{ bar_width }}%;">{{ "%.1f"|format(pct_of_total) }}%</span>{% endif %}
+          <div class="revenue-bar-fill" style="width: {{ bar_width }}%"></div>
         </div>
-        <div class="revenue-bar-value">{{ item.value | dollar(False) }}</div>
+        <div class="revenue-bar-value">{{ item.value | dollar(False) }} <span style="color: #8C8580; font-size: 7pt;">({{ "%.1f"|format(pct_of_total) }}%)</span></div>
       </div>
       {% endfor %}
       <div class="revenue-total">

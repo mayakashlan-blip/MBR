@@ -471,8 +471,7 @@ table {
   height: 0.18in;
   background: var(--track);
   border-radius: 4px;
-  overflow: visible;
-  position: relative;
+  overflow: hidden;
 }
 
 .revenue-bar-fill {
@@ -480,31 +479,6 @@ table {
   background: var(--purple);
   border-radius: 4px;
   min-width: 2px;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  padding-right: 0.06in;
-  box-sizing: border-box;
-  overflow: hidden;
-}
-
-.revenue-bar-pct-inside {
-  font-size: 7.5pt;
-  font-weight: 600;
-  color: white;
-  white-space: nowrap;
-}
-
-.revenue-bar-pct-outside {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 7.5pt;
-  font-weight: 600;
-  color: var(--purple);
-  white-space: nowrap;
-  padding-left: 0.06in;
-  pointer-events: none;
 }
 
 .revenue-bar-value {
