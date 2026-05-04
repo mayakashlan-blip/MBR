@@ -466,14 +466,14 @@
         <div style="font-size: 11px; color: #8C8580; margin-bottom: 10px;">
           All marketing fields are editable. Computed metrics update automatically.
         </div>
-        {% if data.marketing and data.marketing.ad_spend == 0 %}
+        {% if data.marketing %}
         <div style="background:#F7F4F0; border:1px solid #e8e0d8; border-radius:6px; padding:8px 10px; margin-bottom:10px;">
           <label style="font-size:11px; color:#4A4744; display:flex; align-items:center; gap:6px; cursor:pointer;">
             <input type="checkbox" id="mkt-show-lock" {% if data.marketing.show_marketing_lock_screen %}checked{% endif %} onchange="debounceSave()" style="margin:0;">
             Show "Unlock Marketing Performance" lock screen instead of metrics
           </label>
           <div style="font-size:10px; color:#8C8580; margin-top:4px; padding-left:22px;">
-            $0 ad spend this month. By default the lock screen is on only when every other metric is also zero — you can override here.
+            By default the lock is on only when every metric is zero. Override here whenever you want.
           </div>
         </div>
         {% endif %}

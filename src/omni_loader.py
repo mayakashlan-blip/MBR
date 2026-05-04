@@ -929,8 +929,17 @@ def load_from_omni(practice_name: str, month: int, year: int,
 
     # ── Marketing Performance (separate dashboard) ──
     print("  Loading marketing performance...")
+    # Default to an empty marketing record with the lock screen on. If the
+    # dashboard lookup succeeds we'll overwrite this; if it doesn't (no row
+    # for this practice, network failure, etc.) the editor still gets a
+    # marketing block with a toggle so users can override the lock manually.
+    from .data_schema import MarketingData
+    data.marketing = MarketingData(
+        ad_spend=0, leads=0, booked=0, completed=0,
+        revenue=0.0, total_revenue_all_clients=0.0,
+        show_marketing_lock_screen=True,
+    )
     try:
-        from .data_schema import MarketingData
         mkt_dash = _api_get(f"/v1/documents/{MARKETING_DASHBOARD_ID}/queries", api_key)
         mkt_queries = mkt_dash.get("queries", [])
         if mkt_queries:
