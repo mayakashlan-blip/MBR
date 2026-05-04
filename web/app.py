@@ -55,6 +55,121 @@ MONTHLY_DIR = Path(_persist_base) / "monthly"
 MONTHLY_DIR.mkdir(parents=True, exist_ok=True)
 
 
+# ── Off-site backup of saved reports & version history ──
+# Mirrors PERSISTENT_DIR to a private GitHub repo on every save so user
+# work survives a Render disk failure or accidental wipe. Set BACKUP_REPO_URL
+# (https://github.com/<owner>/<repo>.git) and BACKUP_TOKEN (fine-grained PAT
+# with read+write on that repo) in the environment to enable. If unset, the
+# tool runs without backup.
+
+import subprocess
+import threading
+
+_BACKUP_REPO_URL = os.environ.get("BACKUP_REPO_URL", "").strip()
+_BACKUP_TOKEN = os.environ.get("BACKUP_TOKEN", "").strip()
+_backup_lock = threading.Lock()
+_last_backup_at = 0.0
+_BACKUP_THROTTLE_SECONDS = 60  # collapse rapid auto-saves into one push
+
+
+def _git(*args, capture_output=False, check=True):
+    """Run a git command inside the persistence dir."""
+    cmd = ["git", "-C", str(_persist_base), *args]
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+    if check and result.returncode != 0:
+        raise RuntimeError(
+            f"git {' '.join(args)} failed (exit {result.returncode}): "
+            f"{result.stderr.strip() or result.stdout.strip()}"
+        )
+    return result.stdout if capture_output else result
+
+
+def _authed_remote_url() -> str:
+    """Inject the PAT into the HTTPS remote URL so pushes authenticate."""
+    if not _BACKUP_REPO_URL.startswith("https://"):
+        return _BACKUP_REPO_URL
+    return _BACKUP_REPO_URL.replace(
+        "https://", f"https://x-access-token:{_BACKUP_TOKEN}@", 1
+    )
+
+
+def _ensure_backup_repo():
+    """Initialize the backup git repo on first use; refresh the auth URL otherwise."""
+    git_dir = Path(_persist_base) / ".git"
+    if git_dir.exists():
+        # Always refresh the URL with the current token (in case it rotated).
+        _git("remote", "set-url", "origin", _authed_remote_url(), check=False)
+        return
+
+    print(f"Backup: initializing git repo in {_persist_base}")
+    _git("init", "-b", "main")
+    _git("config", "user.email", "mbr-tool@joinmoxie.com")
+    _git("config", "user.name", "MBR Tool")
+    _git("remote", "add", "origin", _authed_remote_url())
+
+    # If the remote already has commits (e.g. a README), pull them in first
+    # so our first push isn't rejected.
+    fetched = _git("fetch", "origin", "main", check=False)
+    if fetched.returncode == 0:
+        _git("reset", "--hard", "origin/main", check=False)
+
+
+def _backup_run(commit_msg: str):
+    """Background worker: stage, commit, and push current PERSISTENT_DIR state."""
+    with _backup_lock:
+        try:
+            _ensure_backup_repo()
+            _git("add", "-A")
+            status = _git("status", "--porcelain", capture_output=True)
+            if not status.strip():
+                return  # nothing changed since last push
+            _git("commit", "-m", commit_msg)
+            # Catch up with any remote changes (rare, but safe), then push.
+            _git("pull", "--rebase", "--autostash", "origin", "main", check=False)
+            _git("push", "origin", "main")
+            print(f"Backup: pushed '{commit_msg}'")
+        except Exception as e:
+            print(f"Backup failed (save still succeeded): {e}")
+
+
+def _backup_to_git_async(commit_msg: str, force: bool = False):
+    """Schedule a backup push in a background thread.
+
+    `force=True` (used for explicit Save) bypasses the throttle so every
+    user-initiated save lands in the backup repo immediately. Auto-saves
+    use force=False and are collapsed to at most one push per minute.
+    """
+    if not (_BACKUP_REPO_URL and _BACKUP_TOKEN):
+        return
+    global _last_backup_at
+    import time as _time
+    now = _time.time()
+    if not force and (now - _last_backup_at) < _BACKUP_THROTTLE_SECONDS:
+        return
+    _last_backup_at = now
+    threading.Thread(target=_backup_run, args=(commit_msg,), daemon=True).start()
+
+
+# Startup diagnostic — visible in Render logs after each deploy.
+print("=" * 60)
+print("MBR Tool starting")
+print(f"  Persistence root:  {_persist_base}")
+print(f"  Sessions dir:      {SESSIONS_DIR}")
+try:
+    _existing_count = len(list(SESSIONS_DIR.glob('*.json')))
+    print(f"  Existing reports:  {_existing_count}")
+except Exception:
+    pass
+if _BACKUP_REPO_URL and _BACKUP_TOKEN:
+    print(f"  Backup repo:       {_BACKUP_REPO_URL} (token configured)")
+else:
+    missing = []
+    if not _BACKUP_REPO_URL: missing.append("BACKUP_REPO_URL")
+    if not _BACKUP_TOKEN: missing.append("BACKUP_TOKEN")
+    print(f"  Backup repo:       NOT configured (missing {', '.join(missing)})")
+print("=" * 60)
+
+
 def _monthly_key(month: int, year: int) -> str:
     return f"{year}-{month:02d}"
 
@@ -168,6 +283,12 @@ def _save_session(session_id: str, sess: dict, snapshot: bool = True):
     }
     with open(path, "w") as f:
         json.dump(payload, f, default=str)
+
+    # Mirror to off-site backup. Explicit Saves always push; auto-saves are
+    # throttled to at most one push per minute.
+    practice = sess["data"].practice_name if sess.get("data") else session_id
+    kind = "save" if snapshot else "auto"
+    _backup_to_git_async(f"{kind}: {practice} ({session_id})", force=snapshot)
 
 
 def _load_session(session_id: str) -> dict:
