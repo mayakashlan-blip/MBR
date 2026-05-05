@@ -425,31 +425,34 @@ def load_from_omni(practice_name: str, month: int, year: int,
                     "ui_type": "PAST", "left_side": start_date,
                     "right_side": duration, "is_negative": False}
 
-        # Active by type
+        # Active by type — also pull mrr_sum so the per-type MRR column adds
+        # up to the practice's total Active MRR.
         aq = copy.deepcopy(queries["Active Members"])
         aq["fields"].append(mem_name_field)
+        active_mrr_field = "dbt__moxie_client_memberships_mart.mrr_sum"
+        if active_mrr_field not in aq.get("fields", []):
+            aq.setdefault("fields", []).append(active_mrr_field)
         aq["filters"]["dbt__moxie_medspas_mart.medspa_name"] = pf
         active_r = _run_query(aq, api_key)
-        active_names = []
-        active_counts = []
+        active_names, active_counts, active_mrrs = [], [], []
         for k, v in active_r.items():
             if "membership_name" in k:
                 active_names = v
+            elif "mrr_sum" in k:
+                active_mrrs = v
             elif "count" in k:
                 active_counts = v
 
-        # New by type
+        # New by type — only need the count for the "New" column
         nq = copy.deepcopy(queries["New Memberships"])
         nq["fields"].append(mem_name_field)
         nq["filters"]["dbt__moxie_medspas_mart.medspa_name"] = pf
         nq["filters"]["dbt__moxie_client_memberships_mart.started_at"] = _date_f("started_at")
         new_r = _run_query(nq, api_key)
-        new_names, new_counts, new_mrrs = [], [], []
+        new_names, new_counts = [], []
         for k, v in new_r.items():
             if "membership_name" in k:
                 new_names = v
-            elif "mrr_sum" in k:
-                new_mrrs = v
             elif "count" in k:
                 new_counts = v
 
@@ -466,19 +469,20 @@ def load_from_omni(practice_name: str, month: int, year: int,
             elif "count" in k:
                 churned_counts = v
 
-        # Merge into MembershipType objects
+        # Merge into MembershipType objects. mrr_lookup is keyed off the
+        # Active Members query so per-type MRR sums to the practice total.
         all_names = set()
-        active_lookup = {}
+        active_lookup, mrr_lookup = {}, {}
         for i, name in enumerate(active_names):
             if name:
                 all_names.add(name)
                 active_lookup[name] = int(active_counts[i]) if i < len(active_counts) and active_counts[i] else 0
-        new_lookup, mrr_lookup = {}, {}
+                mrr_lookup[name] = float(active_mrrs[i]) if i < len(active_mrrs) and active_mrrs[i] else 0
+        new_lookup = {}
         for i, name in enumerate(new_names):
             if name:
                 all_names.add(name)
                 new_lookup[name] = int(new_counts[i]) if i < len(new_counts) and new_counts[i] else 0
-                mrr_lookup[name] = float(new_mrrs[i]) if i < len(new_mrrs) and new_mrrs[i] else 0
         churned_lookup = {}
         for i, name in enumerate(churned_names):
             if name:

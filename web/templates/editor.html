@@ -1233,8 +1233,17 @@ function generateMarketingRecs() {
   const completed = parseInt(document.getElementById('mkt-completed')?.value) || 0;
   const revenue = parseFloat(document.getElementById('mkt-revenue')?.value) || 0;
 
+  // $0 spend: produce a starter scaffold the PSM can edit.
   if (spend <= 0) {
-    document.getElementById('mkt-recs-status').textContent = 'Enter ad spend first.';
+    const scaffold = [
+      "**No paid marketing this month.** The practice did not run paid campaigns during this period, so first-visit ROI and lead funnel metrics aren't applicable.",
+      "**Opportunity to test paid acquisition.** A small monthly test budget (e.g., $500–$1,000) on Meta or Google can establish baseline cost-per-lead and lead-to-booking conversion. Start with a single offer and one geographic radius so the data stays interpretable.",
+      "**Strengthen organic and referral channels in the meantime.** Encourage post-visit Google reviews, share before/afters on social, and consider a structured referral incentive for existing patients. These compound over time and reduce reliance on paid spend when you do scale.",
+    ].join('\n\n');
+    document.getElementById('marketing-recs-text').value = scaffold;
+    document.getElementById('mkt-recs-status').textContent = 'Scaffold added — edit to fit this practice.';
+    setTimeout(() => { document.getElementById('mkt-recs-status').textContent = ''; }, 4000);
+    debounceSave();
     return;
   }
 
