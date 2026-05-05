@@ -558,7 +558,7 @@
 
         <label style="display:flex; align-items:center; justify-content:space-between;">
           <span>Summary & Recommendations</span>
-          {% if data.tier in ['Silver', 'Momentum', 'Growth'] %}
+          {% if data.tier != 'Enterprise' %}
           <label style="font-size:10px; color:#4A4744; font-weight:400; display:flex; align-items:center; gap:4px; cursor:pointer;">
             <input type="checkbox" id="show-mkt-recs" {% if data.show_marketing_recommendations %}checked{% endif %} onchange="debounceSave()" style="margin:0;">
             Show on report
