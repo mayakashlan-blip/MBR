@@ -301,6 +301,24 @@ def _load_session(session_id: str) -> dict:
     with open(path) as f:
         payload = json.load(f)
     data = _deserialize_data(payload["data"])
+
+    # If the saved report has no launches or brand-bank items but monthly
+    # assets exist for this month/year now, inject them. Covers the case
+    # where a report was generated/saved before monthly assets were
+    # uploaded — without this, those reports would never reflect the
+    # later upload. Per-report customization (saved lists with items) is
+    # preserved untouched.
+    try:
+        from src.data_schema import LaunchFeature, BrandBankItem
+        if data.month and data.year:
+            assets = _load_monthly_assets(data.month, data.year)
+            if not data.launches and assets.get("launches"):
+                data.launches = [LaunchFeature(**l) for l in assets["launches"]]
+            if not data.brand_bank_items and assets.get("brand_bank_items"):
+                data.brand_bank_items = [BrandBankItem(**b) for b in assets["brand_bank_items"]]
+    except Exception as e:
+        print(f"  Warning: could not inject monthly assets on load: {e}")
+
     from src.html_renderer import render_html
     html = render_html(data,
                        brand_bank_path=payload.get("brand_bank_path"),
