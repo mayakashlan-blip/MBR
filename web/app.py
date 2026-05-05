@@ -188,6 +188,7 @@ def _save_monthly_assets(month: int, year: int, assets: dict):
     path = MONTHLY_DIR / f"{_monthly_key(month, year)}.json"
     with open(path, "w") as f:
         json.dump(assets, f, default=str)
+    _backup_to_git_async(f"monthly-assets: {_monthly_key(month, year)}", force=True)
 
 
 def _save_monthly_upload(month: int, year: int, asset_type: str, src_path: str, original_filename: str) -> Path:
@@ -195,6 +196,7 @@ def _save_monthly_upload(month: int, year: int, asset_type: str, src_path: str, 
     suffix = Path(original_filename).suffix.lower() or Path(src_path).suffix.lower() or ".png"
     dest = MONTHLY_DIR / f"{_monthly_key(month, year)}_{asset_type}{suffix}"
     shutil.copy2(src_path, dest)
+    _backup_to_git_async(f"monthly-upload: {_monthly_key(month, year)} {asset_type}", force=True)
     return dest
 
 
