@@ -100,21 +100,33 @@ def _run_query(query_body: dict, api_key: str, retries: int = 4) -> dict:
 
 
 def _add_filters(query: dict, practice_name: str, start_date: str,
-                 date_field: str = None, duration: str = "1 months") -> dict:
-    """Add practice name and date range filters to a query.
+                 date_field: str = None, duration: str = "1 months",
+                 medspa_id: int = None) -> dict:
+    """Add practice and date range filters to a query.
 
-    Uses TIME_FOR_INTERVAL_DURATION (start_date + duration) which is
-    the only date filter kind Omni actually respects via the API.
+    Prefers filtering by medspa_id when one has been resolved, since the
+    id is unambiguous and joins consistently across all marts (works for
+    multi-location practices where the parent and the location-suffixed
+    record have different display names). Falls back to medspa_name
+    EQUALS when medspa_id is None.
 
     duration can be "1 months", "3 months", "12 months", etc.
     """
     q = copy.deepcopy(query)
-    q["filters"]["dbt__moxie_medspas_mart.medspa_name"] = {
-        "kind": "EQUALS",
-        "type": "string",
-        "values": [practice_name],
-        "is_negative": False,
-    }
+    if medspa_id is not None:
+        q["filters"]["dbt__moxie_medspas_mart.medspa_id"] = {
+            "kind": "EQUALS",
+            "type": "number",
+            "values": [str(medspa_id)],
+            "is_negative": False,
+        }
+    else:
+        q["filters"]["dbt__moxie_medspas_mart.medspa_name"] = {
+            "kind": "EQUALS",
+            "type": "string",
+            "values": [practice_name],
+            "is_negative": False,
+        }
     if date_field:
         q["filters"][date_field] = {
             "kind": "TIME_FOR_INTERVAL_DURATION",
@@ -191,9 +203,11 @@ def load_from_omni(practice_name: str, month: int, year: int,
 
     data = MBRData(practice_name=practice_name, month=month, year=year)
 
-    # Get practice tier (provider_segment_post_launch) from Medspa Name query
-    # Use CONTAINS + normalized name matching so '&'/'and', whitespace, and
-    # case variations don't drop the row.
+    # Get practice tier (provider_segment_post_launch) and medspa_id from
+    # Medspa Name query. Resolving the id once lets every downstream query
+    # filter by id (unambiguous, joins consistently across all marts) instead
+    # of by name (subject to '&'/'and' or city-suffix mismatches).
+    medspa_id = None
     try:
         import re as _re
         def _norm_name(s):
@@ -208,35 +222,41 @@ def load_from_omni(practice_name: str, month: int, year: int,
             }
             tier_field = "dbt__moxie_medspas_mart.provider_segment_post_launch"
             name_field = "dbt__moxie_medspas_mart.medspa_name"
-            for f in [tier_field, name_field]:
+            id_field = "dbt__moxie_medspas_mart.medspa_id"
+            for f in [tier_field, name_field, id_field]:
                 if f not in tier_q.get("fields", []):
                     tier_q.setdefault("fields", []).append(f)
             tier_q["limit"] = 50
             tier_r = _run_query(tier_q, api_key)
             tier_names = tier_r.get(name_field, [])
             tiers = tier_r.get(tier_field, [])
+            ids = tier_r.get(id_field, [])
             target_norm = _norm_name(practice_name)
             tier_idx = next((i for i, n in enumerate(tier_names)
                              if n and _norm_name(n) == target_norm), None)
-            if tier_idx is not None and tier_idx < len(tiers) and tiers[tier_idx]:
-                data.tier = str(tiers[tier_idx])
-                print(f"  Tier: {data.tier}")
-                # Hide executive summary by default for Silver/Momentum/Growth tiers
-                if data.tier in ("Silver", "Momentum", "Growth"):
-                    data.show_executive_summary = False
+            if tier_idx is not None:
+                if tier_idx < len(tiers) and tiers[tier_idx]:
+                    data.tier = str(tiers[tier_idx])
+                    print(f"  Tier: {data.tier}")
+                    if data.tier in ("Silver", "Momentum", "Growth"):
+                        data.show_executive_summary = False
+                if tier_idx < len(ids) and ids[tier_idx] is not None:
+                    medspa_id = int(ids[tier_idx])
+                    print(f"  Medspa ID: {medspa_id}")
             else:
-                print(f"  Warning: Medspa Name dashboard had no tier for "
+                print(f"  Warning: Medspa Name dashboard had no row for "
                       f"'{practice_name}'. Names returned: "
                       f"{[n for n in tier_names if n][:5]}")
     except Exception as e:
-        print(f"  Warning: Could not load tier: {e}")
+        print(f"  Warning: Could not load tier/id: {e}")
 
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
     def run(name: str) -> dict:
         q = _find_query(queries, name)
         date_field = QUERY_DATE_FIELDS.get(name)
-        q = _add_filters(q, practice_name, start_date, date_field, duration)
+        q = _add_filters(q, practice_name, start_date, date_field, duration,
+                         medspa_id=medspa_id)
         return _run_query(q, api_key)
 
     def run_safe(name: str) -> dict:
@@ -267,7 +287,7 @@ def load_from_omni(practice_name: str, month: int, year: int,
     # Active Members needs mrr_sum field added — run separately
     try:
         active_q = _find_query(queries, "Active Members")
-        active_q = _add_filters(active_q, practice_name, start_date, QUERY_DATE_FIELDS.get("Active Members"))
+        active_q = _add_filters(active_q, practice_name, start_date, QUERY_DATE_FIELDS.get("Active Members"), medspa_id=medspa_id)
         mrr_field = "dbt__moxie_client_memberships_mart.mrr_sum"
         if mrr_field not in active_q.get("fields", []):
             active_q.setdefault("fields", []).append(mrr_field)
@@ -301,7 +321,7 @@ def load_from_omni(practice_name: str, month: int, year: int,
         try:
             q = _find_query(queries, name)
             date_field = QUERY_DATE_FIELDS.get(name)
-            q = _add_filters(q, practice_name, prev_start, date_field)
+            q = _add_filters(q, practice_name, prev_start, date_field, medspa_id=medspa_id)
             return _run_query(q, api_key)
         except Exception:
             return None
@@ -315,10 +335,16 @@ def load_from_omni(practice_name: str, month: int, year: int,
         qtd_q = _find_query(queries, "KPI: Net Revenue")
         qtd_date_field = QUERY_DATE_FIELDS.get("KPI: Net Revenue")
         qtd_q = copy.deepcopy(qtd_q)
-        qtd_q["filters"]["dbt__moxie_medspas_mart.medspa_name"] = {
-            "kind": "EQUALS", "type": "string",
-            "values": [practice_name], "is_negative": False,
-        }
+        if medspa_id is not None:
+            qtd_q["filters"]["dbt__moxie_medspas_mart.medspa_id"] = {
+                "kind": "EQUALS", "type": "number",
+                "values": [str(medspa_id)], "is_negative": False,
+            }
+        else:
+            qtd_q["filters"]["dbt__moxie_medspas_mart.medspa_name"] = {
+                "kind": "EQUALS", "type": "string",
+                "values": [practice_name], "is_negative": False,
+            }
         qtd_q["filters"][qtd_date_field] = {
             "kind": "TIME_FOR_INTERVAL_DURATION", "type": "date",
             "ui_type": "PAST", "left_side": qtd_start,
