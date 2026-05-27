@@ -377,6 +377,26 @@
           <div><label style="font-size:10px;">Total Gross (auto)</label><div id="ed-total-gross-display" style="padding:5px 8px; font-size:11px; font-weight:600; color:#4D1751; background:#F7F4F0; border:1px solid #e8e0d8; border-radius:6px;">{{ "${:,.2f}".format(data.total_gross) }}</div></div>
           <div><label style="font-size:10px;">Discounts ($)</label><input type="number" id="ed-discounts" value="{{ data.discounts }}" step="0.01" oninput="debounceSave();" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:5px 8px; font-size:11px;"></div>
           <div><label style="font-size:10px;">Client Fees ($)</label><input type="number" id="ed-fees" value="{{ data.client_fees }}" step="0.01" oninput="debounceSave();" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:5px 8px; font-size:11px;"></div>
+          <div><label style="font-size:10px;">Retail MoM % (e.g. 0.12 = +12%)</label><input type="number" id="ed-retail-mom" value="{{ data.retail_revenue_mom_pct if data.retail_revenue_mom_pct is not none else '' }}" step="0.001" placeholder="auto" oninput="debounceSave();" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:5px 8px; font-size:11px;"></div>
+        </div>
+      </div>
+    </div>
+
+    {# ── Moxie Covered Sync — GFE Savings ── #}
+    <div class="sidebar-section">
+      <div class="section-header" onclick="toggleSection('gfe')">
+        <label>Moxie Covered Sync — GFE Savings</label>
+        <span class="section-toggle collapsed" id="gfe-toggle">&#9662;</span>
+      </div>
+      <div class="section-body hidden" id="gfe-body">
+        <div style="font-size: 11px; color: #8C8580; margin-bottom: 10px;">
+          Pulled from the main Omni dashboard. Edit any value to override.
+        </div>
+        <div class="mkt-grid" style="grid-template-columns: 1fr 1fr; gap: 6px;">
+          <div><label style="font-size:10px;">Monthly Completed GFEs</label><input type="number" id="ed-gfe-month-count" value="{{ data.gfe_completed_month }}" oninput="debounceSave();" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:5px 8px; font-size:11px;"></div>
+          <div><label style="font-size:10px;">Monthly GFE Value ($)</label><input type="number" id="ed-gfe-month-value" value="{{ data.gfe_value_month }}" step="0.01" oninput="debounceSave();" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:5px 8px; font-size:11px;"></div>
+          <div><label style="font-size:10px;">YTD Completed GFEs</label><input type="number" id="ed-gfe-ytd-count" value="{{ data.gfe_completed_ytd }}" oninput="debounceSave();" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:5px 8px; font-size:11px;"></div>
+          <div><label style="font-size:10px;">YTD GFE Value ($)</label><input type="number" id="ed-gfe-ytd-value" value="{{ data.gfe_value_ytd }}" step="0.01" oninput="debounceSave();" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:5px 8px; font-size:11px;"></div>
         </div>
       </div>
     </div>
@@ -803,9 +823,15 @@ function collectData() {
     membership_sales: numVal('ed-mem-sales'),
     custom_items: numVal('ed-custom'),
     retail_revenue: numVal('ed-retail-rev'),
+    retail_revenue_mom_pct: numVal('ed-retail-mom'),
     // total_gross derived server-side from the five components above
     discounts: numVal('ed-discounts'),
     client_fees: numVal('ed-fees'),
+    // GFE Savings
+    gfe_completed_month: numVal('ed-gfe-month-count'),
+    gfe_value_month: numVal('ed-gfe-month-value'),
+    gfe_completed_ytd: numVal('ed-gfe-ytd-count'),
+    gfe_value_ytd: numVal('ed-gfe-ytd-value'),
     // Memberships
     memberships_active: numVal('ed-mem-active'),
     memberships_new: numVal('ed-mem-new'),

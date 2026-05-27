@@ -166,6 +166,36 @@
     {% endif %}
   </div>
 
+  {# ── 4-month trend bar comparisons (Revenue & AOV) ── #}
+  {% if data.revenue_history or data.aov_history %}
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.15in; margin-top: 0.1in;">
+    {% for chart in [
+      {"title": "Net Revenue — Last 4 Months", "series": data.revenue_history, "fmt": "dollar"},
+      {"title": "AOV — Last 4 Months", "series": data.aov_history, "fmt": "dollar"},
+    ] %}
+    {% if chart.series %}
+    {% set series_max = (chart.series | map(attribute="value") | max) or 1 %}
+    <div class="card" style="padding: 0.1in 0.15in;">
+      <div class="section-subtitle" style="margin-bottom: 0.08in;">{{ chart.title }}</div>
+      <div style="display: flex; align-items: flex-end; height: 0.95in; gap: 0.12in; padding: 0 0.05in;">
+        {% for entry in chart.series %}
+        {% set is_current = loop.last %}
+        {% set bar_h = (entry.value / series_max * 100) if series_max > 0 else 0 %}
+        <div style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%;">
+          <div style="font-size: 7pt; font-weight: 600; color: {% if is_current %}#4D1751{% else %}#5a5550{% endif %}; margin-bottom: 0.03in;">
+            ${{ "{:,.0f}".format(entry.value) }}
+          </div>
+          <div style="width: 100%; height: {{ bar_h }}%; min-height: 2px; background: {% if is_current %}#4D1751{% else %}#C8B6CB{% endif %}; border-radius: 3px 3px 0 0;"></div>
+          <div style="font-size: 7pt; color: #8C8580; margin-top: 0.04in;">{{ entry.label }}</div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+    {% endfor %}
+  </div>
+  {% endif %}
+
   <div class="footer">Moxie Partners, Inc. Copyright &copy;2025. Private and confidential.</div>
 </section>
 
@@ -190,7 +220,15 @@
         <div class="revenue-bar-track">
           <div class="revenue-bar-fill" style="width: {{ bar_width }}%"></div>
         </div>
-        <div class="revenue-bar-value">{{ item.value | dollar(False) }} <span style="color: #8C8580; font-size: 7pt;">({{ "%.1f"|format(pct_of_total) }}%)</span></div>
+        <div class="revenue-bar-value">
+          {{ item.value | dollar(False) }} <span style="color: #8C8580; font-size: 7pt;">({{ "%.1f"|format(pct_of_total) }}%)</span>
+          {% set mom = item.get('mom_pct') if item.get is defined else none %}
+          {% if mom is not none %}
+          <span style="font-size: 7pt; font-weight: 600; margin-left: 4px; color: {% if mom >= 0 %}#2E7D32{% else %}#B53631{% endif %};">
+            {{ "▲" if mom >= 0 else "▼" }} {{ "%.0f"|format((mom * 100)|abs) }}% MoM
+          </span>
+          {% endif %}
+        </div>
       </div>
       {% endfor %}
       <div class="revenue-total">
@@ -620,6 +658,55 @@
     </div>
   </div>
   {% endif %}
+
+  <div class="footer">Moxie Partners, Inc. Copyright &copy;2025. Private and confidential.</div>
+</section>
+{% endif %}
+
+{# ════════════════════════════════════════════════════════════════════
+   MOXIE COVERED SYNC — GFE SAVINGS (if data exists)
+   ════════════════════════════════════════════════════════════════════ #}
+{% if data.gfe_completed_month > 0 or data.gfe_completed_ytd > 0 or data.gfe_value_month > 0 or data.gfe_value_ytd > 0 %}
+<section class="page">
+  {% include "components/header.html.j2" %}
+  <div class="section-title">Moxie Covered Sync — GFE Savings</div>
+  <div style="font-size: 9pt; color: #5a5550; margin-bottom: 0.15in;">
+    Good Faith Exams completed through Moxie Covered Sync, with the cumulative
+    value covered for this month and year-to-date.
+  </div>
+
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.18in; margin-bottom: 0.2in;">
+    <div class="card" style="padding: 0.18in 0.2in;">
+      <div style="font-size: 8pt; text-transform: uppercase; letter-spacing: 0.05em; color: #8C8580; margin-bottom: 0.08in;">
+        Monthly GFE Savings — {{ data.month_name }} {{ data.year }}
+      </div>
+      <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+        <div>
+          <div style="font-size: 7pt; color: #8C8580; text-transform: uppercase; letter-spacing: 0.04em;">Completed GFEs</div>
+          <div style="font-size: 26pt; font-weight: 700; color: #4D1751; line-height: 1.1;">{{ "{:,}".format(data.gfe_completed_month) }}</div>
+        </div>
+        <div style="text-align: right;">
+          <div style="font-size: 7pt; color: #8C8580; text-transform: uppercase; letter-spacing: 0.04em;">Total GFE Value</div>
+          <div style="font-size: 22pt; font-weight: 700; color: #2E7D32; line-height: 1.1;">{{ "${:,.0f}".format(data.gfe_value_month) }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="card" style="padding: 0.18in 0.2in;">
+      <div style="font-size: 8pt; text-transform: uppercase; letter-spacing: 0.05em; color: #8C8580; margin-bottom: 0.08in;">
+        Year-to-Date GFE Savings — {{ data.year }}
+      </div>
+      <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+        <div>
+          <div style="font-size: 7pt; color: #8C8580; text-transform: uppercase; letter-spacing: 0.04em;">Completed GFEs</div>
+          <div style="font-size: 26pt; font-weight: 700; color: #4D1751; line-height: 1.1;">{{ "{:,}".format(data.gfe_completed_ytd) }}</div>
+        </div>
+        <div style="text-align: right;">
+          <div style="font-size: 7pt; color: #8C8580; text-transform: uppercase; letter-spacing: 0.04em;">Total GFE Value</div>
+          <div style="font-size: 22pt; font-weight: 700; color: #2E7D32; line-height: 1.1;">{{ "${:,.0f}".format(data.gfe_value_ytd) }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <div class="footer">Moxie Partners, Inc. Copyright &copy;2025. Private and confidential.</div>
 </section>

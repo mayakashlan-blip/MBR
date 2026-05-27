@@ -169,6 +169,13 @@ class MBRData:
     revenue_mom_pct: Optional[float] = None
     appointments_mom_pct: Optional[float] = None
     aov_mom_pct: Optional[float] = None
+    retail_revenue_mom_pct: Optional[float] = None
+
+    # 3-month trend history for bar comparison charts. Each entry is
+    # {"label": "Feb", "month": 2, "year": 2026, "value": 0.0}, most recent
+    # last (so the chart reads left-to-right oldest → current).
+    revenue_history: list[dict] = field(default_factory=list)
+    aov_history: list[dict] = field(default_factory=list)
 
     # Tile 2 - Gauges
     pct_net_revenue_goal: float = 0.0
@@ -236,6 +243,12 @@ class MBRData:
     supplies_spend_all: float = 0.0
     supplies_savings_all: float = 0.0
     supplies_by_vendor_3mo: list[dict] = field(default_factory=list)  # [{vendor, spend, savings}]
+
+    # Moxie Covered Sync GFE Savings
+    gfe_completed_month: int = 0
+    gfe_value_month: float = 0.0
+    gfe_completed_ytd: int = 0
+    gfe_value_ytd: float = 0.0
 
     # AI-generated content (filled by narrative engine)
     executive_summary: str = ""

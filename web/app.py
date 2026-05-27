@@ -413,8 +413,11 @@ def _apply_payload(data, payload):
         "new_clients", "existing_clients",
         "service_revenue", "prepayment_revenue", "membership_sales", "custom_items",
         "retail_revenue", "total_gross", "retail_to_service_ratio",
+        "retail_revenue_mom_pct",
         "discounts", "redemptions", "client_fees",
         "supplies_total_savings",
+        "gfe_completed_month", "gfe_value_month",
+        "gfe_completed_ytd", "gfe_value_ytd",
     ]
     for field in numeric_fields:
         if field in payload and payload[field] is not None:

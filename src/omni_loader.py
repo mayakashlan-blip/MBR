@@ -355,6 +355,25 @@ def load_from_omni(practice_name: str, month: int, year: int,
         except Exception:
             return data.monthly_net_revenue
 
+    # Pull KPI values for the two months prior to "prev" so we can render a
+    # 4-bar comparison chart (m-3, m-2, m-1, current) for revenue and AOV.
+    def _month_offset(m, y, k):
+        idx = (y * 12 + (m - 1)) - k
+        return idx % 12 + 1, idx // 12
+    pm2_month, pm2_year = _month_offset(month, year, 2)
+    pm3_month, pm3_year = _month_offset(month, year, 3)
+    pm2_start = f"{pm2_year}-{pm2_month:02d}-01"
+    pm3_start = f"{pm3_year}-{pm3_month:02d}-01"
+
+    def run_at(name: str, start: str):
+        try:
+            q = _find_query(queries, name)
+            date_field = QUERY_DATE_FIELDS.get(name)
+            q = _add_filters(q, practice_name, start, date_field, medspa_id=medspa_id)
+            return _run_query(q, api_key)
+        except Exception:
+            return None
+
     mom_results = {}
     with ThreadPoolExecutor(max_workers=3) as pool:
         mom_futures = {
@@ -362,6 +381,11 @@ def load_from_omni(practice_name: str, month: int, year: int,
             pool.submit(run_prev, "KPI: Paid Appointments"): "prev_appt",
             pool.submit(run_prev, "KPI: AOV"): "prev_aov",
             pool.submit(run_prev, "Utilization"): "prev_util",
+            pool.submit(run_prev, "Gross Revenue Breakdown Summary"): "prev_breakdown",
+            pool.submit(run_at, "KPI: Net Revenue", pm2_start): "rev_m2",
+            pool.submit(run_at, "KPI: Net Revenue", pm3_start): "rev_m3",
+            pool.submit(run_at, "KPI: AOV", pm2_start): "aov_m2",
+            pool.submit(run_at, "KPI: AOV", pm3_start): "aov_m3",
             pool.submit(run_qtd): "qtd",
         }
         for future in as_completed(mom_futures):
@@ -395,6 +419,34 @@ def load_from_omni(practice_name: str, month: int, year: int,
             pa = _val(prev_util_r, "total_available_hours")
             pt = _val(prev_util_r, "total_appointment_hours")
             prev_util = pt / pa if pa and pa > 0 else None
+
+    # Build 4-bar comparison history (m-3, m-2, m-1, current) for revenue & AOV.
+    import calendar as _cal
+    def _hist(label_month, label_year, value):
+        return {
+            "label": _cal.month_abbr[label_month],
+            "month": label_month, "year": label_year,
+            "value": float(value) if value else 0.0,
+        }
+    rev_m2_val = _val(mom_results.get("rev_m2") or {}, "net_revenue_sum")
+    rev_m3_val = _val(mom_results.get("rev_m3") or {}, "net_revenue_sum")
+    prev_rev_val = _val(prev_rev_r or {}, "net_revenue_sum") if prev_rev_r else 0
+    data.revenue_history = [
+        _hist(pm3_month, pm3_year, rev_m3_val),
+        _hist(pm2_month, pm2_year, rev_m2_val),
+        _hist(prev_month, prev_year, prev_rev_val),
+        _hist(month, year, data.monthly_net_revenue),
+    ]
+
+    aov_m2_val = _val(mom_results.get("aov_m2") or {}, "aov")
+    aov_m3_val = _val(mom_results.get("aov_m3") or {}, "aov")
+    prev_aov_val = _val(prev_aov_r or {}, "aov") if prev_aov_r else 0
+    data.aov_history = [
+        _hist(pm3_month, pm3_year, aov_m3_val),
+        _hist(pm2_month, pm2_year, aov_m2_val),
+        _hist(prev_month, prev_year, prev_aov_val),
+        _hist(month, year, data.aov),
+    ]
 
     print(f"  MoM: Rev {'N/A' if data.revenue_mom_pct is None else f'{data.revenue_mom_pct:+.1%}'}, "
           f"Appts {'N/A' if data.appointments_mom_pct is None else f'{data.appointments_mom_pct:+.1%}'}, "
@@ -540,6 +592,12 @@ def load_from_omni(practice_name: str, month: int, year: int,
                         data.membership_sales)
     data.discounts = _val(r, "discounts_sum")
     data.client_fees = _val(r, "fees_sum")
+
+    # Retail MoM% — uses prior-month breakdown summary fetched in parallel above.
+    prev_breakdown_r = mom_results.get("prev_breakdown")
+    if prev_breakdown_r:
+        prev_retail = _val(prev_breakdown_r, "subtotal__retail_product_sum")
+        data.retail_revenue_mom_pct = _safe_mom(data.retail_revenue, prev_retail, 100)
 
     # Payments & Refunds (from batch1)
     pr = batch1.get("Payments & Refunds", {})
@@ -888,6 +946,96 @@ def load_from_omni(practice_name: str, month: int, year: int,
             print(f"  Warning: Could not load retention MoM: {e}")
     except Exception as e:
         print(f"  Warning: Could not load retention data: {e}")
+
+    # ── Moxie Covered Sync GFE Savings (main dashboard) ──
+    # Query name and field names aren't fixed across dashboards, so we
+    # match by case-insensitive substring ("gfe", "good faith", "covered
+    # sync") and pull count/value fields by partial key match. Logs the
+    # exact field names returned so we can refine if these patterns miss.
+    print("  Loading GFE savings...")
+    try:
+        gfe_query_name = next(
+            (n for n in queries.keys()
+             if any(s in n.lower() for s in ("gfe", "good faith", "covered sync"))),
+            None,
+        )
+        if gfe_query_name:
+            print(f"  GFE query found: '{gfe_query_name}'")
+
+            def _gfe_pull(start_date_val, duration_val):
+                gq = copy.deepcopy(queries[gfe_query_name])
+                if medspa_id is not None:
+                    gq["filters"]["dbt__moxie_medspas_mart.medspa_id"] = {
+                        "kind": "EQUALS", "type": "number",
+                        "values": [str(medspa_id)], "is_negative": False,
+                    }
+                else:
+                    gq["filters"]["dbt__moxie_medspas_mart.medspa_name"] = {
+                        "kind": "EQUALS", "type": "string",
+                        "values": [practice_name], "is_negative": False,
+                    }
+                # Find the most likely date field in the query
+                date_field = next(
+                    (f for f in (gq.get("fields", []) + list(gq.get("filters", {}).keys()))
+                     if "date" in f.lower() or "_at" in f.lower() or "issued" in f.lower()),
+                    None,
+                )
+                if date_field:
+                    gq["filters"][date_field] = {
+                        "kind": "TIME_FOR_INTERVAL_DURATION", "type": "date",
+                        "ui_type": "PAST",
+                        "left_side": start_date_val, "right_side": duration_val,
+                        "is_negative": False,
+                    }
+                return _run_query(gq, api_key)
+
+            def _gfe_extract(result):
+                if not result:
+                    return 0, 0.0
+                count_val, value_val = 0, 0.0
+                for k, v in result.items():
+                    if not v:
+                        continue
+                    raw = v[0]
+                    if raw is None:
+                        continue
+                    kl = k.lower()
+                    if count_val == 0 and ("count" in kl or "_completed_sum" in kl or "completed_count" in kl):
+                        try:
+                            count_val = int(float(raw))
+                        except (TypeError, ValueError):
+                            pass
+                    if value_val == 0.0 and ("value" in kl or "amount" in kl or "_total" in kl or "savings" in kl):
+                        try:
+                            value_val = float(raw)
+                        except (TypeError, ValueError):
+                            pass
+                return count_val, value_val
+
+            # Month
+            try:
+                month_r = _gfe_pull(start_date, duration)
+                data.gfe_completed_month, data.gfe_value_month = _gfe_extract(month_r)
+                if month_r:
+                    print(f"  GFE month fields: {list(month_r.keys())}")
+            except Exception as e:
+                print(f"  Warning: GFE monthly query failed: {e}")
+
+            # YTD: from Jan 1 of current year through current month
+            try:
+                ytd_start = f"{year}-01-01"
+                ytd_months = month  # months 1..current inclusive
+                ytd_r = _gfe_pull(ytd_start, f"{ytd_months} months")
+                data.gfe_completed_ytd, data.gfe_value_ytd = _gfe_extract(ytd_r)
+            except Exception as e:
+                print(f"  Warning: GFE YTD query failed: {e}")
+
+            print(f"  GFE: month {data.gfe_completed_month} @ ${data.gfe_value_month:,.0f}, "
+                  f"YTD {data.gfe_completed_ytd} @ ${data.gfe_value_ytd:,.0f}")
+        else:
+            print(f"  GFE query not found (looked for 'gfe', 'good faith', 'covered sync')")
+    except Exception as e:
+        print(f"  Warning: Could not load GFE savings: {e}")
 
     # ── Supplies Savings (separate dashboard) ──
     print("  Loading supplies savings...")
