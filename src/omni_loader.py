@@ -990,26 +990,78 @@ def load_from_omni(practice_name: str, month: int, year: int,
                 return _run_query(gq, api_key)
 
             def _gfe_extract(result):
+                """Pull count + dollar value from a GFE query result.
+
+                Two-pass match: first prefer GFE-specific field names, then
+                fall back to broader patterns. The first numeric column we
+                see is interpreted as 'larger == dollars, smaller integer
+                == count' to disambiguate if the field names are unclear.
+                """
                 if not result:
                     return 0, 0.0
-                count_val, value_val = 0, 0.0
+                candidates = []  # [(key_lower, key, raw)]
                 for k, v in result.items():
-                    if not v:
+                    if not v or k.startswith("$"):
                         continue
                     raw = v[0]
                     if raw is None:
                         continue
-                    kl = k.lower()
-                    if count_val == 0 and ("count" in kl or "_completed_sum" in kl or "completed_count" in kl):
+                    candidates.append((k.lower(), k, raw))
+
+                count_val, value_val = 0, 0.0
+                # Pass 1: GFE-named fields with specific suffixes
+                for kl, k, raw in candidates:
+                    if "gfe" not in kl and "good_faith" not in kl:
+                        continue
+                    try:
+                        n = float(raw)
+                    except (TypeError, ValueError):
+                        continue
+                    if count_val == 0 and ("count" in kl or "completed" in kl or "_sum" in kl) and "value" not in kl and "amount" not in kl and "savings" not in kl and "dollar" not in kl:
+                        count_val = int(n)
+                    if value_val == 0.0 and ("value" in kl or "amount" in kl or "savings" in kl or "dollar" in kl or "total" in kl):
+                        value_val = n
+
+                # Pass 2: any field with the relevant keyword
+                if count_val == 0:
+                    for kl, k, raw in candidates:
                         try:
-                            count_val = int(float(raw))
+                            n = float(raw)
+                        except (TypeError, ValueError):
+                            continue
+                        if ("count" in kl or "completed" in kl) and "value" not in kl and "amount" not in kl and "savings" not in kl:
+                            count_val = int(n)
+                            break
+                if value_val == 0.0:
+                    for kl, k, raw in candidates:
+                        try:
+                            n = float(raw)
+                        except (TypeError, ValueError):
+                            continue
+                        if "value" in kl or "amount" in kl or "savings" in kl or "dollar" in kl:
+                            value_val = n
+                            break
+
+                # Pass 3 fallback: heuristic on the two numeric columns —
+                # the smaller integer-like one is count, larger float-like
+                # is value. Only kicks in when nothing matched by name.
+                if count_val == 0 and value_val == 0.0 and candidates:
+                    nums = []
+                    for kl, k, raw in candidates:
+                        try:
+                            n = float(raw)
+                            nums.append((kl, k, n))
                         except (TypeError, ValueError):
                             pass
-                    if value_val == 0.0 and ("value" in kl or "amount" in kl or "_total" in kl or "savings" in kl):
-                        try:
-                            value_val = float(raw)
-                        except (TypeError, ValueError):
-                            pass
+                    if nums:
+                        nums.sort(key=lambda t: t[2])
+                        # smallest → count, largest → value (assuming value $$ >> count)
+                        count_val = int(nums[0][2])
+                        if len(nums) > 1:
+                            value_val = nums[-1][2]
+                        else:
+                            value_val = nums[0][2]
+
                 return count_val, value_val
 
             # Month
@@ -1027,6 +1079,9 @@ def load_from_omni(practice_name: str, month: int, year: int,
                 ytd_months = month  # months 1..current inclusive
                 ytd_r = _gfe_pull(ytd_start, f"{ytd_months} months")
                 data.gfe_completed_ytd, data.gfe_value_ytd = _gfe_extract(ytd_r)
+                if ytd_r:
+                    sample = {k: (v[0] if v else None) for k, v in ytd_r.items() if not k.startswith("$")}
+                    print(f"  GFE YTD raw: {sample}")
             except Exception as e:
                 print(f"  Warning: GFE YTD query failed: {e}")
 
