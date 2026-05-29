@@ -953,12 +953,22 @@ def load_from_omni(practice_name: str, month: int, year: int,
     # sync") and pull count/value fields by partial key match. Logs the
     # exact field names returned so we can refine if these patterns miss.
     print("  Loading GFE savings...")
+    # Each Moxie Covered Sync GFE is billed at a flat rate. If the Omni
+    # query returns a count but no dollar field, we derive value as
+    # count * GFE_UNIT_PRICE.
+    GFE_UNIT_PRICE = 25.0
     try:
+        gfe_patterns = ("gfe", "good faith", "covered sync", "moxie sync",
+                        "telehealth", "provider visit", "medical director",
+                        "mco gfe", "completed gfe")
         gfe_query_name = next(
             (n for n in queries.keys()
-             if any(s in n.lower() for s in ("gfe", "good faith", "covered sync"))),
+             if any(s in n.lower() for s in gfe_patterns)),
             None,
         )
+        if not gfe_query_name:
+            print(f"  GFE query not found in dashboard. Available queries: "
+                  f"{list(queries.keys())}")
         if gfe_query_name:
             print(f"  GFE query found: '{gfe_query_name}'")
 
@@ -1068,8 +1078,11 @@ def load_from_omni(practice_name: str, month: int, year: int,
             try:
                 month_r = _gfe_pull(start_date, duration)
                 data.gfe_completed_month, data.gfe_value_month = _gfe_extract(month_r)
+                if data.gfe_completed_month > 0 and data.gfe_value_month == 0.0:
+                    data.gfe_value_month = data.gfe_completed_month * GFE_UNIT_PRICE
                 if month_r:
-                    print(f"  GFE month fields: {list(month_r.keys())}")
+                    sample = {k: (v[0] if v else None) for k, v in month_r.items() if not k.startswith("$")}
+                    print(f"  GFE month raw: {sample}")
             except Exception as e:
                 print(f"  Warning: GFE monthly query failed: {e}")
 
@@ -1079,6 +1092,8 @@ def load_from_omni(practice_name: str, month: int, year: int,
                 ytd_months = month  # months 1..current inclusive
                 ytd_r = _gfe_pull(ytd_start, f"{ytd_months} months")
                 data.gfe_completed_ytd, data.gfe_value_ytd = _gfe_extract(ytd_r)
+                if data.gfe_completed_ytd > 0 and data.gfe_value_ytd == 0.0:
+                    data.gfe_value_ytd = data.gfe_completed_ytd * GFE_UNIT_PRICE
                 if ytd_r:
                     sample = {k: (v[0] if v else None) for k, v in ytd_r.items() if not k.startswith("$")}
                     print(f"  GFE YTD raw: {sample}")
