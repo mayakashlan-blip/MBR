@@ -249,6 +249,7 @@ class MBRData:
     gfe_value_month: float = 0.0
     gfe_completed_ytd: int = 0
     gfe_value_ytd: float = 0.0
+    show_gfe_section: bool = True  # editor toggle; defaults on, off hides the page
 
     # AI-generated content (filled by narrative engine)
     executive_summary: str = ""

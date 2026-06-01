@@ -398,6 +398,8 @@ def _apply_payload(data, payload):
         data.show_executive_summary = bool(payload["show_executive_summary"])
     if "show_marketing_recommendations" in payload:
         data.show_marketing_recommendations = bool(payload["show_marketing_recommendations"])
+    if "show_gfe_section" in payload:
+        data.show_gfe_section = bool(payload["show_gfe_section"])
 
     # Assessments
     if "assessments" in payload:

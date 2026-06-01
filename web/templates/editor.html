@@ -389,6 +389,10 @@
         <span class="section-toggle collapsed" id="gfe-toggle">&#9662;</span>
       </div>
       <div class="section-body hidden" id="gfe-body">
+        <label style="font-size:11px; color:#4A4744; font-weight:500; display:flex; align-items:center; gap:6px; cursor:pointer; margin-bottom: 10px; padding: 8px 10px; background:#F7F4F0; border:1px solid #e8e0d8; border-radius:6px;">
+          <input type="checkbox" id="ed-show-gfe" {% if data.show_gfe_section %}checked{% endif %} onchange="debounceSave()" style="margin:0;">
+          Show GFE Savings page on report
+        </label>
         <div style="font-size: 11px; color: #8C8580; margin-bottom: 10px;">
           Pulled from the main Omni dashboard. Edit any value to override.
         </div>
@@ -578,12 +582,10 @@
 
         <label style="display:flex; align-items:center; justify-content:space-between;">
           <span>Summary & Recommendations</span>
-          {% if data.tier != 'Enterprise' %}
           <label style="font-size:10px; color:#4A4744; font-weight:400; display:flex; align-items:center; gap:4px; cursor:pointer;">
             <input type="checkbox" id="show-mkt-recs" {% if data.show_marketing_recommendations %}checked{% endif %} onchange="debounceSave()" style="margin:0;">
             Show on report
           </label>
-          {% endif %}
         </label>
         <textarea id="marketing-recs-text" rows="5" oninput="debounceSave()" placeholder="AI-generated recommendations will appear here, or type your own..." style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:8px 10px; font-family:'Inter',sans-serif; font-size:11px; line-height:1.5; resize:vertical; color:#2D2A28;">{{ data.marketing_recommendations or '' }}</textarea>
         <div class="formatting-hint">Use **text** for bold. Leave empty to auto-generate.</div>
@@ -832,6 +834,7 @@ function collectData() {
     gfe_value_month: numVal('ed-gfe-month-value'),
     gfe_completed_ytd: numVal('ed-gfe-ytd-count'),
     gfe_value_ytd: numVal('ed-gfe-ytd-value'),
+    show_gfe_section: document.getElementById('ed-show-gfe') ? document.getElementById('ed-show-gfe').checked : true,
     // Memberships
     memberships_active: numVal('ed-mem-active'),
     memberships_new: numVal('ed-mem-new'),

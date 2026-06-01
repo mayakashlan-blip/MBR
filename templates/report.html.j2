@@ -645,8 +645,8 @@
   </div>
   {% endif %}
 
-  {# ── Analysis & Recommendations: always for Enterprise, opt-in for Silver/Momentum/Growth ── #}
-  {% if data.marketing_recommendations and (data.tier == 'Enterprise' or data.show_marketing_recommendations) %}
+  {# ── Analysis & Recommendations: controlled by show_marketing_recommendations toggle for every tier ── #}
+  {% if data.marketing_recommendations and data.show_marketing_recommendations %}
   <div class="card">
     <div class="section-subtitle">Analysis & Recommendations</div>
     <div style="font-size: 9pt; line-height: 1.6; color: #5a5550;">
@@ -664,9 +664,9 @@
 {% endif %}
 
 {# ════════════════════════════════════════════════════════════════════
-   MOXIE COVERED SYNC — GFE SAVINGS (if data exists)
+   MOXIE COVERED SYNC — GFE SAVINGS (toggleable; only renders when data exists)
    ════════════════════════════════════════════════════════════════════ #}
-{% if data.gfe_completed_month > 0 or data.gfe_completed_ytd > 0 or data.gfe_value_month > 0 or data.gfe_value_ytd > 0 %}
+{% if data.show_gfe_section and (data.gfe_completed_month > 0 or data.gfe_completed_ytd > 0 or data.gfe_value_month > 0 or data.gfe_value_ytd > 0) %}
 <section class="page">
   {% include "components/header.html.j2" %}
   <div class="section-title">Moxie Covered Sync — GFE Savings</div>

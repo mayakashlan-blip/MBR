@@ -240,6 +240,10 @@ def load_from_omni(practice_name: str, month: int, year: int,
                     print(f"  Tier: {data.tier}")
                     if data.tier in ("Silver", "Momentum", "Growth"):
                         data.show_executive_summary = False
+                    # Enterprise practices default to showing marketing recs.
+                    # All other tiers default off; both controllable in editor.
+                    if data.tier == "Enterprise":
+                        data.show_marketing_recommendations = True
                 if tier_idx < len(ids) and ids[tier_idx] is not None:
                     medspa_id = int(ids[tier_idx])
                     print(f"  Medspa ID: {medspa_id}")
