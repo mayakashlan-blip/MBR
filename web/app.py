@@ -400,6 +400,8 @@ def _apply_payload(data, payload):
         data.show_marketing_recommendations = bool(payload["show_marketing_recommendations"])
     if "show_gfe_section" in payload:
         data.show_gfe_section = bool(payload["show_gfe_section"])
+    if "show_marketing_section" in payload:
+        data.show_marketing_section = bool(payload["show_marketing_section"])
 
     # Assessments
     if "assessments" in payload:

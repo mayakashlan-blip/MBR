@@ -450,8 +450,9 @@
 </section>
 
 {# ════════════════════════════════════════════════════════════════════
-   PAGE 4b — MARKETING PERFORMANCE (if marketing data exists)
+   PAGE 4b — MARKETING PERFORMANCE (master toggle: show_marketing_section)
    ════════════════════════════════════════════════════════════════════ #}
+{% if data.show_marketing_section %}
 {% if not data.marketing or data.marketing.show_marketing_lock_screen %}
 <section class="page">
   {% include "components/header.html.j2" %}
@@ -662,6 +663,7 @@
   <div class="footer">Moxie Partners, Inc. Copyright &copy;2025. Private and confidential.</div>
 </section>
 {% endif %}
+{% endif %}{# end show_marketing_section master toggle #}
 
 {# ════════════════════════════════════════════════════════════════════
    MOXIE COVERED SYNC — GFE SAVINGS (toggleable; only renders when data exists)

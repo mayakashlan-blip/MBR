@@ -487,6 +487,10 @@
         <span class="section-toggle collapsed" id="marketing-toggle">&#9662;</span>
       </div>
       <div class="section-body hidden" id="marketing-body">
+        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; margin-bottom: 10px; padding: 8px 10px; background:#F3EDF4; border:1px solid #d6c5d8; border-radius:6px; font-size:11px; color:#4D1751; font-weight:500;">
+          <input type="checkbox" id="ed-show-marketing" {% if data.show_marketing_section %}checked{% endif %} onchange="debounceSave()" style="margin:0;">
+          Show Marketing Performance page on report
+        </label>
         <div style="font-size: 11px; color: #8C8580; margin-bottom: 10px;">
           All marketing fields are editable. Computed metrics update automatically.
         </div>
@@ -835,6 +839,7 @@ function collectData() {
     gfe_completed_ytd: numVal('ed-gfe-ytd-count'),
     gfe_value_ytd: numVal('ed-gfe-ytd-value'),
     show_gfe_section: document.getElementById('ed-show-gfe') ? document.getElementById('ed-show-gfe').checked : true,
+    show_marketing_section: document.getElementById('ed-show-marketing') ? document.getElementById('ed-show-marketing').checked : true,
     // Memberships
     memberships_active: numVal('ed-mem-active'),
     memberships_new: numVal('ed-mem-new'),
