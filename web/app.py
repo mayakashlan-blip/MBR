@@ -1023,6 +1023,83 @@ def api_restore(session_id):
     return jsonify({"ok": True})
 
 
+@app.route("/api/admin/refresh-session/<session_id>", methods=["POST"])
+def api_admin_refresh_session(session_id):
+    """Force a single saved report to be re-pulled from Omni.
+
+    Snapshots the current saved state to version history first so the
+    pre-refresh report is never lost (the user can restore it from the
+    versions list if the fresh pull looks wrong). Requires the site
+    password to gate accidental clicks.
+    """
+    payload = request.json or {}
+    if payload.get("password") != "moxie2026":
+        return jsonify({"error": "Invalid admin password"}), 403
+
+    # Read existing session to recover practice_name + month/year, since
+    # the session_id slug isn't reversible.
+    existing = _get_session(session_id)
+    if not existing:
+        return jsonify({"error": f"No saved session for '{session_id}'"}), 404
+
+    practice_name = existing["data"].practice_name
+    month = existing["data"].month
+    year = existing["data"].year
+
+    # Beta sessions carry a "_{N}mo" suffix; preserve the duration on refresh.
+    duration_months = 1
+    if "_" in session_id and session_id.endswith("mo"):
+        try:
+            duration_months = int(session_id.rsplit("_", 1)[-1][:-2])
+        except (ValueError, IndexError):
+            duration_months = 1
+
+    try:
+        key = _get_omni_key()
+        if not key:
+            return jsonify({"error": "Omni API key not configured"}), 500
+
+        from src.omni_loader import load_from_omni
+        from src.narrative import generate_narratives
+        from src.html_renderer import render_html
+        from src.data_schema import LaunchFeature, BrandBankItem
+
+        # Snapshot the current saved state so the refresh is undoable.
+        current_path = SESSIONS_DIR / f"{session_id}.json"
+        if current_path.exists():
+            _snapshot_version(session_id, current_path)
+
+        data = load_from_omni(practice_name, month, year, api_key=key,
+                              duration_months=duration_months)
+
+        if duration_months == 1:
+            assets = _load_monthly_assets(month, year)
+            if assets.get("launches"):
+                data.launches = [LaunchFeature(**l) for l in assets["launches"]]
+            if assets.get("brand_bank_items"):
+                data.brand_bank_items = [BrandBankItem(**b) for b in assets["brand_bank_items"]]
+
+        generate_narratives(data)
+        html = render_html(data)
+
+        sessions[session_id] = {
+            "data": data,
+            "html": html,
+            "brand_bank_path": None,
+            "marketing_image_path": None,
+            "launches_image_path": None,
+            "created": datetime.now(),
+        }
+        _save_session(session_id, sessions[session_id], snapshot=False)  # already snapshotted above
+
+        return jsonify({
+            "session_id": session_id, "ok": True,
+            "practice": practice_name, "month": month, "year": year,
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/export/<session_id>")
 def api_export(session_id):
     """Export current report as PDF using the exact same HTML shown in preview."""

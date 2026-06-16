@@ -640,6 +640,15 @@
       <button class="btn btn-secondary" onclick="exportPPTX()" id="export-pptx-btn">Export PPTX</button>
       <a href="/" class="btn btn-secondary">Back to Dashboard</a>
     </div>
+    <div style="margin-top:8px; padding-top:8px; border-top:1px dashed #d2cbc4;">
+      <button onclick="adminRefreshFromOmni()" id="admin-refresh-btn"
+              style="background:none; border:1px solid #d2cbc4; color:#8C8580; padding:4px 10px; font-size:11px; border-radius:6px; cursor:pointer;">
+        Admin: refresh this report from Omni
+      </button>
+      <div style="font-size:10px; color:#8C8580; margin-top:4px;">
+        Password-gated. Snapshots the current report to version history first, then re-pulls everything from Omni.
+      </div>
+    </div>
   </div>
 
   <div class="preview-pane">
@@ -1176,6 +1185,42 @@ function addBrandBankItem() {
   `;
   list.appendChild(div);
   debounceSave();
+}
+
+function adminRefreshFromOmni() {
+  const pw = prompt(
+    "This will re-pull every metric for this report from Omni and overwrite the current saved version.\n\n" +
+    "Your current version is automatically snapshotted to version history first, so you can restore it if the fresh pull looks wrong.\n\n" +
+    "Enter the admin password to continue:"
+  );
+  if (pw === null) return;  // user hit cancel
+  if (!pw) return;
+
+  const btn = document.getElementById('admin-refresh-btn');
+  btn.disabled = true;
+  btn.textContent = 'Refreshing from Omni…';
+
+  fetch('/api/admin/refresh-session/' + SESSION_ID, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({password: pw}),
+  })
+  .then(r => r.json())
+  .then(resp => {
+    btn.disabled = false;
+    btn.textContent = 'Admin: refresh this report from Omni';
+    if (resp.error) {
+      alert('Refresh failed: ' + resp.error);
+      return;
+    }
+    alert('Refreshed. Reloading the editor with fresh data.');
+    window.location.reload();
+  })
+  .catch(err => {
+    btn.disabled = false;
+    btn.textContent = 'Admin: refresh this report from Omni';
+    alert('Connection error: ' + err.message);
+  });
 }
 
 function exportPDF() {
