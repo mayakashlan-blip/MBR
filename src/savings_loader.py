@@ -2,11 +2,52 @@
 
 import json
 import re
+import time
+import urllib.error
+import urllib.request
 from datetime import datetime, date
 from pathlib import Path
 
 DATA_DIR = Path(__file__).parent.parent / "web" / "static" / "supplies-savings" / "data"
 DASHBOARD_HTML = Path(__file__).parent.parent / "web" / "static" / "supplies-savings" / "app" / "dashboard.html"
+
+# Shannon's live transaction data is hosted on GitHub Pages and auto-updates
+# every time she uploads new vendor CSVs. Our committed copies under DATA_DIR
+# stop at March 2026, so we fetch the transaction files live (with a 15-min
+# in-memory cache) and fall back to the local copy if the network call fails.
+_REMOTE_BASE = "https://shannon-hue.github.io/supplies-savings/data"
+_REMOTE_TRANSACTION_FILES = {
+    "transactions_galderma.json",
+    "transactions_allergan.json",
+    "transactions_evolus.json",
+    "transactions_revance.json",
+    "transactions_merz.json",
+}
+_REMOTE_CACHE_TTL_SECONDS = 900
+_remote_cache: dict = {}  # filename -> (fetched_at_epoch, payload)
+
+
+def _fetch_remote_json(filename: str):
+    """Fetch a transaction JSON file from Shannon's GitHub Pages, with cache.
+
+    Returns the parsed JSON, or None on any network/parse failure (the caller
+    falls back to the local committed copy in that case).
+    """
+    cached = _remote_cache.get(filename)
+    if cached and (time.time() - cached[0]) < _REMOTE_CACHE_TTL_SECONDS:
+        return cached[1]
+    url = f"{_REMOTE_BASE}/{filename}"
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "moxie-mbr"})
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            payload = json.loads(resp.read().decode("utf-8"))
+        _remote_cache[filename] = (time.time(), payload)
+        return payload
+    except (urllib.error.URLError, urllib.error.HTTPError,
+            json.JSONDecodeError, TimeoutError, Exception) as e:
+        print(f"  Supplies: remote fetch for {filename} failed ({e}); "
+              f"falling back to committed copy")
+        return None
 
 
 def _extract_js_obj(js: str, pattern: str) -> dict:
@@ -87,6 +128,14 @@ def _get_pricing():
 
 
 def _load_json(filename):
+    # For transaction files, try Shannon's live GitHub Pages first so we get
+    # the latest vendor uploads without manual sync. Any non-transaction file
+    # (medspas, name_map, pricing_eras, etc.) is read from our local copy as
+    # before — those are stable reference data Maya's team curates.
+    if filename in _REMOTE_TRANSACTION_FILES:
+        remote = _fetch_remote_json(filename)
+        if remote is not None:
+            return remote
     path = DATA_DIR / filename
     if not path.exists():
         return []
