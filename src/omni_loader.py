@@ -104,29 +104,20 @@ def _add_filters(query: dict, practice_name: str, start_date: str,
                  medspa_id: int = None) -> dict:
     """Add practice and date range filters to a query.
 
-    Prefers filtering by medspa_id when one has been resolved, since the
-    id is unambiguous and joins consistently across all marts (works for
-    multi-location practices where the parent and the location-suffixed
-    record have different display names). Falls back to medspa_name
-    EQUALS when medspa_id is None.
-
-    duration can be "1 months", "3 months", "12 months", etc.
+    Filters by medspa_name EQUALS — confirmed to work across every Omni
+    mart we query. The medspa_id parameter is kept for caller signature
+    compatibility but is intentionally not used as a filter: Omni's API
+    rejects numeric-type filters on this field in practice, which caused
+    every metric to come back as zero for practices where the medspa_id
+    branch was taken. duration can be "1 months", "3 months", etc.
     """
     q = copy.deepcopy(query)
-    if medspa_id is not None:
-        q["filters"]["dbt__moxie_medspas_mart.medspa_id"] = {
-            "kind": "EQUALS",
-            "type": "number",
-            "values": [str(medspa_id)],
-            "is_negative": False,
-        }
-    else:
-        q["filters"]["dbt__moxie_medspas_mart.medspa_name"] = {
-            "kind": "EQUALS",
-            "type": "string",
-            "values": [practice_name],
-            "is_negative": False,
-        }
+    q["filters"]["dbt__moxie_medspas_mart.medspa_name"] = {
+        "kind": "EQUALS",
+        "type": "string",
+        "values": [practice_name],
+        "is_negative": False,
+    }
     if date_field:
         q["filters"][date_field] = {
             "kind": "TIME_FOR_INTERVAL_DURATION",
@@ -339,16 +330,10 @@ def load_from_omni(practice_name: str, month: int, year: int,
         qtd_q = _find_query(queries, "KPI: Net Revenue")
         qtd_date_field = QUERY_DATE_FIELDS.get("KPI: Net Revenue")
         qtd_q = copy.deepcopy(qtd_q)
-        if medspa_id is not None:
-            qtd_q["filters"]["dbt__moxie_medspas_mart.medspa_id"] = {
-                "kind": "EQUALS", "type": "number",
-                "values": [str(medspa_id)], "is_negative": False,
-            }
-        else:
-            qtd_q["filters"]["dbt__moxie_medspas_mart.medspa_name"] = {
-                "kind": "EQUALS", "type": "string",
-                "values": [practice_name], "is_negative": False,
-            }
+        qtd_q["filters"]["dbt__moxie_medspas_mart.medspa_name"] = {
+            "kind": "EQUALS", "type": "string",
+            "values": [practice_name], "is_negative": False,
+        }
         qtd_q["filters"][qtd_date_field] = {
             "kind": "TIME_FOR_INTERVAL_DURATION", "type": "date",
             "ui_type": "PAST", "left_side": qtd_start,
@@ -978,16 +963,10 @@ def load_from_omni(practice_name: str, month: int, year: int,
 
             def _gfe_pull(start_date_val, duration_val):
                 gq = copy.deepcopy(queries[gfe_query_name])
-                if medspa_id is not None:
-                    gq["filters"]["dbt__moxie_medspas_mart.medspa_id"] = {
-                        "kind": "EQUALS", "type": "number",
-                        "values": [str(medspa_id)], "is_negative": False,
-                    }
-                else:
-                    gq["filters"]["dbt__moxie_medspas_mart.medspa_name"] = {
-                        "kind": "EQUALS", "type": "string",
-                        "values": [practice_name], "is_negative": False,
-                    }
+                gq["filters"]["dbt__moxie_medspas_mart.medspa_name"] = {
+                    "kind": "EQUALS", "type": "string",
+                    "values": [practice_name], "is_negative": False,
+                }
                 # Find the most likely date field in the query
                 date_field = next(
                     (f for f in (gq.get("fields", []) + list(gq.get("filters", {}).keys()))
