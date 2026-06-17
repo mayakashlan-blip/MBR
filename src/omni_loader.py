@@ -967,12 +967,27 @@ def load_from_omni(practice_name: str, month: int, year: int,
                     "kind": "EQUALS", "type": "string",
                     "values": [practice_name], "is_negative": False,
                 }
-                # Find the most likely date field in the query
-                date_field = next(
-                    (f for f in (gq.get("fields", []) + list(gq.get("filters", {}).keys()))
-                     if "date" in f.lower() or "_at" in f.lower() or "issued" in f.lower()),
-                    None,
-                )
+                # Find the underlying date column to filter on. Bracketed
+                # variants like `review_finished_at[month]` are dimension
+                # groupings, not filterable date columns — strip the bracket
+                # suffix to get the real field. Prefer fields already present
+                # without brackets; fall back to deriving from a dimension.
+                import re as _re
+                all_field_names = list(gq.get("fields", [])) + list(gq.get("filters", {}).keys())
+                unbracketed = [f for f in all_field_names
+                               if "[" not in f
+                               and ("date" in f.lower() or "_at" in f.lower() or "issued" in f.lower())]
+                if unbracketed:
+                    date_field = unbracketed[0]
+                else:
+                    bracketed = next(
+                        (f for f in all_field_names
+                         if "[" in f
+                         and ("date" in f.lower() or "_at" in f.lower() or "issued" in f.lower())),
+                        None,
+                    )
+                    # Strip [month], [year], [quarter], [day], [...]__raw suffixes
+                    date_field = _re.sub(r"\[[^\]]+\](?:__raw)?$", "", bracketed) if bracketed else None
                 if date_field:
                     gq["filters"][date_field] = {
                         "kind": "TIME_FOR_INTERVAL_DURATION", "type": "date",
@@ -980,6 +995,7 @@ def load_from_omni(practice_name: str, month: int, year: int,
                         "left_side": start_date_val, "right_side": duration_val,
                         "is_negative": False,
                     }
+                    print(f"  GFE date filter: {date_field}")
                 return _run_query(gq, api_key)
 
             def _gfe_extract(result):
