@@ -145,7 +145,7 @@ def _call_claude_api(client, context: str, data: MBRData):
     """Make the actual Claude API calls. Separated for clean error handling."""
     # Generate executive summary
     exec_response = client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model="claude-sonnet-4-6",
         max_tokens=500,
         messages=[{
             "role": "user",
@@ -179,7 +179,7 @@ From a staffing perspective, utilization is trending differently across provider
 
     # Generate assessments
     assess_response = client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model="claude-sonnet-4-6",
         max_tokens=1000,
         messages=[{
             "role": "user",
@@ -221,7 +221,7 @@ Return ONLY a JSON array, no other text.
 
     # Generate PSM feedback
     psm_response = client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model="claude-sonnet-4-6",
         max_tokens=800,
         messages=[{
             "role": "user",
@@ -516,7 +516,7 @@ def _generate_marketing_recommendations(data: MBRData, client=None, context: str
     if client:
         try:
             mkt_response = client.messages.create(
-                model="claude-sonnet-4-20250514",
+                model="claude-sonnet-4-6",
                 max_tokens=1000,
                 messages=[{
                     "role": "user",

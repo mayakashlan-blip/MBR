@@ -665,7 +665,12 @@ def api_list_all_monthly_assets():
         assets = _load_monthly_assets(month, year)
         launches = assets.get("launches", [])
         bb_items = assets.get("brand_bank_items", [])
-        if not launches and not bb_items:
+        # Include the month if it has items OR if an upload landed (even when
+        # extraction returned no items) — surfaces silent extraction failures
+        # instead of hiding the month.
+        has_upload = bool(assets.get("launches_file") or assets.get("brand_bank_file")
+                          or assets.get("launches_path") or assets.get("brand_bank_path"))
+        if not launches and not bb_items and not has_upload:
             continue
         results.append({
             "month": month,
@@ -1292,7 +1297,7 @@ def _analyze_marketing_image(image_path: str, practice_name: str, month_name: st
 
     client = anthropic.Anthropic(api_key=api_key)
     message = client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model="claude-sonnet-4-6",
         max_tokens=2048,
         messages=[{
             "role": "user",
@@ -1445,7 +1450,7 @@ def _analyze_launches_image(image_path: str) -> list:
 
     client = anthropic.Anthropic(api_key=api_key)
     message = client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model="claude-sonnet-4-6",
         max_tokens=2048,
         messages=[{"role": "user", "content": content}],
     )
@@ -1517,7 +1522,7 @@ def _analyze_brand_bank_image(image_path: str, month_name: str) -> list:
 
     client = anthropic.Anthropic(api_key=api_key)
     message = client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model="claude-sonnet-4-6",
         max_tokens=2048,
         messages=[{"role": "user", "content": content}],
     )
