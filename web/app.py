@@ -212,14 +212,12 @@ def _save_monthly_upload(month: int, year: int, asset_type: str, src_path: str, 
     """Persist an uploaded file. Returns a path usable for immediate AI extraction."""
     suffix = Path(original_filename).suffix.lower() or Path(src_path).suffix.lower() or ".png"
     if _DB_ENABLED:
-        # Upload to Supabase Storage; return the original temp path for immediate use.
         try:
             storage_key = f"{_monthly_key(month, year)}_{asset_type}{suffix}"
             _db.upload_file("monthly-assets", storage_key, src_path)
         except Exception as e:
             print(f"  Warning: Storage upload failed (data still saved): {e}")
         return Path(src_path)
-    # File-based: copy to persistent local dir
     dest = MONTHLY_DIR / f"{_monthly_key(month, year)}_{asset_type}{suffix}"
     shutil.copy2(src_path, dest)
     _backup_to_git_async(f"monthly-upload: {_monthly_key(month, year)} {asset_type}", force=True)
@@ -794,7 +792,6 @@ def api_delete_monthly_assets():
                 if p.exists():
                     p.unlink()
 
-    # Persist updated assets (or remove the file in file mode when fully empty)
     if not _DB_ENABLED and not assets.get("launches") and not assets.get("brand_bank_items"):
         json_path = MONTHLY_DIR / f"{key}.json"
         if json_path.exists():
@@ -1092,7 +1089,7 @@ def api_restore(session_id):
         data = _deserialize_data(version_payload["data"])
         sess["data"] = data
         _rerender(sess)
-        _save_session(session_id, sess, snapshot=True)  # snapshot current before replacing
+        _save_session(session_id, sess, snapshot=True)
         sessions[session_id] = sess
         return jsonify({"ok": True})
 
