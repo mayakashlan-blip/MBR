@@ -1,0 +1,245 @@
+{% extends "layout.html" %}
+{% block title %}MBR Generator — Beta (Extended Reviews){% endblock %}
+
+{% block content %}
+<div class="container">
+
+  {# Per-page password gate #}
+  <div id="beta-lock" style="text-align: center; padding: 60px 20px;">
+    <div style="font-size: 36px; margin-bottom: 16px;">&#128274;</div>
+    <h2 style="margin-bottom: 8px;">Beta — Extended Reviews</h2>
+    <p style="color: #8C8580; margin-bottom: 20px;">Enter the password to access the beta tool.</p>
+    <div style="max-width: 300px; margin: 0 auto;">
+      <input type="password" id="beta-pw" placeholder="Password" onkeypress="if(event.key==='Enter') unlockBeta();"
+             style="width:100%; border:1px solid #d2cbc4; border-radius:8px; padding:10px 14px; font-size:14px; margin-bottom:10px;">
+      <button class="btn btn-primary" onclick="unlockBeta()" style="width:100%;">Unlock</button>
+      <div id="beta-pw-error" style="color:#B53631; font-size:13px; margin-top:8px; display:none;">Incorrect password.</div>
+    </div>
+  </div>
+
+  <div id="beta-content" style="display:none;">
+
+    <div class="hero">
+      <h1>Beta — Extended Reviews <span style="font-size:11px; background:#4D1751; color:white; padding:3px 8px; border-radius:10px; vertical-align:middle; letter-spacing:0.04em;">BETA</span></h1>
+      <p>Generate a Quarterly Business Review, Annual Review, or any custom multi-month range.</p>
+    </div>
+
+    <div class="card generate-card">
+      <div class="form-row">
+        <div class="form-group" style="flex:2">
+          <label for="practice">Practice Name or Medspa ID</label>
+          <input type="text" id="practice" placeholder="Start typing a name or enter a medspa ID..."
+                 autocomplete="off" list="practice-list">
+          <datalist id="practice-list"></datalist>
+        </div>
+      </div>
+
+      <div class="form-row" style="margin-top:12px;">
+        <div class="form-group" style="flex:1.4">
+          <label for="period-type">Report Type</label>
+          <select id="period-type" onchange="onPeriodTypeChange()">
+            <option value="3">Quarterly Business Review (3 months)</option>
+            <option value="6">Half-Year Review (6 months)</option>
+            <option value="12">Annual Review (12 months)</option>
+            <option value="custom">Custom range...</option>
+          </select>
+        </div>
+        <div class="form-group" id="custom-duration-group" style="flex:0.6; display:none;">
+          <label for="custom-duration">Months</label>
+          <input type="number" id="custom-duration" min="1" max="24" value="3" style="width:100%;">
+        </div>
+      </div>
+
+      <div class="form-row" style="margin-top:12px;">
+        <div class="form-group">
+          <label for="month">Start Month</label>
+          <select id="month">
+            <option value="1">January</option>
+            <option value="2">February</option>
+            <option value="3">March</option>
+            <option value="4">April</option>
+            <option value="5">May</option>
+            <option value="6">June</option>
+            <option value="7">July</option>
+            <option value="8">August</option>
+            <option value="9">September</option>
+            <option value="10">October</option>
+            <option value="11">November</option>
+            <option value="12">December</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="year">Start Year</label>
+          <select id="year">
+            <option value="2026" selected>2026</option>
+            <option value="2025">2025</option>
+            <option value="2024">2024</option>
+          </select>
+        </div>
+        <div class="form-group" style="flex:2">
+          <label>Range Preview</label>
+          <div id="range-preview" style="padding:10px 12px; background:#F7F4F0; border:1px solid #e8e0d8; border-radius:8px; font-size:13px; color:#4A4744; min-height:40px; display:flex; align-items:center;"></div>
+        </div>
+      </div>
+
+      <button id="generate-btn" class="btn btn-primary btn-lg" style="margin-top:16px;" onclick="generateBetaReport()">
+        Generate Extended Report
+      </button>
+
+      <div id="status" class="status hidden">
+        <div class="spinner"></div>
+        <span id="status-text">Loading data from Omni...</span>
+      </div>
+
+      <div id="error" class="error-msg hidden"></div>
+
+      <div style="margin-top:16px; padding:12px 14px; background:#FFF8E1; border:1px solid #f0d97a; border-radius:8px; font-size:12px; color:#5A4A1A;">
+        <strong>Heads up:</strong> Multi-month pulls take longer than monthly reports. A 12-month annual review may take 2–4 minutes depending on practice size. Monthly assets (Launches, Brand Bank) are not auto-injected for multi-month reports.
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function unlockBeta() {
+  const pw = document.getElementById('beta-pw').value;
+  if (pw === 'moxie2026') {
+    document.getElementById('beta-lock').style.display = 'none';
+    document.getElementById('beta-content').style.display = 'block';
+    initBeta();
+  } else {
+    document.getElementById('beta-pw-error').style.display = 'block';
+    document.getElementById('beta-pw').value = '';
+    document.getElementById('beta-pw').focus();
+  }
+}
+
+let allPractices = [];
+
+function initBeta() {
+  fetch('/api/practices')
+    .then(r => r.json())
+    .then(data => {
+      allPractices = data.practices || [];
+      const dl = document.getElementById('practice-list');
+      allPractices.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.name;
+        opt.label = p.id ? p.name + ' (ID: ' + p.id + ')' : p.name;
+        dl.appendChild(opt);
+      });
+    })
+    .catch(() => {});
+
+  updateRangePreview();
+  ['period-type', 'custom-duration', 'month', 'year'].forEach(id => {
+    document.getElementById(id).addEventListener('change', updateRangePreview);
+    document.getElementById(id).addEventListener('input', updateRangePreview);
+  });
+}
+
+function onPeriodTypeChange() {
+  const isCustom = document.getElementById('period-type').value === 'custom';
+  document.getElementById('custom-duration-group').style.display = isCustom ? 'block' : 'none';
+  updateRangePreview();
+}
+
+function getDurationMonths() {
+  const sel = document.getElementById('period-type').value;
+  if (sel === 'custom') {
+    return Math.max(1, Math.min(24, parseInt(document.getElementById('custom-duration').value) || 1));
+  }
+  return parseInt(sel);
+}
+
+function updateRangePreview() {
+  const months = ['', 'January', 'February', 'March', 'April', 'May', 'June',
+                  'July', 'August', 'September', 'October', 'November', 'December'];
+  const startMonth = parseInt(document.getElementById('month').value);
+  const startYear = parseInt(document.getElementById('year').value);
+  const duration = getDurationMonths();
+
+  const endIdx = startMonth - 1 + duration - 1;
+  const endMonth = (endIdx % 12) + 1;
+  const endYear = startYear + Math.floor(endIdx / 12);
+
+  const preview = document.getElementById('range-preview');
+  if (duration === 1) {
+    preview.textContent = `${months[startMonth]} ${startYear} (${duration} month)`;
+  } else {
+    preview.textContent = `${months[startMonth]} ${startYear} → ${months[endMonth]} ${endYear} (${duration} months)`;
+  }
+}
+
+function resolvePractice(input) {
+  if (/^\d+$/.test(input)) {
+    const match = allPractices.find(p => p.id === parseInt(input));
+    return match ? match.name : null;
+  }
+  return input;
+}
+
+function generateBetaReport() {
+  const rawInput = document.getElementById('practice').value.trim();
+  const month = parseInt(document.getElementById('month').value);
+  const year = parseInt(document.getElementById('year').value);
+  const durationMonths = getDurationMonths();
+
+  if (!rawInput) {
+    showError('Please enter a practice name or medspa ID.');
+    return;
+  }
+
+  const practice = resolvePractice(rawInput);
+  if (!practice) {
+    showError('Medspa ID ' + rawInput + ' not found. Make sure the ID is correct.');
+    return;
+  }
+
+  const btn = document.getElementById('generate-btn');
+  btn.disabled = true;
+  btn.textContent = 'Generating...';
+
+  document.getElementById('status').classList.remove('hidden');
+  document.getElementById('error').classList.add('hidden');
+  const expected = durationMonths >= 12 ? '2–4 minutes' : (durationMonths >= 6 ? '90–120 seconds' : '60–90 seconds');
+  document.getElementById('status-text').textContent =
+    `Loading ${durationMonths} months of data from Omni... Expect ${expected}.`;
+
+  fetch('/api/generate-beta', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      practice: practice,
+      month: month,
+      year: year,
+      duration_months: durationMonths
+    })
+  })
+  .then(r => r.json())
+  .then(data => {
+    btn.disabled = false;
+    btn.textContent = 'Generate Extended Report';
+    document.getElementById('status').classList.add('hidden');
+
+    if (data.error) {
+      showError(data.error);
+    } else {
+      window.location.href = '/editor/' + data.session_id;
+    }
+  })
+  .catch(err => {
+    btn.disabled = false;
+    btn.textContent = 'Generate Extended Report';
+    document.getElementById('status').classList.add('hidden');
+    showError('Connection error: ' + err.message);
+  });
+}
+
+function showError(msg) {
+  const el = document.getElementById('error');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+</script>
+{% endblock %}

@@ -1,0 +1,280 @@
+{% extends "layout.html" %}
+{% block title %}Batch Export — MBR Generator{% endblock %}
+
+{% block content %}
+<div class="container">
+
+  {# Password gate #}
+  <div id="batch-lock" style="text-align: center; padding: 60px 20px;">
+    <div style="font-size: 36px; margin-bottom: 16px;">&#128274;</div>
+    <h2 style="margin-bottom: 8px;">Batch Export</h2>
+    <p style="color: #8C8580; margin-bottom: 20px;">Enter the password to access batch export.</p>
+    <div style="max-width: 300px; margin: 0 auto;">
+      <input type="password" id="batch-pw" placeholder="Password" onkeypress="if(event.key==='Enter') unlockBatch();"
+             style="width:100%; border:1px solid #d2cbc4; border-radius:8px; padding:10px 14px; font-size:14px; margin-bottom:10px;">
+      <button class="btn btn-primary" onclick="unlockBatch()" style="width:100%;">Unlock</button>
+      <div id="pw-error" style="color:#B53631; font-size:13px; margin-top:8px; display:none;">Incorrect password.</div>
+    </div>
+  </div>
+
+  <div id="batch-content" style="display:none;">
+  <div class="hero">
+    <h1>Batch Export</h1>
+    <p>Generate MBR reports for multiple practices at once. Select practices, choose the period, and export as a ZIP file.</p>
+  </div>
+
+  <div class="card">
+    <div class="form-row" style="margin-bottom: 16px;">
+      <div class="form-group">
+        <label for="batch-month">Month</label>
+        <select id="batch-month">
+          <option value="1">January</option>
+          <option value="2">February</option>
+          <option value="3">March</option>
+          <option value="4">April</option>
+          <option value="5">May</option>
+          <option value="6">June</option>
+          <option value="7">July</option>
+          <option value="8">August</option>
+          <option value="9">September</option>
+          <option value="10">October</option>
+          <option value="11">November</option>
+          <option value="12">December</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="batch-year">Year</label>
+        <select id="batch-year">
+          <option value="2026" selected>2026</option>
+          <option value="2025">2025</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Search & Select Practices</label>
+      <input type="text" id="practice-search" placeholder="Type to filter practices..." oninput="filterPractices()">
+    </div>
+
+    <div class="select-actions">
+      <button class="btn-text" onclick="selectAll()">Select All</button>
+      <button class="btn-text" onclick="selectNone()">Select None</button>
+      <span id="selected-count" class="badge">0 selected</span>
+    </div>
+
+    <div class="practice-list" id="practice-list">
+      <div class="loading-practices">Loading practices from Omni...</div>
+    </div>
+
+    <div style="margin-top: 16px; display: flex; gap: 12px; align-items: center;">
+      <button id="batch-btn" class="btn btn-primary btn-lg" onclick="startBatch()" disabled>
+        Export Selected as PDF
+      </button>
+    </div>
+  </div>
+
+  <div id="batch-progress" class="card hidden" style="margin-top: 20px;">
+    <h3 style="margin-bottom: 12px;">Batch Progress</h3>
+    <div class="progress-bar-bg">
+      <div class="progress-bar-fill" id="progress-fill" style="width: 0%"></div>
+    </div>
+    <div class="progress-info">
+      <span id="progress-text">0 / 0</span>
+      <span id="progress-eta" style="color: #8C8580;"></span>
+      <span id="progress-current"></span>
+    </div>
+    <div id="progress-errors" style="margin-top: 8px;"></div>
+    <div id="download-link" class="hidden" style="margin-top: 12px;">
+      <a id="download-btn" class="btn btn-primary" href="#">Download ZIP</a>
+    </div>
+  </div>
+  </div>{# close batch-content #}
+</div>
+
+<script>
+function unlockBatch() {
+  const pw = document.getElementById('batch-pw').value;
+  if (pw === 'moxie2026') {
+    document.getElementById('batch-lock').style.display = 'none';
+    document.getElementById('batch-content').style.display = 'block';
+  } else {
+    document.getElementById('pw-error').style.display = 'block';
+    document.getElementById('batch-pw').value = '';
+    document.getElementById('batch-pw').focus();
+  }
+}
+</script>
+
+<script>
+let allPractices = [];  // [{name, id}]
+let selectedPractices = new Set();
+
+// Load practices
+fetch('/api/practices')
+  .then(r => r.json())
+  .then(data => {
+    allPractices = data.practices || [];
+    renderPractices(allPractices);
+    document.getElementById('batch-btn').disabled = false;
+  })
+  .catch(() => {
+    document.getElementById('practice-list').innerHTML = '<div class="loading-practices">Failed to load practices. Check your Omni API key.</div>';
+  });
+
+function renderPractices(list) {
+  const container = document.getElementById('practice-list');
+  container.innerHTML = list.map(p => `
+    <label class="practice-checkbox ${selectedPractices.has(p.name) ? 'checked' : ''}">
+      <input type="checkbox" value="${p.name}" ${selectedPractices.has(p.name) ? 'checked' : ''}
+             onchange="togglePractice(this)">
+      <span>${p.name}${p.id ? ' <small style="color:#8C8580">(ID: ' + p.id + ')</small>' : ''}</span>
+    </label>
+  `).join('');
+  updateCount();
+}
+
+function filterPractices() {
+  const q = document.getElementById('practice-search').value.toLowerCase();
+  const filtered = allPractices.filter(p =>
+    p.name.toLowerCase().includes(q) || (p.id && String(p.id).includes(q))
+  );
+  renderPractices(filtered);
+}
+
+function togglePractice(cb) {
+  if (cb.checked) selectedPractices.add(cb.value);
+  else selectedPractices.delete(cb.value);
+  cb.closest('.practice-checkbox').classList.toggle('checked', cb.checked);
+  updateCount();
+}
+
+function selectAll() {
+  const q = document.getElementById('practice-search').value.toLowerCase();
+  const filtered = allPractices.filter(p =>
+    p.name.toLowerCase().includes(q) || (p.id && String(p.id).includes(q))
+  );
+  filtered.forEach(p => selectedPractices.add(p.name));
+  renderPractices(filtered);
+}
+
+function selectNone() {
+  selectedPractices.clear();
+  filterPractices();
+}
+
+function updateCount() {
+  document.getElementById('selected-count').textContent = selectedPractices.size + ' selected';
+}
+
+function startBatch() {
+  if (selectedPractices.size === 0) { alert('Select at least one practice.'); return; }
+
+  const month = document.getElementById('batch-month').value;
+  const year = document.getElementById('batch-year').value;
+
+  document.getElementById('batch-btn').disabled = true;
+  document.getElementById('batch-btn').textContent = 'Starting...';
+  document.getElementById('batch-progress').classList.remove('hidden');
+  document.getElementById('download-link').classList.add('hidden');
+
+  fetch('/api/batch/start', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      practices: Array.from(selectedPractices),
+      month: parseInt(month),
+      year: parseInt(year),
+    }),
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.error) {
+      alert(data.error);
+      document.getElementById('batch-btn').disabled = false;
+      document.getElementById('batch-btn').textContent = 'Export Selected as PDF';
+      return;
+    }
+    if (!data.job_id) {
+      alert('Failed to start batch job. Check server logs.');
+      document.getElementById('batch-btn').disabled = false;
+      document.getElementById('batch-btn').textContent = 'Export Selected as PDF';
+      return;
+    }
+    pollBatch(data.job_id);
+  })
+  .catch(err => {
+    alert('Connection error: ' + err.message);
+    document.getElementById('batch-btn').disabled = false;
+    document.getElementById('batch-btn').textContent = 'Export Selected as PDF';
+  });
+}
+
+function pollBatch(jobId) {
+  let failCount = 0;
+  const startTime = Date.now();
+  let lastCompleted = 0;
+  const interval = setInterval(() => {
+    fetch('/api/batch/status/' + jobId, {signal: AbortSignal.timeout(10000)})
+      .then(r => {
+        if (!r.ok) throw new Error('Status check failed: ' + r.status);
+        return r.json();
+      })
+      .then(data => {
+        failCount = 0;
+        const pct = data.total > 0 ? (data.completed / data.total * 100) : 0;
+        document.getElementById('progress-fill').style.width = pct + '%';
+        document.getElementById('progress-text').textContent = data.completed + ' / ' + data.total;
+        document.getElementById('progress-current').textContent = data.current ? 'Processing: ' + data.current : '';
+
+        // ETA calculation
+        const etaEl = document.getElementById('progress-eta');
+        if (data.completed > 0 && data.completed < data.total) {
+          const elapsed = (Date.now() - startTime) / 1000;
+          const perReport = elapsed / data.completed;
+          const remaining = Math.round(perReport * (data.total - data.completed));
+          if (remaining >= 60) {
+            etaEl.textContent = '~' + Math.round(remaining / 60) + ' min remaining';
+          } else {
+            etaEl.textContent = '~' + remaining + 's remaining';
+          }
+        } else if (data.completed === 0) {
+          etaEl.textContent = 'Starting...';
+        } else {
+          etaEl.textContent = '';
+        }
+
+        if (data.errors && data.errors.length > 0) {
+          document.getElementById('progress-errors').innerHTML =
+            '<div style="color:#B53631;font-size:12px;">' +
+            data.errors.map(e => e.practice + ': ' + e.error).join('<br>') +
+            '</div>';
+        }
+
+        if (data.status === 'done') {
+          clearInterval(interval);
+          document.getElementById('batch-btn').disabled = false;
+          document.getElementById('batch-btn').textContent = 'Export Selected as PDF';
+          if (data.errors && data.errors.length < data.total) {
+            document.getElementById('download-link').classList.remove('hidden');
+            document.getElementById('download-btn').href = '/api/batch/download/' + jobId;
+          }
+          document.getElementById('progress-current').textContent =
+            data.errors && data.errors.length > 0
+              ? 'Completed with ' + data.errors.length + ' error(s)'
+              : 'Complete!';
+        }
+      })
+      .catch(err => {
+        failCount++;
+        console.log('Poll fail #' + failCount + ': ' + err.message);
+        if (failCount >= 30) {
+          clearInterval(interval);
+          document.getElementById('batch-btn').disabled = false;
+          document.getElementById('batch-btn').textContent = 'Export Selected as PDF';
+          document.getElementById('progress-current').textContent = 'Error: Lost connection to batch job';
+        }
+      });
+  }, 5000);
+}
+</script>
+{% endblock %}

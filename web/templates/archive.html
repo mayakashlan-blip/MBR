@@ -1,0 +1,234 @@
+{% extends "layout.html" %}
+{% block title %}Report Archive — MBR Generator{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="hero">
+    <h1>Report Archive</h1>
+    <p>Search for a practice to view their saved MBR reports and version history.</p>
+  </div>
+
+  <div class="card" style="margin-bottom: 20px;">
+    <div style="margin-bottom: 16px;">
+      <label style="font-size: 13px; font-weight: 600; margin-bottom: 6px; display: block;">Search Practice</label>
+      <input type="text" id="archive-search" placeholder="Start typing a practice name..."
+             oninput="filterArchive()" autocomplete="off"
+             style="width: 100%; border: 1px solid #d2cbc4; border-radius: 8px; padding: 10px 14px; font-size: 14px;">
+    </div>
+
+    <div id="archive-list" style="max-height: 600px; overflow-y: auto;">
+      <div style="padding: 30px; text-align: center; color: #8C8580; font-size: 13px;">
+        Type a practice name above to find their saved reports.
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .archive-practice-group {
+    border: 1px solid #e8e0d8;
+    border-radius: 10px;
+    margin-bottom: 12px;
+    overflow: hidden;
+  }
+  .archive-practice-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 16px;
+    background: #FAFAF7;
+    cursor: pointer;
+  }
+  .archive-practice-header:hover { background: #F3EDF4; }
+  .archive-practice-name { font-weight: 600; font-size: 15px; color: #2D2A28; }
+  .archive-practice-count { font-size: 12px; color: #8C8580; }
+  .archive-reports { display: none; }
+  .archive-reports.open { display: block; }
+  .archive-report-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 16px;
+    border-top: 1px solid #f0ebe6;
+  }
+  .archive-report-row:hover { background: #FAFAF7; }
+  .archive-period { font-size: 13px; font-weight: 500; color: #4D1751; }
+  .archive-meta { font-size: 11px; color: #8C8580; }
+  .archive-actions { display: flex; gap: 6px; align-items: center; }
+  .archive-btn {
+    font-size: 11px; padding: 4px 10px; border-radius: 6px;
+    border: 1px solid #d2cbc4; background: white; color: #4A4744;
+    cursor: pointer; font-weight: 500;
+  }
+  .archive-btn:hover { border-color: #4D1751; color: #4D1751; }
+  .archive-btn.primary { background: #4D1751; color: white; border-color: #4D1751; }
+  .archive-btn.primary:hover { background: #6B2D6E; }
+  .version-list { display: none; padding: 0 16px 10px 16px; }
+  .version-list.open { display: block; }
+  .version-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 6px 10px; margin-bottom: 4px; background: #F7F4F0;
+    border-radius: 6px; font-size: 11px;
+  }
+  .version-row:hover { background: #F0EBE6; }
+</style>
+
+<script>
+let allReports = [];
+let allPractices = [];
+
+// Load both practices list and saved reports
+Promise.all([
+  fetch('/api/practices').then(r => r.json()).catch(() => ({practices: []})),
+  fetch('/api/archive').then(r => r.json()).catch(() => ({reports: []})),
+]).then(([practiceData, archiveData]) => {
+  allPractices = practiceData.practices || [];
+  allReports = archiveData.reports || [];
+});
+
+function filterArchive() {
+  const search = (document.getElementById('archive-search').value || '').toLowerCase().trim();
+  const list = document.getElementById('archive-list');
+
+  if (!search || search.length < 2) {
+    list.innerHTML = '<div style="padding:30px; text-align:center; color:#8C8580; font-size:13px;">Type a practice name above to find their saved reports.</div>';
+    return;
+  }
+
+  // Group saved reports by practice name
+  const reportsByPractice = {};
+  allReports.forEach(r => {
+    if (!reportsByPractice[r.practice_name]) reportsByPractice[r.practice_name] = [];
+    reportsByPractice[r.practice_name].push(r);
+  });
+
+  // Filter practices from Omni that match the search
+  const matchedPractices = allPractices
+    .filter(p => p.name.toLowerCase().includes(search))
+    .slice(0, 50);
+
+  const practices = matchedPractices.map(p => p.name).sort();
+
+  if (!practices.length) {
+    list.innerHTML = '<div style="padding:20px; text-align:center; color:#8C8580; font-size:13px;">No practices found matching that name.</div>';
+    return;
+  }
+
+  list.innerHTML = practices.map(name => {
+    const reports = (reportsByPractice[name] || []).sort((a, b) => {
+      if (a.year !== b.year) return b.year - a.year;
+      return b.month - a.month;
+    });
+    const groupId = name.replace(/[^a-zA-Z0-9]/g, '-');
+    if (!reports.length) {
+      return `
+        <div class="archive-practice-group">
+          <div class="archive-practice-header" style="cursor: default;">
+            <span class="archive-practice-name">${escapeHtml(name)}</span>
+            <span class="archive-practice-count" style="color: #c8c0bb;">No saved reports</span>
+          </div>
+        </div>
+      `;
+    }
+    return `
+      <div class="archive-practice-group">
+        <div class="archive-practice-header" onclick="toggleGroup('${groupId}')">
+          <span class="archive-practice-name">${escapeHtml(name)}</span>
+          <span class="archive-practice-count">${reports.length} report${reports.length > 1 ? 's' : ''} &#9662;</span>
+        </div>
+        <div class="archive-reports" id="group-${groupId}">
+          ${reports.map(r => {
+            const created = r.created ? new Date(r.created).toLocaleDateString('en-US', {
+              month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit'
+            }) : '';
+            const reportId = r.session_id.replace(/[^a-zA-Z0-9-_]/g, '');
+            return `
+              <div class="archive-report-row">
+                <div>
+                  <div class="archive-period">${escapeHtml(r.period)}</div>
+                  <div class="archive-meta">
+                    ${created ? 'Last saved: ' + created : ''}
+                    ${r.versions > 0 ? ' &middot; ' + r.versions + ' version' + (r.versions > 1 ? 's' : '') : ''}
+                  </div>
+                </div>
+                <div class="archive-actions">
+                  ${r.versions > 0 ? `<button class="archive-btn" onclick="event.stopPropagation(); toggleVersions('${reportId}')">Versions</button>` : ''}
+                  <button class="archive-btn primary" onclick="window.location.href='/editor/${r.session_id}'">Open</button>
+                </div>
+              </div>
+              <div class="version-list" id="versions-${reportId}">
+                <div style="font-size:11px; color:#8C8580; padding:4px 0;">Loading versions...</div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // Auto-expand if only one practice
+  if (practices.length === 1) {
+    const groupId = practices[0].replace(/[^a-zA-Z0-9]/g, '-');
+    toggleGroup(groupId);
+  }
+}
+
+function toggleGroup(groupId) {
+  const el = document.getElementById('group-' + groupId);
+  if (el) el.classList.toggle('open');
+}
+
+function toggleVersions(reportId) {
+  const el = document.getElementById('versions-' + reportId);
+  if (!el) return;
+  const isOpen = el.classList.toggle('open');
+  if (isOpen && el.innerHTML.includes('Loading')) {
+    loadVersionsForReport(reportId, el);
+  }
+}
+
+function loadVersionsForReport(reportId, container) {
+  fetch('/api/versions/' + reportId)
+    .then(r => r.json())
+    .then(resp => {
+      const versions = resp.versions || [];
+      if (!versions.length) {
+        container.innerHTML = '<div style="font-size:11px; color:#8C8580; padding:4px 0;">No previous versions.</div>';
+        return;
+      }
+      container.innerHTML = versions.map((v, i) => `
+        <div class="version-row">
+          <span>${v.display}${i === 0 ? ' (most recent)' : ''}</span>
+          <button class="archive-btn" onclick="restoreVersion('${reportId}', '${v.filename}')">Restore</button>
+        </div>
+      `).join('');
+    })
+    .catch(() => {
+      container.innerHTML = '<div style="font-size:11px; color:#B53631; padding:4px 0;">Could not load versions.</div>';
+    });
+}
+
+function restoreVersion(sessionId, filename) {
+  if (!confirm('Restore this version? The current version will be saved first.')) return;
+  fetch('/api/restore/' + sessionId, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({filename: filename}),
+  })
+  .then(r => r.json())
+  .then(resp => {
+    if (resp.ok) {
+      alert('Version restored. Opening report...');
+      window.location.href = '/editor/' + sessionId;
+    } else {
+      alert('Restore failed: ' + (resp.error || 'unknown'));
+    }
+  });
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+</script>
+{% endblock %}

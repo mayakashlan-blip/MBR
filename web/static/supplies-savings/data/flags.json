@@ -1,0 +1,1896 @@
+[
+  {
+    "type": "name_not_in_map",
+    "vendor": "revance",
+    "name_map_vendor": "revance",
+    "value": "Vlemma Aesthetics",
+    "row_count": 3,
+    "suggestions": [
+      {
+        "id": 1881,
+        "name": "Vlemma Aesthetics"
+      },
+      {
+        "id": 6,
+        "name": "Citrus Aesthetics"
+      },
+      {
+        "id": 7,
+        "name": "Uplift Aesthetics (DEACTIVATED)"
+      },
+      {
+        "id": 13,
+        "name": "Primrose and Peaches Aesthetics (Churned)"
+      },
+      {
+        "id": 19,
+        "name": "(DEACTIVATED) Emery Aesthetics & Wellness"
+      }
+    ],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 1881,
+      "name": "Vlemma Aesthetics"
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "revance",
+    "name_map_vendor": "revance",
+    "value": "Liv-Well Complete Medical",
+    "row_count": 1,
+    "suggestions": [
+      {
+        "id": 27,
+        "name": "Luxus Medical Spa"
+      },
+      {
+        "id": 49,
+        "name": "(DEACTIVATED) Sol Medical Group"
+      },
+      {
+        "id": 54,
+        "name": "(DEACTIVATED) Mariposa Medical Aesthetics and Wellness Spa"
+      },
+      {
+        "id": 91,
+        "name": "Translate Nursing Medical Spa & Wellness"
+      },
+      {
+        "id": 148,
+        "name": "Purra Medical Spa"
+      }
+    ],
+    "status": "skipped"
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "revance",
+    "name_map_vendor": "revance",
+    "value": "Glow & Vibe",
+    "row_count": 4,
+    "suggestions": [
+      {
+        "id": 1918,
+        "name": "Glow & Vibe"
+      },
+      {
+        "id": 134,
+        "name": "Soul Glow Aesthetics"
+      },
+      {
+        "id": 176,
+        "name": "DEACTIVATED Natural Vibe Wellness"
+      },
+      {
+        "id": 202,
+        "name": "The Glow Skin Spa"
+      },
+      {
+        "id": 204,
+        "name": "Drips and Glow Aesthetics"
+      }
+    ],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 1918,
+      "name": "Glow & Vibe"
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "revance",
+    "name_map_vendor": "revance",
+    "value": "Harmony Luxe Medspa",
+    "row_count": 2,
+    "suggestions": [
+      {
+        "id": 1002,
+        "name": "Luxe Beauty Medspa"
+      },
+      {
+        "id": 1322,
+        "name": "Luxe Medspa"
+      },
+      {
+        "id": 1394,
+        "name": "The Luxe Needle Medspa"
+      },
+      {
+        "id": 1625,
+        "name": "Harmony Luxe Med Spa"
+      },
+      {
+        "id": 1836,
+        "name": "MD Luxe Aesthetics and Medspa"
+      }
+    ],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 1625,
+      "name": "Harmony Luxe Med Spa"
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "revance",
+    "name_map_vendor": "revance",
+    "value": "Beauty Blueprint",
+    "row_count": 4,
+    "suggestions": [
+      {
+        "id": 1853,
+        "name": "Beauty Blueprint"
+      },
+      {
+        "id": 17,
+        "name": "(DEACTIVATED) Mirror Mirror Beauty"
+      },
+      {
+        "id": 51,
+        "name": "Tonics Beauty"
+      },
+      {
+        "id": 53,
+        "name": "Beauty and The Beautox (Churned)"
+      },
+      {
+        "id": 92,
+        "name": "J'esthetics Beauty Bar and IV Hydration"
+      }
+    ],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 1853,
+      "name": "Beauty Blueprint"
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "revance",
+    "name_map_vendor": "revance",
+    "value": "VidaBella Aesthestics",
+    "row_count": 1,
+    "suggestions": [
+      {
+        "id": 1912,
+        "name": "VidaBella Aesthetics"
+      }
+    ],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 1912,
+      "name": "VidaBella Aesthetics"
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "revance",
+    "name_map_vendor": "revance",
+    "value": "Girltox",
+    "row_count": 1,
+    "suggestions": [
+      {
+        "id": 1718,
+        "name": "Girltox"
+      }
+    ],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 1718,
+      "name": "Girltox"
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "revance",
+    "name_map_vendor": "revance",
+    "value": "FAB Medical Aesthetics",
+    "row_count": 3,
+    "suggestions": [
+      {
+        "id": 986,
+        "name": "FAB Medical Aesthetics"
+      },
+      {
+        "id": 54,
+        "name": "(DEACTIVATED) Mariposa Medical Aesthetics and Wellness Spa"
+      },
+      {
+        "id": 209,
+        "name": "SKNLUX Medical Aesthetics"
+      },
+      {
+        "id": 332,
+        "name": "A.O.B. Medical Aesthetics"
+      },
+      {
+        "id": 572,
+        "name": "Vitalux Medical Aesthetics"
+      }
+    ],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 986,
+      "name": "FAB Medical Aesthetics"
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "revance",
+    "name_map_vendor": "revance",
+    "value": "Humm MedSpa",
+    "row_count": 1,
+    "suggestions": [
+      {
+        "id": 1462,
+        "name": "Humm MedSpa"
+      },
+      {
+        "id": 14,
+        "name": "North Ridge MedSpa (Churned)"
+      },
+      {
+        "id": 16,
+        "name": "Angilee MedSpa"
+      },
+      {
+        "id": 24,
+        "name": "LunaGlow MedSpa"
+      },
+      {
+        "id": 50,
+        "name": "Old Town MedSpa"
+      }
+    ],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 1462,
+      "name": "Humm MedSpa"
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "revance",
+    "name_map_vendor": "revance",
+    "value": "The Vanity Bar",
+    "row_count": 2,
+    "suggestions": [
+      {
+        "id": 1713,
+        "name": "The Vanity Bar"
+      },
+      {
+        "id": 41,
+        "name": "The Dream Bar"
+      },
+      {
+        "id": 1741,
+        "name": "The Beauty Bar of Southwest Ohio"
+      },
+      {
+        "id": 1862,
+        "name": "The Beauty Bar"
+      },
+      {
+        "id": 1863,
+        "name": "The Beauty Bar"
+      }
+    ],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 1713,
+      "name": "The Vanity Bar"
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "revance",
+    "name_map_vendor": "revance",
+    "value": "424 Cosmetic Dermatology",
+    "row_count": 1,
+    "suggestions": [
+      {
+        "id": 1790,
+        "name": "424 Cosmetic Dermatology"
+      },
+      {
+        "id": 1263,
+        "name": "San Benito County Cosmetic Care"
+      },
+      {
+        "id": 1502,
+        "name": "Gentle Glow Clinical Cosmetics"
+      }
+    ],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 1790,
+      "name": "424 Cosmetic Dermatology"
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "revance",
+    "name_map_vendor": "revance",
+    "value": "SM Drip",
+    "row_count": 1,
+    "suggestions": [
+      {
+        "id": 875,
+        "name": "SM Drip IV Lounge and Med Spa"
+      },
+      {
+        "id": 1239,
+        "name": "Drip & Glow Aesthetics"
+      },
+      {
+        "id": 1305,
+        "name": "Hydr8 IV Drip & Med Spa"
+      },
+      {
+        "id": 1809,
+        "name": "The Good Drip"
+      },
+      {
+        "id": 2010,
+        "name": "IV Drip Well Spa"
+      }
+    ],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 875,
+      "name": "SM Drip IV Lounge and Med Spa"
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "revance",
+    "name_map_vendor": "revance",
+    "value": "Bounce Skincare and Injectables",
+    "row_count": 1,
+    "suggestions": [
+      {
+        "id": 1819,
+        "name": "Bounce Skincare and Injectables"
+      },
+      {
+        "id": 213,
+        "name": "Juvenescence Injectables and Wellness"
+      },
+      {
+        "id": 13,
+        "name": "Primrose and Peaches Aesthetics (Churned)"
+      },
+      {
+        "id": 47,
+        "name": "(DEACTIVATED) The Jab Lab Aesthetics and Wellness"
+      },
+      {
+        "id": 53,
+        "name": "Beauty and The Beautox (Churned)"
+      }
+    ],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 1819,
+      "name": "Bounce Skincare and Injectables"
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "revance",
+    "name_map_vendor": "revance",
+    "value": "Bareback Aesthetics",
+    "row_count": 1,
+    "suggestions": [
+      {
+        "id": 6,
+        "name": "Citrus Aesthetics"
+      },
+      {
+        "id": 7,
+        "name": "Uplift Aesthetics (DEACTIVATED)"
+      },
+      {
+        "id": 13,
+        "name": "Primrose and Peaches Aesthetics (Churned)"
+      },
+      {
+        "id": 19,
+        "name": "(DEACTIVATED) Emery Aesthetics & Wellness"
+      },
+      {
+        "id": 20,
+        "name": "Aelan Aesthetics"
+      }
+    ],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 1817,
+      "name": "BB Aesthetics"
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "revance",
+    "name_map_vendor": "revance",
+    "value": "Wellness Method Aesthetics & Longevity",
+    "row_count": 3,
+    "suggestions": [
+      {
+        "id": 1941,
+        "name": "Wellness Method Aesthetics & Longevity"
+      },
+      {
+        "id": 1560,
+        "name": "The Sol Method Wellness & Aesthetics"
+      },
+      {
+        "id": 19,
+        "name": "(DEACTIVATED) Emery Aesthetics & Wellness"
+      },
+      {
+        "id": 47,
+        "name": "(DEACTIVATED) The Jab Lab Aesthetics and Wellness"
+      },
+      {
+        "id": 54,
+        "name": "(DEACTIVATED) Mariposa Medical Aesthetics and Wellness Spa"
+      }
+    ],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 1941,
+      "name": "Wellness Method Aesthetics & Longevity"
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "merz",
+    "name_map_vendor": "merz",
+    "value": "BEAM C/O Kaelah Payn",
+    "city": null,
+    "state": null,
+    "row_count": 1,
+    "suggestions": [
+      {
+        "id": 1510,
+        "name": "BEAM Medspa"
+      },
+      {
+        "id": 1695,
+        "name": "Beam Beauty and Wellness"
+      },
+      {
+        "id": 1565,
+        "name": "EverBeam Aesthetics"
+      }
+    ],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 1510,
+      "name": "BEAM Medspa"
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "merz",
+    "name_map_vendor": "merz",
+    "value": "Beauty Period Aesthetics",
+    "city": null,
+    "state": null,
+    "row_count": 1,
+    "suggestions": [
+      {
+        "id": 1991,
+        "name": "Beauty Period Aesthetics"
+      },
+      {
+        "id": 205,
+        "name": "You Beauty & Aesthetics"
+      },
+      {
+        "id": 641,
+        "name": "Beauty and Brawn Aesthetics"
+      },
+      {
+        "id": 682,
+        "name": "Dose Of Beauty Aesthetics"
+      },
+      {
+        "id": 947,
+        "name": "Myo Beauty Aesthetics"
+      }
+    ],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 1991,
+      "name": "Beauty Period Aesthetics"
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "merz",
+    "name_map_vendor": "merz",
+    "value": "Blissful Beauty Bar MedSpa",
+    "city": null,
+    "state": null,
+    "row_count": 1,
+    "suggestions": [
+      {
+        "id": 1613,
+        "name": "Blissful Beauty Bar Medspa"
+      },
+      {
+        "id": 92,
+        "name": "J'esthetics Beauty Bar and IV Hydration"
+      },
+      {
+        "id": 153,
+        "name": "The Beauty Haven Medspa"
+      },
+      {
+        "id": 162,
+        "name": "MedLux Beauty Bar"
+      },
+      {
+        "id": 174,
+        "name": "(DEACTIVATED) Blessed Beauty Medspa"
+      }
+    ],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 1613,
+      "name": "Blissful Beauty Bar Medspa"
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "merz",
+    "name_map_vendor": "merz",
+    "value": "Boutique Injections",
+    "city": null,
+    "state": null,
+    "row_count": 1,
+    "suggestions": [
+      {
+        "id": 1975,
+        "name": "Boutique Injections"
+      },
+      {
+        "id": 183,
+        "name": "Allure Body Boutique"
+      },
+      {
+        "id": 196,
+        "name": "Leo Aesthetics Boutique"
+      },
+      {
+        "id": 216,
+        "name": "All Eyez On U Beauty Bar and Boutique"
+      },
+      {
+        "id": 580,
+        "name": "(DEACTIVATED) Skin Boutique Medical Aesthetics"
+      }
+    ],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 1975,
+      "name": "Boutique Injections"
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "merz",
+    "name_map_vendor": "merz",
+    "value": "BrB Me Time",
+    "city": null,
+    "state": null,
+    "row_count": 1,
+    "suggestions": [
+      {
+        "id": 1526,
+        "name": "BrB Me Time"
+      },
+      {
+        "id": 26,
+        "name": "Defying Time MT"
+      },
+      {
+        "id": 1534,
+        "name": "Nic of Time Aesthetics"
+      },
+      {
+        "id": 42,
+        "name": "Timeless Faces"
+      },
+      {
+        "id": 93,
+        "name": "Timeless Beauty"
+      }
+    ],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 1526,
+      "name": "BrB Me Time"
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "merz",
+    "name_map_vendor": "merz",
+    "value": "Breeze Aesthetics",
+    "city": null,
+    "state": null,
+    "row_count": 1,
+    "suggestions": [
+      {
+        "id": 1911,
+        "name": "Breeze Aesthetics"
+      },
+      {
+        "id": 6,
+        "name": "Citrus Aesthetics"
+      },
+      {
+        "id": 7,
+        "name": "Uplift Aesthetics (DEACTIVATED)"
+      },
+      {
+        "id": 13,
+        "name": "Primrose and Peaches Aesthetics (Churned)"
+      },
+      {
+        "id": 19,
+        "name": "(DEACTIVATED) Emery Aesthetics & Wellness"
+      }
+    ],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 1911,
+      "name": "Breeze Aesthetics"
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "merz",
+    "name_map_vendor": "merz",
+    "value": "Contour Medical Aesthetics",
+    "city": null,
+    "state": null,
+    "row_count": 1,
+    "suggestions": [
+      {
+        "id": 1915,
+        "name": "Contour Medical Aesthetics"
+      },
+      {
+        "id": 54,
+        "name": "(DEACTIVATED) Mariposa Medical Aesthetics and Wellness Spa"
+      },
+      {
+        "id": 209,
+        "name": "SKNLUX Medical Aesthetics"
+      },
+      {
+        "id": 332,
+        "name": "A.O.B. Medical Aesthetics"
+      },
+      {
+        "id": 572,
+        "name": "Vitalux Medical Aesthetics"
+      }
+    ],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 1915,
+      "name": "Contour Medical Aesthetics"
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "merz",
+    "name_map_vendor": "merz",
+    "value": "Ethereal Medspa & Wellness - Masha",
+    "city": null,
+    "state": null,
+    "row_count": 3,
+    "suggestions": [
+      {
+        "id": 1398,
+        "name": "ETHEREAL MEDSPA & WELLNESS"
+      },
+      {
+        "id": 804,
+        "name": "Anaëlle Medspa & Wellness (paused)"
+      },
+      {
+        "id": 999,
+        "name": "Honest Medspa - Weightloss & Wellness"
+      },
+      {
+        "id": 1211,
+        "name": "Oak & Stone Wellness and Medspa"
+      },
+      {
+        "id": 1380,
+        "name": "Paradise Medspa & Wellness"
+      }
+    ],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 1398,
+      "name": "ETHEREAL MEDSPA & WELLNESS"
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "merz",
+    "name_map_vendor": "merz",
+    "value": "Flawless Beauty Injectables &",
+    "city": null,
+    "state": null,
+    "row_count": 1,
+    "suggestions": [
+      {
+        "id": 1990,
+        "name": "Flawless Beauty Injectables & Aesthetics"
+      },
+      {
+        "id": 17,
+        "name": "(DEACTIVATED) Mirror Mirror Beauty"
+      },
+      {
+        "id": 51,
+        "name": "Tonics Beauty"
+      },
+      {
+        "id": 53,
+        "name": "Beauty and The Beautox (Churned)"
+      },
+      {
+        "id": 92,
+        "name": "J'esthetics Beauty Bar and IV Hydration"
+      }
+    ],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 1990,
+      "name": "Flawless Beauty Injectables & Aesthetics"
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "merz",
+    "name_map_vendor": "merz",
+    "value": "Harmoni Health & Beauty",
+    "city": null,
+    "state": null,
+    "row_count": 2,
+    "suggestions": [
+      {
+        "id": 1650,
+        "name": "Harmoni Health and Beauty"
+      },
+      {
+        "id": 96,
+        "name": "Restorativ Health and Beauty"
+      },
+      {
+        "id": 598,
+        "name": "Exalt Health and Beauty"
+      },
+      {
+        "id": 675,
+        "name": "WOW Health & Beauty"
+      },
+      {
+        "id": 690,
+        "name": "RIL Beauty Health & Wellness"
+      }
+    ],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 1650,
+      "name": "Harmoni Health and Beauty"
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "merz",
+    "name_map_vendor": "merz",
+    "value": "Holly Tabor",
+    "city": null,
+    "state": null,
+    "row_count": 4,
+    "suggestions": [
+      {
+        "id": 1643,
+        "name": "Holly Riechers"
+      },
+      {
+        "id": 1963,
+        "name": "Holly Clark Nursing"
+      }
+    ],
+    "status": "skipped"
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "merz",
+    "name_map_vendor": "merz",
+    "value": "IVY Infusions & Med Spa",
+    "city": null,
+    "state": null,
+    "row_count": 1,
+    "suggestions": [
+      {
+        "id": 1815,
+        "name": "IVY Infusions & Med Spa"
+      },
+      {
+        "id": 15,
+        "name": "Well & Beautiful Med Spa"
+      },
+      {
+        "id": 43,
+        "name": "Yofi Med Spa"
+      },
+      {
+        "id": 169,
+        "name": "Violeta Med Spa"
+      },
+      {
+        "id": 578,
+        "name": "Self Care 911 Med Spa"
+      }
+    ],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 1815,
+      "name": "IVY Infusions & Med Spa"
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "merz",
+    "name_map_vendor": "merz",
+    "value": "Kopper Aesthetics",
+    "city": null,
+    "state": null,
+    "row_count": 1,
+    "suggestions": [
+      {
+        "id": 1942,
+        "name": "Kopper Aesthetics"
+      },
+      {
+        "id": 6,
+        "name": "Citrus Aesthetics"
+      },
+      {
+        "id": 7,
+        "name": "Uplift Aesthetics (DEACTIVATED)"
+      },
+      {
+        "id": 13,
+        "name": "Primrose and Peaches Aesthetics (Churned)"
+      },
+      {
+        "id": 19,
+        "name": "(DEACTIVATED) Emery Aesthetics & Wellness"
+      }
+    ],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 1942,
+      "name": "Kopper Aesthetics"
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "merz",
+    "name_map_vendor": "merz",
+    "value": "LIV-Well Aesthetic & Regenerative",
+    "city": null,
+    "state": null,
+    "row_count": 1,
+    "suggestions": [
+      {
+        "id": 1163,
+        "name": "NV Regenerative Aesthetics"
+      },
+      {
+        "id": 1580,
+        "name": "Thela Regenerative Medicine & Aesthetics"
+      },
+      {
+        "id": 168,
+        "name": "Touch Aesthetic"
+      },
+      {
+        "id": 575,
+        "name": "Aesthetic Angels Beauty Bar"
+      },
+      {
+        "id": 588,
+        "name": "Face & Beyond Aesthetic Lounge"
+      }
+    ],
+    "status": "skipped"
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "merz",
+    "name_map_vendor": "merz",
+    "value": "Luma Aesthetics and Wellness",
+    "city": null,
+    "state": null,
+    "row_count": 2,
+    "suggestions": [
+      {
+        "id": 2012,
+        "name": "Luma Aesthetics and Wellness"
+      },
+      {
+        "id": 47,
+        "name": "(DEACTIVATED) The Jab Lab Aesthetics and Wellness"
+      },
+      {
+        "id": 54,
+        "name": "(DEACTIVATED) Mariposa Medical Aesthetics and Wellness Spa"
+      },
+      {
+        "id": 215,
+        "name": "Wildflower Aesthetics and Wellness"
+      },
+      {
+        "id": 579,
+        "name": "Integrative Aesthetics and Wellness"
+      }
+    ],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 2012,
+      "name": "Luma Aesthetics and Wellness"
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "merz",
+    "name_map_vendor": "merz",
+    "value": "M2 Medstetics",
+    "city": null,
+    "state": null,
+    "row_count": 1,
+    "suggestions": [
+      {
+        "id": 1831,
+        "name": "M2 Medstetics"
+      }
+    ],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 1831,
+      "name": "M2 Medstetics"
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "merz",
+    "name_map_vendor": "merz",
+    "value": "Marcel Aesthetics",
+    "city": null,
+    "state": null,
+    "row_count": 2,
+    "suggestions": [
+      {
+        "id": 1569,
+        "name": "Marcel Aesthetics"
+      },
+      {
+        "id": 6,
+        "name": "Citrus Aesthetics"
+      },
+      {
+        "id": 7,
+        "name": "Uplift Aesthetics (DEACTIVATED)"
+      },
+      {
+        "id": 13,
+        "name": "Primrose and Peaches Aesthetics (Churned)"
+      },
+      {
+        "id": 19,
+        "name": "(DEACTIVATED) Emery Aesthetics & Wellness"
+      }
+    ],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 1569,
+      "name": "Marcel Aesthetics"
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "merz",
+    "name_map_vendor": "merz",
+    "value": "Med Aesthetics",
+    "city": null,
+    "state": null,
+    "row_count": 2,
+    "suggestions": [
+      {
+        "id": 1306,
+        "name": "Fresh Aesthetics Med Spa"
+      },
+      {
+        "id": 1315,
+        "name": "Lily Med Spa Aesthetics"
+      },
+      {
+        "id": 1432,
+        "name": "Lustrous Med Aesthetics"
+      },
+      {
+        "id": 1448,
+        "name": "Muse Aesthetics Med Spa"
+      },
+      {
+        "id": 1589,
+        "name": "Evergreen Med Spa & Aesthetics"
+      }
+    ],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 1855,
+      "name": "Med Aesthetics"
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "merz",
+    "name_map_vendor": "merz",
+    "value": "Natural Health Center of the",
+    "city": null,
+    "state": null,
+    "row_count": 1,
+    "suggestions": [
+      {
+        "id": 1933,
+        "name": "The Natural Aesthetic and Wellness"
+      },
+      {
+        "id": 1950,
+        "name": "The Remedy Health & Wellness Clinic"
+      },
+      {
+        "id": 568,
+        "name": "Natural Aesthetics"
+      },
+      {
+        "id": 1291,
+        "name": "Natural Aesthetics"
+      },
+      {
+        "id": 1309,
+        "name": "Foothills Integrated Health & Aesthetics"
+      }
+    ],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 1933,
+      "name": "The Natural Aesthetic and Wellness"
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "merz",
+    "name_map_vendor": "merz",
+    "value": "NaturalGlo Aesthetics",
+    "city": null,
+    "state": null,
+    "row_count": 1,
+    "suggestions": [
+      {
+        "id": 1120,
+        "name": "NaturalGlo Aesthetics"
+      },
+      {
+        "id": 6,
+        "name": "Citrus Aesthetics"
+      },
+      {
+        "id": 7,
+        "name": "Uplift Aesthetics (DEACTIVATED)"
+      },
+      {
+        "id": 13,
+        "name": "Primrose and Peaches Aesthetics (Churned)"
+      },
+      {
+        "id": 19,
+        "name": "(DEACTIVATED) Emery Aesthetics & Wellness"
+      }
+    ],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 1120,
+      "name": "NaturalGlo Aesthetics"
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "merz",
+    "name_map_vendor": "merz",
+    "value": "Ocean Medspa",
+    "city": null,
+    "state": null,
+    "row_count": 1,
+    "suggestions": [
+      {
+        "id": 1540,
+        "name": "Ocean Medspa"
+      },
+      {
+        "id": 14,
+        "name": "North Ridge MedSpa (Churned)"
+      },
+      {
+        "id": 16,
+        "name": "Angilee MedSpa"
+      },
+      {
+        "id": 24,
+        "name": "LunaGlow MedSpa"
+      },
+      {
+        "id": 50,
+        "name": "Old Town MedSpa"
+      }
+    ],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 1540,
+      "name": "Ocean Medspa"
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "merz",
+    "name_map_vendor": "merz",
+    "value": "Old Town Medspa",
+    "city": null,
+    "state": null,
+    "row_count": 1,
+    "suggestions": [
+      {
+        "id": 50,
+        "name": "Old Town MedSpa"
+      },
+      {
+        "id": 14,
+        "name": "North Ridge MedSpa (Churned)"
+      },
+      {
+        "id": 16,
+        "name": "Angilee MedSpa"
+      },
+      {
+        "id": 24,
+        "name": "LunaGlow MedSpa"
+      },
+      {
+        "id": 131,
+        "name": "Infused MedSpa & IV (DEACTIVATED)"
+      }
+    ],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 50,
+      "name": "Old Town MedSpa"
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "merz",
+    "name_map_vendor": "merz",
+    "value": "Precision Esthetics Beauty Bar Well",
+    "city": null,
+    "state": null,
+    "row_count": 9,
+    "suggestions": [
+      {
+        "id": 1130,
+        "name": "Precision Esthetics Beauty Bar Wellness"
+      },
+      {
+        "id": 92,
+        "name": "J'esthetics Beauty Bar and IV Hydration"
+      },
+      {
+        "id": 1415,
+        "name": "Hydration Sisters: Wellness & Beauty Bar"
+      },
+      {
+        "id": 162,
+        "name": "MedLux Beauty Bar"
+      },
+      {
+        "id": 203,
+        "name": "Oasis Beauty Bar"
+      }
+    ],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 1130,
+      "name": "Precision Esthetics Beauty Bar Wellness"
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "merz",
+    "name_map_vendor": "merz",
+    "value": "Pretty Moods Wellness",
+    "city": null,
+    "state": null,
+    "row_count": 1,
+    "suggestions": [
+      {
+        "id": 1705,
+        "name": "Pretty Moods Wellness"
+      },
+      {
+        "id": 4,
+        "name": "(DEACTIVATED) Bbetter Wellness Spa"
+      },
+      {
+        "id": 19,
+        "name": "(DEACTIVATED) Emery Aesthetics & Wellness"
+      },
+      {
+        "id": 40,
+        "name": "Whole Being Wellness"
+      },
+      {
+        "id": 47,
+        "name": "(DEACTIVATED) The Jab Lab Aesthetics and Wellness"
+      }
+    ],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 1705,
+      "name": "Pretty Moods Wellness"
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "merz",
+    "name_map_vendor": "merz",
+    "value": "Rych Aesthetics",
+    "city": null,
+    "state": null,
+    "row_count": 2,
+    "suggestions": [
+      {
+        "id": 1204,
+        "name": "Rych Aesthetics"
+      },
+      {
+        "id": 6,
+        "name": "Citrus Aesthetics"
+      },
+      {
+        "id": 7,
+        "name": "Uplift Aesthetics (DEACTIVATED)"
+      },
+      {
+        "id": 13,
+        "name": "Primrose and Peaches Aesthetics (Churned)"
+      },
+      {
+        "id": 19,
+        "name": "(DEACTIVATED) Emery Aesthetics & Wellness"
+      }
+    ],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 1204,
+      "name": "Rych Aesthetics"
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "merz",
+    "name_map_vendor": "merz",
+    "value": "Skin Affair Med Spa",
+    "city": null,
+    "state": null,
+    "row_count": 2,
+    "suggestions": [
+      {
+        "id": 1616,
+        "name": "Skin Affair Med Spa"
+      },
+      {
+        "id": 834,
+        "name": "Skin Affaire Med Spa"
+      },
+      {
+        "id": 1570,
+        "name": "Skin Deep Med Spa"
+      },
+      {
+        "id": 1699,
+        "name": "The Skin Etiquette Med Spa"
+      },
+      {
+        "id": 1612,
+        "name": "Skin Society Medical Spa"
+      }
+    ],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 1616,
+      "name": "Skin Affair Med Spa"
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "merz",
+    "name_map_vendor": "merz",
+    "value": "Skin Glo Aesthetics",
+    "city": null,
+    "state": null,
+    "row_count": 3,
+    "suggestions": [
+      {
+        "id": 1895,
+        "name": "Skin Glo Aesthetics"
+      },
+      {
+        "id": 580,
+        "name": "(DEACTIVATED) Skin Boutique Medical Aesthetics"
+      },
+      {
+        "id": 1231,
+        "name": "Pure Glo Aesthetics"
+      },
+      {
+        "id": 1345,
+        "name": "Glo Rituals Aesthetics"
+      },
+      {
+        "id": 1431,
+        "name": "Modern Glo Medical Aesthetics"
+      }
+    ],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 1895,
+      "name": "Skin Glo Aesthetics"
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "merz",
+    "name_map_vendor": "merz",
+    "value": "The Med Spa at Timeless",
+    "city": null,
+    "state": null,
+    "row_count": 2,
+    "suggestions": [
+      {
+        "id": 2004,
+        "name": "The Med Spa at Timeless"
+      },
+      {
+        "id": 1311,
+        "name": "The Dolce Med Spa"
+      },
+      {
+        "id": 1317,
+        "name": "The Good Look Med Spa"
+      },
+      {
+        "id": 1699,
+        "name": "The Skin Etiquette Med Spa"
+      },
+      {
+        "id": 1306,
+        "name": "Fresh Aesthetics Med Spa"
+      }
+    ],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 2004,
+      "name": "The Med Spa at Timeless"
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "merz",
+    "name_map_vendor": "merz",
+    "value": "The Natural Aesthetic and Wellness",
+    "city": null,
+    "state": null,
+    "row_count": 1,
+    "suggestions": [
+      {
+        "id": 1933,
+        "name": "The Natural Aesthetic and Wellness"
+      },
+      {
+        "id": 47,
+        "name": "(DEACTIVATED) The Jab Lab Aesthetics and Wellness"
+      },
+      {
+        "id": 1624,
+        "name": "Skin+ Body Aesthetic and Wellness"
+      },
+      {
+        "id": 1672,
+        "name": "Majestic Noir Aesthetic and Wellness"
+      },
+      {
+        "id": 54,
+        "name": "(DEACTIVATED) Mariposa Medical Aesthetics and Wellness Spa"
+      }
+    ],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 1933,
+      "name": "The Natural Aesthetic and Wellness"
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "merz",
+    "name_map_vendor": "merz",
+    "value": "The Society Medspa",
+    "city": null,
+    "state": null,
+    "row_count": 1,
+    "suggestions": [
+      {
+        "id": 2040,
+        "name": "The Society Medspa"
+      },
+      {
+        "id": 153,
+        "name": "The Beauty Haven Medspa"
+      },
+      {
+        "id": 177,
+        "name": "The Medspa Co"
+      },
+      {
+        "id": 1169,
+        "name": "Beauty and the Best MedSpa"
+      },
+      {
+        "id": 1394,
+        "name": "The Luxe Needle Medspa"
+      }
+    ],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 2040,
+      "name": "The Society Medspa"
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "merz",
+    "name_map_vendor": "merz",
+    "value": "Trevi Longevity & Aesthetics",
+    "city": null,
+    "state": null,
+    "row_count": 1,
+    "suggestions": [
+      {
+        "id": 1941,
+        "name": "Wellness Method Aesthetics & Longevity"
+      },
+      {
+        "id": 6,
+        "name": "Citrus Aesthetics"
+      },
+      {
+        "id": 7,
+        "name": "Uplift Aesthetics (DEACTIVATED)"
+      },
+      {
+        "id": 13,
+        "name": "Primrose and Peaches Aesthetics (Churned)"
+      },
+      {
+        "id": 19,
+        "name": "(DEACTIVATED) Emery Aesthetics & Wellness"
+      }
+    ],
+    "status": "skipped"
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "merz",
+    "name_map_vendor": "merz",
+    "value": "Vida Aesthetics Medical Spa",
+    "city": null,
+    "state": null,
+    "row_count": 3,
+    "suggestions": [
+      {
+        "id": 1944,
+        "name": "Vida Aesthetics Medical Spa"
+      },
+      {
+        "id": 54,
+        "name": "(DEACTIVATED) Mariposa Medical Aesthetics and Wellness Spa"
+      },
+      {
+        "id": 1436,
+        "name": "Aesthetics Universe Medical Spa"
+      },
+      {
+        "id": 27,
+        "name": "Luxus Medical Spa"
+      },
+      {
+        "id": 88,
+        "name": "SPA Aesthetics"
+      }
+    ],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 1944,
+      "name": "Vida Aesthetics Medical Spa"
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "merz",
+    "name_map_vendor": "merz",
+    "value": "VidaBella Aesthetics",
+    "city": null,
+    "state": null,
+    "row_count": 1,
+    "suggestions": [
+      {
+        "id": 1912,
+        "name": "VidaBella Aesthetics"
+      },
+      {
+        "id": 6,
+        "name": "Citrus Aesthetics"
+      },
+      {
+        "id": 7,
+        "name": "Uplift Aesthetics (DEACTIVATED)"
+      },
+      {
+        "id": 13,
+        "name": "Primrose and Peaches Aesthetics (Churned)"
+      },
+      {
+        "id": 19,
+        "name": "(DEACTIVATED) Emery Aesthetics & Wellness"
+      }
+    ],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 1912,
+      "name": "VidaBella Aesthetics"
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "merz",
+    "name_map_vendor": "merz",
+    "value": "Vlemma Aesthetics",
+    "city": null,
+    "state": null,
+    "row_count": 1,
+    "suggestions": [
+      {
+        "id": 1881,
+        "name": "Vlemma Aesthetics"
+      },
+      {
+        "id": 6,
+        "name": "Citrus Aesthetics"
+      },
+      {
+        "id": 7,
+        "name": "Uplift Aesthetics (DEACTIVATED)"
+      },
+      {
+        "id": 13,
+        "name": "Primrose and Peaches Aesthetics (Churned)"
+      },
+      {
+        "id": 19,
+        "name": "(DEACTIVATED) Emery Aesthetics & Wellness"
+      }
+    ],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 1881,
+      "name": "Vlemma Aesthetics"
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "merz",
+    "name_map_vendor": "merz",
+    "value": "A Touch Above Medspa",
+    "city": null,
+    "state": null,
+    "row_count": 13,
+    "suggestions": [],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 1393
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "merz",
+    "name_map_vendor": "merz",
+    "value": "Aesthetics by Jaime",
+    "city": null,
+    "state": null,
+    "row_count": 7,
+    "suggestions": [],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 172
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "merz",
+    "name_map_vendor": "merz",
+    "value": "Aida Aesthetics",
+    "city": null,
+    "state": null,
+    "row_count": 14,
+    "suggestions": [],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 691
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "merz",
+    "name_map_vendor": "merz",
+    "value": "Allure Aesthetics Lounge",
+    "city": null,
+    "state": null,
+    "row_count": 18,
+    "suggestions": [],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 1522
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "merz",
+    "name_map_vendor": "merz",
+    "value": "Beauty Energy Exchange",
+    "city": null,
+    "state": null,
+    "row_count": 6,
+    "suggestions": [],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 597
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "merz",
+    "name_map_vendor": "merz",
+    "value": "Brazilian Touch Medspa",
+    "city": null,
+    "state": null,
+    "row_count": 12,
+    "suggestions": [],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 1489
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "merz",
+    "name_map_vendor": "merz",
+    "value": "Elixir Beauty and Wellness",
+    "city": null,
+    "state": null,
+    "row_count": 4,
+    "suggestions": [],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 1845
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "merz",
+    "name_map_vendor": "merz",
+    "value": "Forever Young Injections",
+    "city": null,
+    "state": null,
+    "row_count": 25,
+    "suggestions": [],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 1246
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "merz",
+    "name_map_vendor": "merz",
+    "value": "IKontura Aesthetics & Wellness",
+    "city": null,
+    "state": null,
+    "row_count": 3,
+    "suggestions": [],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 1591
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "merz",
+    "name_map_vendor": "merz",
+    "value": "Modern Glo Medical Aesthetics",
+    "city": null,
+    "state": null,
+    "row_count": 6,
+    "suggestions": [],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 1431
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "merz",
+    "name_map_vendor": "merz",
+    "value": "Muse Aesthetics Med Spa",
+    "city": null,
+    "state": null,
+    "row_count": 3,
+    "suggestions": [],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 1448
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "merz",
+    "name_map_vendor": "merz",
+    "value": "Rejuvenate Aesthetics",
+    "city": null,
+    "state": null,
+    "row_count": 4,
+    "suggestions": [],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 1254
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "merz",
+    "name_map_vendor": "merz",
+    "value": "Rejuvenate Wellness",
+    "city": null,
+    "state": null,
+    "row_count": 8,
+    "suggestions": [],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 1158
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "merz",
+    "name_map_vendor": "merz",
+    "value": "Soul Glow Aesthetics",
+    "city": null,
+    "state": null,
+    "row_count": 15,
+    "suggestions": [],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 134
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "merz",
+    "name_map_vendor": "merz",
+    "value": "Sweet Wildflower Aesthetics",
+    "city": null,
+    "state": null,
+    "row_count": 2,
+    "suggestions": [],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 1842
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "merz",
+    "name_map_vendor": "merz",
+    "value": "The Refined Collective",
+    "city": null,
+    "state": null,
+    "row_count": 2,
+    "suggestions": [],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 1731
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "merz",
+    "name_map_vendor": "merz",
+    "value": "True You Medical",
+    "city": null,
+    "state": null,
+    "row_count": 2,
+    "suggestions": [],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 1229
+    }
+  },
+  {
+    "type": "name_not_in_map",
+    "vendor": "merz",
+    "name_map_vendor": "merz",
+    "value": "Wow Health and Beauty",
+    "city": null,
+    "state": null,
+    "row_count": 5,
+    "suggestions": [],
+    "status": "resolved",
+    "resolved_to": {
+      "id": 675
+    }
+  }
+]

@@ -1,0 +1,274 @@
+{% extends "layout.html" %}
+{% block title %}MBR Generator — Dashboard{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="hero">
+    <h1>Generate a Monthly Business Review</h1>
+    <p>Select a practice, choose the reporting period, and generate a polished MBR report.</p>
+  </div>
+
+  <div class="card generate-card">
+    <div class="form-row">
+      <div class="form-group" style="flex:2">
+        <label for="practice">Practice Name or Medspa ID</label>
+        <input type="text" id="practice" placeholder="Start typing a name or enter a medspa ID..."
+               autocomplete="off" list="practice-list">
+        <datalist id="practice-list"></datalist>
+      </div>
+      <div class="form-group">
+        <label for="month">Month</label>
+        <select id="month">
+          <option value="1">January</option>
+          <option value="2">February</option>
+          <option value="3">March</option>
+          <option value="4">April</option>
+          <option value="5">May</option>
+          <option value="6">June</option>
+          <option value="7">July</option>
+          <option value="8">August</option>
+          <option value="9">September</option>
+          <option value="10">October</option>
+          <option value="11">November</option>
+          <option value="12">December</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="year">Year</label>
+        <select id="year">
+          <option value="2026" selected>2026</option>
+          <option value="2025">2025</option>
+        </select>
+      </div>
+    </div>
+
+    <button id="generate-btn" class="btn btn-primary btn-lg" onclick="generateReport()">
+      Generate Report
+    </button>
+
+    <div id="status" class="status hidden">
+      <div class="spinner"></div>
+      <span id="status-text">Loading data from Omni...</span>
+    </div>
+
+    <div id="error" class="error-msg hidden"></div>
+  </div>
+
+  <div class="card" style="margin-top: 24px;">
+    <h3 style="margin: 0 0 4px 0; font-size: 16px;">Browse by Segment</h3>
+    <p style="color: #8C8580; font-size: 13px; margin: 0 0 16px 0;">
+      Filter practices by their post-launch segment tier. Click a practice to use it above.
+    </p>
+
+    <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px;" id="tier-buttons">
+      <button class="tier-btn" data-tier="all" onclick="filterByTier('all')">All</button>
+      <button class="tier-btn" data-tier="Momentum" onclick="filterByTier('Momentum')">Momentum</button>
+      <button class="tier-btn" data-tier="Growth" onclick="filterByTier('Growth')">Growth</button>
+      <button class="tier-btn" data-tier="Silver" onclick="filterByTier('Silver')">Silver</button>
+      <button class="tier-btn" data-tier="Gold" onclick="filterByTier('Gold')">Gold</button>
+      <button class="tier-btn" data-tier="Enterprise" onclick="filterByTier('Enterprise')">Enterprise</button>
+    </div>
+
+    <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 12px;">
+      <input type="text" id="tier-search" placeholder="Search within selected tier..."
+             oninput="renderTierList()"
+             style="flex: 1; border: 1px solid #d2cbc4; border-radius: 8px; padding: 8px 12px; font-size: 13px;">
+      <span id="tier-count" style="color: #8C8580; font-size: 12px; white-space: nowrap;"></span>
+    </div>
+
+    <div id="tier-list" style="max-height: 360px; overflow-y: auto; border: 1px solid #e8e0d8; border-radius: 8px;">
+      <div style="padding: 20px; text-align: center; color: #8C8580; font-size: 13px;">Loading segments…</div>
+    </div>
+  </div>
+
+  <style>
+    .tier-btn {
+      padding: 6px 14px;
+      font-size: 13px;
+      font-weight: 500;
+      border: 1.5px solid #d2cbc4;
+      border-radius: 999px;
+      background: white;
+      color: #4A4744;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .tier-btn:hover { border-color: #4D1751; color: #4D1751; }
+    .tier-btn.active { background: #4D1751; color: white; border-color: #4D1751; }
+    .tier-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 8px 12px; border-bottom: 1px solid #f0ebe6;
+      cursor: pointer; font-size: 13px;
+    }
+    .tier-row:hover { background: #FAFAF7; }
+    .tier-row:last-child { border-bottom: none; }
+    .tier-name { font-weight: 500; color: #2D2A28; }
+    .tier-meta { font-size: 11px; color: #8C8580; }
+    .tier-badge {
+      font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 10px;
+      text-transform: uppercase; letter-spacing: 0.04em;
+    }
+    .tier-badge.Momentum { background: #E8F4FD; color: #1E5B8E; }
+    .tier-badge.Growth { background: #E8F5E9; color: #2E7D32; }
+    .tier-badge.Silver { background: #F0F0F0; color: #5A5550; }
+    .tier-badge.Gold { background: #FFF8E1; color: #B8933A; }
+    .tier-badge.Enterprise { background: #F3EDF4; color: #4D1751; }
+  </style>
+
+  <div class="recent-section" id="recent-section" style="display:none">
+    <h3>Recent Reports</h3>
+    <div id="recent-list"></div>
+  </div>
+</div>
+
+<script>
+// Load practices for autocomplete (name + ID)
+let allPractices = [];
+fetch('/api/practices')
+  .then(r => r.json())
+  .then(data => {
+    allPractices = data.practices || [];
+    const dl = document.getElementById('practice-list');
+    allPractices.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.name;
+      opt.label = p.id ? p.name + ' (ID: ' + p.id + ')' : p.name;
+      dl.appendChild(opt);
+    });
+  })
+  .catch(() => {});
+
+function resolvePractice(input) {
+  // If input is a number, look up by medspa ID
+  if (/^\d+$/.test(input)) {
+    const match = allPractices.find(p => p.id === parseInt(input));
+    return match ? match.name : null;
+  }
+  return input;
+}
+
+function generateReport() {
+  const rawInput = document.getElementById('practice').value.trim();
+  const month = document.getElementById('month').value;
+  const year = document.getElementById('year').value;
+
+  if (!rawInput) {
+    showError('Please enter a practice name or medspa ID.');
+    return;
+  }
+
+  const practice = resolvePractice(rawInput);
+  if (!practice) {
+    showError('Medspa ID ' + rawInput + ' not found. Make sure the ID is correct.');
+    return;
+  }
+
+  const btn = document.getElementById('generate-btn');
+  btn.disabled = true;
+  btn.textContent = 'Generating...';
+
+  document.getElementById('status').classList.remove('hidden');
+  document.getElementById('error').classList.add('hidden');
+  document.getElementById('status-text').textContent =
+    'Opening report... If no saved version exists, fresh Omni data will load (30–60s).';
+
+  fetch('/api/generate', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({practice, month: parseInt(month), year: parseInt(year)})
+  })
+  .then(r => r.json())
+  .then(data => {
+    btn.disabled = false;
+    btn.textContent = 'Generate Report';
+    document.getElementById('status').classList.add('hidden');
+
+    if (data.error) {
+      showError(data.error);
+    } else {
+      window.location.href = '/editor/' + data.session_id;
+    }
+  })
+  .catch(err => {
+    btn.disabled = false;
+    btn.textContent = 'Generate Report';
+    document.getElementById('status').classList.add('hidden');
+    showError('Connection error: ' + err.message);
+  });
+}
+
+function showError(msg) {
+  const el = document.getElementById('error');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+
+// Enter key triggers generate
+document.getElementById('practice').addEventListener('keypress', e => {
+  if (e.key === 'Enter') generateReport();
+});
+
+// ── Segment / Tier Browser ──
+let currentTier = 'all';
+
+// Tier data now comes directly from /api/practices (Omni's provider_segment_post_launch)
+// Wait briefly for allPractices to populate, then render
+setTimeout(renderTierList, 500);
+
+function filterByTier(tier) {
+  currentTier = tier;
+  document.querySelectorAll('.tier-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tier === tier);
+  });
+  renderTierList();
+}
+
+function renderTierList() {
+  const list = document.getElementById('tier-list');
+  const search = (document.getElementById('tier-search').value || '').toLowerCase().trim();
+
+  // Build filtered set of practices using tier from /api/practices (Omni)
+  const filtered = allPractices
+    .filter(p => {
+      const tier = p.tier || '';
+      if (currentTier !== 'all' && tier !== currentTier) return false;
+      if (search && !p.name.toLowerCase().includes(search) && !String(p.id || '').includes(search)) return false;
+      return true;
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  document.getElementById('tier-count').textContent =
+    filtered.length + ' practice' + (filtered.length === 1 ? '' : 's');
+
+  if (!filtered.length) {
+    list.innerHTML = '<div style="padding: 20px; text-align: center; color: #8C8580; font-size: 13px;">No practices match this filter.</div>';
+    return;
+  }
+
+  list.innerHTML = filtered.slice(0, 200).map(p => `
+    <div class="tier-row" onclick="selectPracticeFromTier('${p.name.replace(/'/g, "\\'")}')">
+      <div>
+        <div class="tier-name">${escapeHtml(p.name)}</div>
+        <div class="tier-meta">ID: ${p.id || '—'}</div>
+      </div>
+      ${p.tier ? `<span class="tier-badge ${p.tier}">${p.tier}</span>` : '<span style="color:#c8c0bb;font-size:11px;">No tier</span>'}
+    </div>
+  `).join('') + (filtered.length > 200 ? `<div style="padding:10px;text-align:center;color:#8C8580;font-size:11px;">Showing first 200 of ${filtered.length} — refine search to narrow down</div>` : '');
+}
+
+function selectPracticeFromTier(name) {
+  const input = document.getElementById('practice');
+  input.value = name;
+  input.scrollIntoView({behavior: 'smooth', block: 'center'});
+  input.focus();
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// Default to "All" active
+filterByTier('all');
+</script>
+{% endblock %}

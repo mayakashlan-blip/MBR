@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@400;700&display=swap" rel="stylesheet">
+<style>{{ css }}</style>
+</head>
+<body>
+
+{# ════════════════════════════════════════════════════════════════════
+   PAGE 1 — COVER
+   ════════════════════════════════════════════════════════════════════ #}
+<section class="page">
+  <div class="cover">
+    <img class="cover-logo" src="{{ logo_uri }}" alt="Moxie">
+    <div class="cover-divider"></div>
+    <div class="cover-practice">{{ data.practice_name }}</div>
+    <div class="cover-type">Monthly Business Review</div>
+    <div class="cover-period">{{ data.month_name }} {{ data.year }}</div>
+    {% if data.moxie_start_month %}
+    <div style="margin-top: 0.3in; font-size: 8.5pt; color: var(--muted-text);">
+      Moxie Partner since {{ data.moxie_start_month }}
+    </div>
+    {% endif %}
+  </div>
+  <div class="footer">Moxie Partners, Inc. Copyright &copy;2025. Private and confidential.</div>
+</section>
+
+{# ════════════════════════════════════════════════════════════════════
+   PAGE 2 — MONTHLY SNAPSHOT
+   ════════════════════════════════════════════════════════════════════ #}
+<section class="page">
+  {% include "components/header.html.j2" %}
+  <div class="section-title">Monthly Snapshot</div>
+
+  {# Executive Summary #}
+  {% if data.executive_summary and data.show_executive_summary %}
+  <div class="exec-summary">{{ data.executive_summary }}</div>
+  {% endif %}
+
+  {# Key Metrics — top row #}
+  <div class="metrics-row">
+    <div class="metric-card">
+      <div class="metric-label">Monthly Net Revenue</div>
+      <div class="metric-value">{{ data.monthly_net_revenue | dollar }}</div>
+      <div class="mom-change{% if data.revenue_mom_pct is not none and data.revenue_mom_pct >= 0 %} positive{% elif data.revenue_mom_pct is not none %} negative{% endif %}">
+        {% if data.revenue_mom_pct is not none %}
+          {{ "▲" if data.revenue_mom_pct >= 0 else "▼" }} {{ "%.1f"|format((data.revenue_mom_pct * 100)|abs) }}% MoM
+        {% else %}
+          N/A MoM
+        {% endif %}
+      </div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Total Appointments</div>
+      <div class="metric-value">{{ "{:,}".format(data.total_appointments) }}</div>
+      <div class="mom-change{% if data.appointments_mom_pct is not none and data.appointments_mom_pct >= 0 %} positive{% elif data.appointments_mom_pct is not none %} negative{% endif %}">
+        {% if data.appointments_mom_pct is not none %}
+          {{ "▲" if data.appointments_mom_pct >= 0 else "▼" }} {{ "%.1f"|format((data.appointments_mom_pct * 100)|abs) }}% MoM
+        {% else %}
+          N/A MoM
+        {% endif %}
+      </div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">AOV</div>
+      <div class="metric-value">{{ data.aov | dollar }}</div>
+      <div class="mom-change{% if data.aov_mom_pct is not none and data.aov_mom_pct >= 0 %} positive{% elif data.aov_mom_pct is not none %} negative{% endif %}">
+        {% if data.aov_mom_pct is not none %}
+          {{ "▲" if data.aov_mom_pct >= 0 else "▼" }} {{ "%.1f"|format((data.aov_mom_pct * 100)|abs) }}% MoM
+        {% else %}
+          N/A MoM
+        {% endif %}
+      </div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Quarter to Date</div>
+      <div class="metric-value{% if not data.quarter_to_date %} small{% endif %}">
+        {% if data.quarter_to_date %}{{ data.quarter_to_date | dollar }}{% else %}N/A{% endif %}
+      </div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Revenue per Client</div>
+      <div class="metric-value{% if data.total_clients == 0 %} small{% endif %}">
+        {% if data.total_clients > 0 %}{{ data.revenue_per_client | dollar }}{% else %}N/A{% endif %}
+      </div>
+    </div>
+  </div>
+
+  {# Performance Gauges #}
+  <div class="gauges-row">
+    {% for g in gauges %}
+    <div class="gauge-item">
+      <div class="gauge-wrap {{ g.css_class }}">
+        <svg class="gauge-svg" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="40" fill="none" stroke="#E8E3DE" stroke-width="7"/>
+          <circle class="gauge-arc" cx="50" cy="50" r="40" fill="none"
+                  stroke="#4D1751" stroke-width="7" stroke-linecap="round"
+                  stroke-dasharray="{{ g.circ }}" stroke-dashoffset="{{ g.offset }}"
+                  transform="rotate(-90 50 50)"/>
+        </svg>
+        <div class="gauge-text">{{ g.display }}<span class="pct-symbol">%</span></div>
+      </div>
+      <div class="gauge-label">{{ g.label }}</div>
+      {% if g.mom_pct is not none %}
+      <div class="mom-change{% if g.mom_pct >= 0 %} positive{% else %} negative{% endif %}" style="font-size: 6.5pt; margin-top: 0.02in;">
+        {{ "▲" if g.mom_pct >= 0 else "▼" }} {{ "%.1f"|format((g.mom_pct * 100)|abs) }}% MoM
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+
+  {# Bottom section — Client Mix + Reviews #}
+  <div style="display: grid; grid-template-columns: {% if data.reviews %}1fr 1fr{% else %}1fr{% endif %}; gap: 0.14in;">
+    <div class="card">
+      <div class="section-subtitle">Client Mix</div>
+      {% set total_clients = data.new_clients + data.existing_clients %}
+      {% if total_clients > 0 %}
+        {% set existing_pct = (data.existing_clients / total_clients * 100) | round(0) | int %}
+        {% set new_pct = 100 - existing_pct %}
+        <div class="client-mix-bar">
+          <div class="existing" style="width: {{ existing_pct }}%">{{ existing_pct }}%</div>
+          <div class="new" style="width: {{ new_pct }}%">{{ new_pct }}%</div>
+        </div>
+        <div class="client-mix-labels">
+          <span>Existing ({{ data.existing_clients }})</span>
+          <span>New ({{ data.new_clients }})</span>
+        </div>
+        <div style="margin-top: 0.1in; padding-top: 0.08in; border-top: 1px solid #e8e3de; display: flex; justify-content: center; gap: 0.4in;">
+          <div style="text-align: center;">
+            <div style="font-size: 14pt; font-weight: 700; color: var(--purple);">{{ data.revenue_per_client | dollar(False) }}</div>
+            <div style="font-size: 6.5pt; color: var(--muted-text); text-transform: uppercase; letter-spacing: 0.03em;">Revenue / Client</div>
+          </div>
+          <div style="text-align: center;">
+            <div style="font-size: 14pt; font-weight: 700; color: var(--purple);">{{ "{:,}".format(total_clients) }}</div>
+            <div style="font-size: 6.5pt; color: var(--muted-text); text-transform: uppercase; letter-spacing: 0.03em;">Total Clients</div>
+          </div>
+        </div>
+      {% else %}
+        <div style="text-align: center; padding: 0.2in; color: var(--muted-text); font-size: 8.5pt;">
+          No client data available
+        </div>
+      {% endif %}
+    </div>
+
+    {% if data.reviews %}
+    <div class="card">
+      <div class="section-subtitle">Ratings & Reviews</div>
+      <table class="reviews-table">
+        <tr>
+          <th>Platform</th><th>New</th><th>Avg</th><th>Total</th><th>Overall</th>
+        </tr>
+        {% for r in data.reviews %}
+        <tr>
+          <td>{{ r.platform }}</td>
+          <td>{{ r.new_reviews if r.new_reviews is not none else "—" }}</td>
+          <td>{{ "%.1f" | format(r.avg_new_rating) if r.avg_new_rating else "—" }}</td>
+          <td>{{ r.total_reviews if r.total_reviews is not none else "—" }}</td>
+          <td>{{ "%.1f" | format(r.overall_rating) if r.overall_rating else "—" }}</td>
+        </tr>
+        {% endfor %}
+      </table>
+    </div>
+    {% endif %}
+  </div>
+
+  {# ── 4-month trend bar comparisons (Revenue & AOV) ── #}
+  {% if data.revenue_history or data.aov_history %}
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.15in; margin-top: 0.1in;">
+    {% for chart in [
+      {"title": "Net Revenue — Last 4 Months", "series": data.revenue_history, "fmt": "dollar"},
+      {"title": "AOV — Last 4 Months", "series": data.aov_history, "fmt": "dollar"},
+    ] %}
+    {% if chart.series %}
+    {% set series_max = (chart.series | map(attribute="value") | max) or 1 %}
+    <div class="card" style="padding: 0.1in 0.15in;">
+      <div class="section-subtitle" style="margin-bottom: 0.08in;">{{ chart.title }}</div>
+      <div style="display: flex; align-items: flex-end; height: 0.95in; gap: 0.12in; padding: 0 0.05in;">
+        {% for entry in chart.series %}
+        {% set is_current = loop.last %}
+        {% set bar_h = (entry.value / series_max * 100) if series_max > 0 else 0 %}
+        <div style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%;">
+          <div style="font-size: 7pt; font-weight: 600; color: {% if is_current %}#4D1751{% else %}#5a5550{% endif %}; margin-bottom: 0.03in;">
+            ${{ "{:,.0f}".format(entry.value) }}
+          </div>
+          <div style="width: 100%; height: {{ bar_h }}%; min-height: 2px; background: {% if is_current %}#4D1751{% else %}#C8B6CB{% endif %}; border-radius: 3px 3px 0 0;"></div>
+          <div style="font-size: 7pt; color: #8C8580; margin-top: 0.04in;">{{ entry.label }}</div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="footer">Moxie Partners, Inc. Copyright &copy;2025. Private and confidential.</div>
+</section>
+
+{# ════════════════════════════════════════════════════════════════════
+   PAGE 3 — REVENUE BREAKDOWN + STAFF + MEMBERSHIPS
+   ════════════════════════════════════════════════════════════════════ #}
+<section class="page">
+  {% include "components/header.html.j2" %}
+  <div class="section-title">Revenue Breakdown</div>
+
+  {# Revenue Bars #}
+  <div class="card" style="margin-bottom: 0.15in;">
+    <div class="section-subtitle">Gross Revenue Sources</div>
+    <div class="revenue-bars">
+      {% set bar_total = data.service_revenue + data.prepayment_revenue + data.membership_sales + data.custom_items + data.retail_revenue %}
+      {% set max_rev = [data.service_revenue, data.prepayment_revenue, data.membership_sales, data.custom_items, data.retail_revenue] | max %}
+      {% for item in revenue_items %}
+      {% set bar_width = (item.value / max_rev * 100) if max_rev > 0 else 0 %}
+      {% set pct_of_total = (item.value / bar_total * 100) if bar_total > 0 else 0 %}
+      <div class="revenue-bar-row">
+        <div class="revenue-bar-label">{{ item.label }}</div>
+        <div class="revenue-bar-track">
+          <div class="revenue-bar-fill" style="width: {{ bar_width }}%"></div>
+        </div>
+        <div class="revenue-bar-value">
+          {{ item.value | dollar(False) }} <span style="color: #8C8580; font-size: 7pt;">({{ "%.1f"|format(pct_of_total) }}%)</span>
+          {% set mom = item.get('mom_pct') if item.get is defined else none %}
+          {% if mom is not none %}
+          <span style="font-size: 7pt; font-weight: 600; margin-left: 4px; color: {% if mom >= 0 %}#2E7D32{% else %}#B53631{% endif %};">
+            {{ "▲" if mom >= 0 else "▼" }} {{ "%.0f"|format((mom * 100)|abs) }}% MoM
+          </span>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+      <div class="revenue-total">
+        <div class="revenue-bar-label">Total Gross</div>
+        <div></div>
+        <div class="revenue-bar-value">{{ bar_total | dollar(False) }}</div>
+      </div>
+    </div>
+
+    <div class="adjustments-row">
+      <div class="adjustment-card">
+        <div class="adj-label">Discounts</div>
+        <div class="adj-value">{{ data.discounts | dollar(False, True) }}</div>
+      </div>
+      <div class="adjustment-card">
+        <div class="adj-label">Discount % of Gross</div>
+        <div class="adj-value">{% if data.total_gross > 0 %}{{ "%.1f" | format(data.discounts / data.total_gross * 100) }}%{% else %}—{% endif %}</div>
+      </div>
+      <div class="adjustment-card">
+        <div class="adj-label">Redemptions</div>
+        <div class="adj-value neutral">{{ data.redemptions | dollar(False) }}</div>
+      </div>
+      <div class="adjustment-card">
+        <div class="adj-label">Client Fees</div>
+        <div class="adj-value neutral">{{ data.client_fees | dollar(False) }}</div>
+      </div>
+    </div>
+    {% if data.retail_to_service_ratio > 0 %}
+    <div style="margin-top: 0.08in; padding-top: 0.08in; border-top: 1px solid #e8e3de; display: flex; align-items: center; gap: 0.15in;">
+      <div style="font-size: 7.5pt; color: var(--muted-text);">Retail-to-Service Ratio</div>
+      <div style="font-size: 10pt; font-weight: 700; color: var(--purple);">{{ "%.0f"|format(data.retail_to_service_ratio * 100) }}%</div>
+      <div style="font-size: 7pt; color: var(--muted-text);">For every $1 of services, {{ "${:.2f}".format(data.retail_to_service_ratio) }} in retail</div>
+    </div>
+    {% endif %}
+  </div>
+
+  {# ── Staff Performance ── #}
+  {% if data.staff %}
+  <div class="section-title" style="font-size: 16pt; margin-top: 0.2in;">Staff Performance</div>
+  <div class="staff-grid{% if data.staff | length > 4 %} compact{% endif %}">
+    {% for s in data.staff %}
+    <div class="staff-card">
+      <div class="staff-header">
+        <div class="staff-avatar">{{ s.initials }}</div>
+        <div>
+          <div class="staff-name">{{ s.name }}</div>
+        </div>
+      </div>
+      <div class="staff-metrics">
+        <div class="staff-metric">
+          <div class="sm-label">Gross Rev</div>
+          <div class="sm-value">{{ s.gross_revenue | dollar(False) }}</div>
+          {% if s.revenue_mom_pct is not none %}
+          <div class="sm-mom{% if s.revenue_mom_pct >= 0 %} positive{% else %} negative{% endif %}">{{ "▲" if s.revenue_mom_pct >= 0 else "▼" }} {{ "%.0f"|format((s.revenue_mom_pct * 100)|abs) }}%</div>
+          {% endif %}
+        </div>
+        <div class="staff-metric">
+          <div class="sm-label">AOV</div>
+          <div class="sm-value">{{ s.aov | dollar(False) }}</div>
+          {% if s.aov_mom_pct is not none %}
+          <div class="sm-mom{% if s.aov_mom_pct >= 0 %} positive{% else %} negative{% endif %}">{{ "▲" if s.aov_mom_pct >= 0 else "▼" }} {{ "%.0f"|format((s.aov_mom_pct * 100)|abs) }}%</div>
+          {% endif %}
+        </div>
+        <div class="staff-metric">
+          <div class="sm-label">Utilization</div>
+          <div class="sm-value">{% if s.utilization is not none %}{{ "%.0f" | format(s.utilization * 100) }}%{% else %}—{% endif %}</div>
+          {% if s.utilization_mom_pct is not none %}
+          <div class="sm-mom{% if s.utilization_mom_pct >= 0 %} positive{% else %} negative{% endif %}">{{ "▲" if s.utilization_mom_pct >= 0 else "▼" }} {{ "%.0f"|format((s.utilization_mom_pct * 100)|abs) }}%</div>
+          {% endif %}
+        </div>
+        <div class="staff-metric">
+          <div class="sm-label">Rebooking</div>
+          <div class="sm-value">{% if s.rebooking_rate %}{{ "%.0f" | format(s.rebooking_rate * 100) }}%{% else %}—{% endif %}</div>
+          {% if s.rebooking_mom_pct is not none %}
+          <div class="sm-mom{% if s.rebooking_mom_pct >= 0 %} positive{% else %} negative{% endif %}">{{ "▲" if s.rebooking_mom_pct >= 0 else "▼" }} {{ "%.0f"|format((s.rebooking_mom_pct * 100)|abs) }}%</div>
+          {% endif %}
+        </div>
+        <div class="staff-metric">
+          <div class="sm-label">Rev/Hr</div>
+          <div class="sm-value">{% if s.rev_per_hour is not none %}{{ s.rev_per_hour | dollar(False) }}{% else %}—{% endif %}</div>
+          {% if s.rev_per_hour_mom_pct is not none %}
+          <div class="sm-mom{% if s.rev_per_hour_mom_pct >= 0 %} positive{% else %} negative{% endif %}">{{ "▲" if s.rev_per_hour_mom_pct >= 0 else "▼" }} {{ "%.0f"|format((s.rev_per_hour_mom_pct * 100)|abs) }}%</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {# Revenue contribution bar — hide for sole providers #}
+  {% set total_staff_rev = data.staff | sum(attribute='gross_revenue') %}
+  {% if total_staff_rev > 0 and data.staff | length > 1 %}
+  <div style="margin-top: 0.04in;">
+    <div style="font-size: 7.5pt; font-weight: 600; color: var(--muted-text); margin-bottom: 0.04in; text-transform: uppercase; letter-spacing: 0.03em;">Revenue Contribution</div>
+    <div class="contribution-bar">
+      {% for s in data.staff %}
+        {% set pct = s.gross_revenue / total_staff_rev * 100 %}
+        {% if pct >= 2 %}
+        <div class="segment contrib-{{ loop.index0 % 8 }}" style="width: {{ pct }}%">
+          {% if pct >= 8 %}{{ s.name.split()[0] }} &middot; {{ "%.0f" | format(pct) }}%{% endif %}
+        </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+  {% endif %}
+
+  {# ── Membership Performance ── #}
+  {% if data.memberships_active > 0 or data.memberships_new > 0 or data.memberships_cancelled > 0 or data.mrr > 0 %}
+  <div class="section-title" style="font-size: 16pt; margin-top: 0.2in;">Membership Performance</div>
+
+  <div class="card" style="margin-bottom: 0.15in; padding: 0.15in 0.2in;">
+    <div class="membership-grid">
+      <div class="membership-stat">
+        <div class="stat-value">{{ "{:,}".format(data.memberships_active) }}</div>
+        <div class="stat-label">Active</div>
+      </div>
+      <div class="membership-stat">
+        <div class="stat-value">{{ "{:,}".format(data.memberships_new) }}</div>
+        <div class="stat-label">New</div>
+      </div>
+      <div class="membership-stat">
+        <div class="stat-value">{{ "{:,}".format(data.memberships_cancelled) }}</div>
+        <div class="stat-label">Cancelled</div>
+      </div>
+      <div class="membership-stat">
+        <div class="stat-value{% if data.mrr >= 10000 %} small-val{% endif %}">{{ data.mrr | dollar(False) }}</div>
+        <div class="stat-label">MRR</div>
+      </div>
+    </div>
+    <div style="display: flex; gap: 0.12in; margin-top: 0.1in; padding-top: 0.08in; border-top: 1px solid #e8e3de;">
+      <div style="flex: 1; text-align: center;">
+        <div style="font-size: 13pt; font-weight: 700; color: {% if data.net_new_members >= 0 %}#2E7D32{% else %}#B53631{% endif %};">{{ "%+d"|format(data.net_new_members) }}</div>
+        <div style="font-size: 6.5pt; color: var(--muted-text); text-transform: uppercase; letter-spacing: 0.03em;">Net New</div>
+      </div>
+      <div style="flex: 1; text-align: center;">
+        <div style="font-size: 13pt; font-weight: 700; color: var(--purple);">{{ "%.0f"|format(data.membership_conversion_rate) }}%</div>
+        <div style="font-size: 6.5pt; color: var(--muted-text); text-transform: uppercase; letter-spacing: 0.03em;">Conversion</div>
+      </div>
+    </div>
+  </div>
+
+  {% if data.membership_types %}
+  <div class="card" style="padding: 0.15in 0.2in;">
+    <div class="section-subtitle" style="margin-bottom: 0.1in;">Breakdown by Type</div>
+    <table style="width: 100%; border-collapse: collapse; font-size: 8.5pt;">
+      <thead>
+        <tr style="border-bottom: 2px solid var(--purple); text-align: left;">
+          <th style="padding: 4px 6px; font-weight: 600; color: var(--purple);">Membership</th>
+          <th style="padding: 4px 6px; font-weight: 600; color: var(--purple); text-align: center;">Active</th>
+          <th style="padding: 4px 6px; font-weight: 600; color: var(--purple); text-align: center;">New</th>
+          <th style="padding: 4px 6px; font-weight: 600; color: var(--purple); text-align: center;">Churned</th>
+          <th style="padding: 4px 6px; font-weight: 600; color: var(--purple); text-align: center;">Net New</th>
+          <th style="padding: 4px 6px; font-weight: 600; color: var(--purple); text-align: right;">MRR</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in data.membership_types %}
+        <tr style="border-bottom: 1px solid #e8e3de;">
+          <td style="padding: 5px 6px; font-weight: 500;">{{ m.name }}</td>
+          <td style="padding: 5px 6px; text-align: center;">{{ "{:,}".format(m.active) }}</td>
+          <td style="padding: 5px 6px; text-align: center; color: #2e7d32;">{% if m.new > 0 %}+{{ m.new }}{% else %}{{ m.new }}{% endif %}</td>
+          <td style="padding: 5px 6px; text-align: center; color: #c62828;">{% if m.churned > 0 %}-{{ m.churned }}{% else %}0{% endif %}</td>
+          <td style="padding: 5px 6px; text-align: center; font-weight: 600; color: {% if m.net_new > 0 %}#2e7d32{% elif m.net_new < 0 %}#c62828{% else %}var(--muted-text){% endif %};">{% if m.net_new > 0 %}+{{ m.net_new }}{% else %}{{ m.net_new }}{% endif %}</td>
+          <td style="padding: 5px 6px; text-align: right;">{{ "${:,.0f}".format(m.mrr) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr style="border-top: 2px solid var(--purple); font-weight: 700;">
+          <td style="padding: 5px 6px;">Total</td>
+          <td style="padding: 5px 6px; text-align: center;">{{ "{:,}".format(data.memberships_active) }}</td>
+          <td style="padding: 5px 6px; text-align: center; color: #2e7d32;">+{{ data.memberships_new }}</td>
+          <td style="padding: 5px 6px; text-align: center; color: #c62828;">-{{ data.memberships_cancelled }}</td>
+          <td style="padding: 5px 6px; text-align: center; color: {% if data.net_new_members > 0 %}#2e7d32{% elif data.net_new_members < 0 %}#c62828{% else %}var(--muted-text){% endif %};">{% if data.net_new_members > 0 %}+{{ data.net_new_members }}{% else %}{{ data.net_new_members }}{% endif %}</td>
+          <td style="padding: 5px 6px; text-align: right;">{{ "${:,.0f}".format(data.mrr) }}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+  {% endif %}
+  {% endif %}
+
+  {# ── Service Mix ── #}
+  <div class="section-title" style="font-size: 16pt; margin-top: 0.2in;">Service Mix</div>
+
+  {% if data.services | length >= 3 %}
+  <div class="top-services">
+    {% for rank, label in [(0, "1st"), (1, "2nd"), (2, "3rd")] %}
+    {% set svc = data.services[rank] %}
+    <div class="top-service-card">
+      <div class="top-service-rank">{{ label }}</div>
+      <div class="top-service-name">{{ svc.name }}</div>
+      <div class="top-service-pct">{{ "%.1f" | format(svc.pct_of_total) }}%</div>
+      <div class="top-service-sub">of total revenue</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="card" style="margin-bottom: 0.15in;">
+    <div class="section-subtitle">Gross Revenue by Service</div>
+    <div class="service-bars">
+      {% set max_rev = data.services[0].revenue if (data.services and data.services[0].revenue > 0) else 1 %}
+      {% for svc in data.services[:10] %}
+      <div class="service-bar-row">
+        <div class="service-bar-label">{{ svc.name[:28] }}</div>
+        <div class="service-bar-track">
+          <div class="service-bar-fill" style="width: {{ svc.revenue / max_rev * 100 }}%"></div>
+        </div>
+        <div class="service-bar-pct">${{ "{:,.0f}".format(svc.revenue) }} <span style="color: #8C8580; font-size: 7pt;">({{ "%.1f"|format(svc.pct_of_total) }}%)</span></div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="footer">Moxie Partners, Inc. Copyright &copy;2025. Private and confidential.</div>
+</section>
+
+{# ════════════════════════════════════════════════════════════════════
+   PAGE 4b — MARKETING PERFORMANCE (master toggle: show_marketing_section)
+   ════════════════════════════════════════════════════════════════════ #}
+{% if data.show_marketing_section %}
+{% if not data.marketing or data.marketing.show_marketing_lock_screen %}
+<section class="page">
+  {% include "components/header.html.j2" %}
+  <div class="section-title">Marketing Performance</div>
+
+  <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1.2in 0.8in; text-align: center;">
+    <div style="width: 0.8in; height: 0.8in; background: #F3EDF4; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 0.2in;">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#4D1751" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+      </svg>
+    </div>
+    <div style="font-family: 'Playfair Display', serif; font-size: 18pt; font-weight: 700; color: var(--purple); margin-bottom: 0.1in;">
+      Unlock Marketing Performance Insights
+    </div>
+    <div style="font-size: 10pt; line-height: 1.6; color: #5a5550; max-width: 5in;">
+      Get detailed campaign analytics including ROI tracking, lead-to-booking conversion rates, and data-driven recommendations to grow your practice.
+    </div>
+    <div style="margin-top: 0.25in; background: var(--purple); color: white; font-size: 10pt; font-weight: 600; padding: 0.1in 0.3in; border-radius: 8px;">
+      Speak to your Practice Success Manager to get started
+    </div>
+  </div>
+
+  <div class="footer">Moxie Partners, Inc. Copyright &copy;2025. Private and confidential.</div>
+</section>
+{% else %}
+<section class="page">
+  {% include "components/header.html.j2" %}
+  <div class="section-title">Marketing Performance</div>
+
+  {# ── ROI Banner ── #}
+  {% set roi = data.marketing.first_visit_roi %}
+  <div style="background: linear-gradient(135deg, #4D1751 0%, #6B2D6E 100%); color: white; border-radius: 10px; padding: 0.16in 0.24in; margin-bottom: 0.18in; display: flex; align-items: center; justify-content: space-between;">
+    <div>
+      <div style="font-size: 8pt; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.8; margin-bottom: 0.03in;">First-Visit Campaign ROI</div>
+      <div style="font-size: 10pt; line-height: 1.5;">
+        For every <strong>$1</strong> spent on marketing, this practice generates
+        <strong>{{ "${:,.2f}".format(roi if roi else 0) }}</strong> in new patient revenue.
+      </div>
+    </div>
+    <div style="text-align: center; margin-left: 0.3in;">
+      <div style="font-size: 28pt; font-weight: 700; line-height: 1;">{{ "{:.1f}".format(roi if roi else 0) }}x</div>
+      <div style="font-size: 7pt; font-weight: 600; padding: 2px 10px; border-radius: 10px; margin-top: 0.04in;
+                  {% if roi and roi >= 3 %}background: rgba(46,125,50,0.25);{% elif roi and roi >= 2 %}background: rgba(184,147,58,0.25);{% else %}background: rgba(181,54,49,0.25);{% endif %}">
+        {% if roi and roi >= 3 %}Meets Goal{% elif roi and roi >= 2 %}On Track{% else %}Below Goal{% endif %} <span style="opacity:0.7;">(Goal: 3x)</span>
+      </div>
+    </div>
+  </div>
+
+  {# ── Marketing Metrics Tiles ── #}
+  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.1in; margin-bottom: 0.15in;">
+    <div style="text-align: center; padding: 0.12in 0.08in; background: white; border: 1px solid #e5e0db; border-radius: 8px;">
+      <div style="font-size: 6.5pt; text-transform: uppercase; letter-spacing: 0.04em; color: #8C8580; margin-bottom: 0.02in;">Ad Spend</div>
+      <div style="font-size: 16pt; font-weight: 700; color: #4D1751;">{{ "${:,.0f}".format(data.marketing.ad_spend) }}</div>
+      <div style="font-size: 6.5pt; color: #918A85;">Monthly Budget</div>
+    </div>
+    <div style="text-align: center; padding: 0.12in 0.08in; background: white; border: 1px solid #e5e0db; border-radius: 8px;">
+      <div style="font-size: 6.5pt; text-transform: uppercase; letter-spacing: 0.04em; color: #8C8580; margin-bottom: 0.02in;">New Patient Leads</div>
+      <div style="font-size: 16pt; font-weight: 700; color: #4D1751;">{{ "{:,}".format(data.marketing.leads) }}</div>
+      <div style="font-size: 6.5pt; color: #918A85;">From Campaigns</div>
+    </div>
+    <div style="text-align: center; padding: 0.12in 0.08in; background: white; border: 1px solid #e5e0db; border-radius: 8px;">
+      <div style="font-size: 6.5pt; text-transform: uppercase; letter-spacing: 0.04em; color: #8C8580; margin-bottom: 0.02in;">Appts Booked</div>
+      <div style="font-size: 16pt; font-weight: 700; color: #4D1751;">{{ "{:,}".format(data.marketing.booked) }}</div>
+      <div style="font-size: 6.5pt; color: #918A85;">New Patients</div>
+    </div>
+    <div style="text-align: center; padding: 0.12in 0.08in; background: white; border: 1px solid #e5e0db; border-radius: 8px;">
+      <div style="font-size: 6.5pt; text-transform: uppercase; letter-spacing: 0.04em; color: #8C8580; margin-bottom: 0.02in;">Appts Completed</div>
+      <div style="font-size: 16pt; font-weight: 700; color: #4D1751;">{{ "{:,}".format(data.marketing.completed) }}</div>
+      <div style="font-size: 6.5pt; color: #918A85;">First Visits</div>
+    </div>
+    <div style="text-align: center; padding: 0.12in 0.08in; background: white; border: 1px solid #e5e0db; border-radius: 8px;">
+      <div style="font-size: 6.5pt; text-transform: uppercase; letter-spacing: 0.04em; color: #8C8580; margin-bottom: 0.02in;">Total Revenue (All Clients)</div>
+      <div style="font-size: 16pt; font-weight: 700; color: #4D1751;">{{ "${:,.0f}".format(data.marketing.total_revenue_all_clients) }}</div>
+      <div style="font-size: 6.5pt; color: #918A85;">New &amp; Returning Patients</div>
+    </div>
+    <div style="text-align: center; padding: 0.12in 0.08in; background: white; border: 1px solid #e5e0db; border-radius: 8px;">
+      <div style="font-size: 6.5pt; text-transform: uppercase; letter-spacing: 0.04em; color: #8C8580; margin-bottom: 0.02in;">Total New Client Revenue</div>
+      <div style="font-size: 16pt; font-weight: 700; color: #4D1751;">{{ "${:,.0f}".format(data.marketing.revenue) }}</div>
+      <div style="font-size: 6.5pt; color: #918A85;">Attributed to Marketing</div>
+    </div>
+  </div>
+
+  {# ── Key Metrics ── #}
+  <div class="card" style="margin-bottom: 0.15in;">
+    <div class="section-subtitle">Key Metrics</div>
+    <div style="display: flex; gap: 0.12in; margin-top: 0.08in;">
+      <div style="flex: 1; text-align: center; padding: 0.1in; border: 1px solid #e5e0db; border-radius: 8px;">
+        <div style="font-size: 7pt; text-transform: uppercase; letter-spacing: 0.03em; color: #8C8580; margin-bottom: 0.04in;">First-Visit ROI</div>
+        <div style="font-size: 20pt; font-weight: 700; color: #4D1751; margin-bottom: 0.04in;">{{ "{:.1f}".format(roi if roi else 0) }}x</div>
+        <div style="display: inline-block; font-size: 7pt; font-weight: 600; padding: 2px 8px; border-radius: 10px;
+                    {% if roi and roi >= 3 %}background: #E8F5E9; color: #2E7D32;{% elif roi and roi >= 2 %}background: #FFF8E1; color: #B8933A;{% else %}background: #FDE8E7; color: #B53631;{% endif %}">
+          {% if roi and roi >= 3 %}Meets Target{% elif roi and roi >= 2 %}On Track{% else %}Below Target{% endif %}
+        </div>
+        <div style="font-size: 7pt; color: #918A85; margin-top: 0.03in;">Goal: 3x</div>
+      </div>
+      <div style="flex: 1; text-align: center; padding: 0.1in; border: 1px solid #e5e0db; border-radius: 8px;">
+        <div style="font-size: 7pt; text-transform: uppercase; letter-spacing: 0.03em; color: #8C8580; margin-bottom: 0.04in;">Lead → Booking Rate</div>
+        <div style="font-size: 20pt; font-weight: 700; color: #4D1751; margin-bottom: 0.04in;">{{ "{:.0f}".format(data.marketing.lead_to_booking_rate * 100 if data.marketing.lead_to_booking_rate else 0) }}%</div>
+        <div style="display: inline-block; font-size: 7pt; font-weight: 600; padding: 2px 8px; border-radius: 10px;
+                    {% if data.marketing.lead_to_booking_rate and data.marketing.lead_to_booking_rate >= 0.15 %}background: #E8F5E9; color: #2E7D32;{% else %}background: #FDE8E7; color: #B53631;{% endif %}">
+          {% if data.marketing.lead_to_booking_rate and data.marketing.lead_to_booking_rate >= 0.15 %}Meets Target{% else %}Below Target{% endif %}
+        </div>
+        <div style="font-size: 7pt; color: #918A85; margin-top: 0.03in;">Goal: 15%</div>
+      </div>
+      <div style="flex: 1; text-align: center; padding: 0.1in; border: 1px solid #e5e0db; border-radius: 8px;">
+        <div style="font-size: 7pt; text-transform: uppercase; letter-spacing: 0.03em; color: #8C8580; margin-bottom: 0.04in;">First-Visit AOV</div>
+        <div style="font-size: 20pt; font-weight: 700; color: #4D1751; margin-bottom: 0.04in;">{{ data.marketing.first_visit_aov | dollar(False) if data.marketing.first_visit_aov else "—" }}</div>
+        <div style="font-size: 7pt; color: #918A85; margin-top: 0.03in;">New patients from campaigns</div>
+      </div>
+      <div style="flex: 1; text-align: center; padding: 0.1in; border: 1px solid #e5e0db; border-radius: 8px;">
+        <div style="font-size: 7pt; text-transform: uppercase; letter-spacing: 0.03em; color: #8C8580; margin-bottom: 0.04in;">Cost per Lead</div>
+        <div style="font-size: 20pt; font-weight: 700; color: #4D1751; margin-bottom: 0.04in;">{% if data.marketing.leads > 0 %}{{ "${:,.0f}".format(data.marketing.ad_spend / data.marketing.leads) }}{% else %}—{% endif %}</div>
+        <div style="font-size: 7pt; color: #918A85; margin-top: 0.03in;">Ad spend / leads</div>
+      </div>
+    </div>
+  </div>
+
+  {# ── Campaign Breakdown — toggle in editor; default on for 2+ campaigns ── #}
+  {% set named_campaigns = data.marketing.campaigns | selectattr("campaign_name", "ne", "Other") | list %}
+  {% if data.marketing.show_campaign_breakdown and named_campaigns | length >= 2 %}
+  <div class="card" style="margin-bottom: 0.15in;">
+    <div class="section-subtitle">Performance by Campaign</div>
+    <div style="font-size: 8pt; color: #8C8580; margin-top: 0.02in; margin-bottom: 0.1in;">
+      Per-campaign metrics for the {{ named_campaigns | length }} active campaigns this period.
+    </div>
+    {% for c in named_campaigns %}
+    <div style="border: 1px solid #e5e0db; border-radius: 8px; padding: 0.1in 0.12in; margin-bottom: 0.08in; background: #FAFAF7;">
+      <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.06in;">
+        <div style="font-size: 11pt; font-weight: 600; color: var(--purple);">{{ c.campaign_name }}</div>
+        <div style="font-size: 8pt; font-weight: 600; padding: 2px 10px; border-radius: 10px;
+                    {% if c.roi >= 3 %}background: #E8F5E9; color: #2E7D32;{% elif c.roi >= 2 %}background: #FFF8E1; color: #B8933A;{% elif c.roi >= 1 %}background: #FFF3E0; color: #C2691A;{% else %}background: #FDE8E7; color: #B53631;{% endif %}">
+          ROI: {{ "{:.1f}".format(c.roi) }}x
+        </div>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 0.08in;">
+        <div style="text-align: center; padding: 0.06in 0.04in; background: white; border: 1px solid #ece7e2; border-radius: 6px;">
+          <div style="font-size: 6pt; text-transform: uppercase; letter-spacing: 0.04em; color: #8C8580; margin-bottom: 0.02in;">Spend</div>
+          <div style="font-size: 11pt; font-weight: 700; color: #4D1751;">{{ "${:,.0f}".format(c.ad_spend) }}</div>
+        </div>
+        <div style="text-align: center; padding: 0.06in 0.04in; background: white; border: 1px solid #ece7e2; border-radius: 6px;">
+          <div style="font-size: 6pt; text-transform: uppercase; letter-spacing: 0.04em; color: #8C8580; margin-bottom: 0.02in;">Leads</div>
+          <div style="font-size: 11pt; font-weight: 700; color: #4D1751;">{{ "{:,}".format(c.leads) }}</div>
+        </div>
+        <div style="text-align: center; padding: 0.06in 0.04in; background: white; border: 1px solid #ece7e2; border-radius: 6px;">
+          <div style="font-size: 6pt; text-transform: uppercase; letter-spacing: 0.04em; color: #8C8580; margin-bottom: 0.02in;">Booked</div>
+          <div style="font-size: 11pt; font-weight: 700; color: #4D1751;">{{ "{:,}".format(c.booked) }}</div>
+        </div>
+        <div style="text-align: center; padding: 0.06in 0.04in; background: white; border: 1px solid #ece7e2; border-radius: 6px;">
+          <div style="font-size: 6pt; text-transform: uppercase; letter-spacing: 0.04em; color: #8C8580; margin-bottom: 0.02in;">Completed</div>
+          <div style="font-size: 11pt; font-weight: 700; color: #4D1751;">{{ "{:,}".format(c.completed) }}</div>
+        </div>
+        <div style="text-align: center; padding: 0.06in 0.04in; background: white; border: 1px solid #ece7e2; border-radius: 6px;">
+          <div style="font-size: 6pt; text-transform: uppercase; letter-spacing: 0.04em; color: #8C8580; margin-bottom: 0.02in;">New Client Rev.</div>
+          <div style="font-size: 11pt; font-weight: 700; color: #4D1751;">{{ "${:,.0f}".format(c.revenue) }}</div>
+        </div>
+        <div style="text-align: center; padding: 0.06in 0.04in; background: white; border: 1px solid #ece7e2; border-radius: 6px;">
+          <div style="font-size: 6pt; text-transform: uppercase; letter-spacing: 0.04em; color: #8C8580; margin-bottom: 0.02in;">CPL</div>
+          <div style="font-size: 11pt; font-weight: 700; color: #4D1751;">{% if c.cpl > 0 %}{{ "${:,.0f}".format(c.cpl) }}{% else %}—{% endif %}</div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {# ── Funnel Conversion Analysis ── #}
+  {% if data.marketing.leads > 0 %}
+  <div class="card" style="margin-bottom: 0.15in;">
+    <div class="section-subtitle">Funnel Conversion Analysis</div>
+    {% set ltb = (data.marketing.booked / data.marketing.leads * 100) if data.marketing.leads > 0 else 0 %}
+    {% set btc = (data.marketing.completed / data.marketing.booked * 100) if data.marketing.booked > 0 else 0 %}
+    <div style="display: flex; gap: 0.12in; margin-top: 0.08in;">
+      <div style="flex: 1; text-align: center; padding: 0.1in; border-radius: 8px;
+                  {% if ltb >= 15 %}background: #E8F5E9; border: 1px solid #C8E6C9;{% elif ltb >= 10 %}background: #FFF8E1; border: 1px solid #FFE082;{% else %}background: #FDE8E7; border: 1px solid #FFCDD2;{% endif %}">
+        <div style="font-size: 7pt; text-transform: uppercase; letter-spacing: 0.03em; color: #8C8580; margin-bottom: 0.03in;">Lead → Booked</div>
+        <div style="font-size: 18pt; font-weight: 700; color: {% if ltb >= 15 %}#2E7D32{% elif ltb >= 10 %}#B8933A{% else %}#B53631{% endif %};">{{ "{:.0f}".format(ltb) }}%</div>
+        <div style="font-size: 7pt; color: #918A85; margin-top: 0.02in;">{{ data.marketing.booked }} booked</div>
+      </div>
+      <div style="flex: 1; text-align: center; padding: 0.1in; border-radius: 8px;
+                  {% if btc >= 70 %}background: #E8F5E9; border: 1px solid #C8E6C9;{% elif btc >= 50 %}background: #FFF8E1; border: 1px solid #FFE082;{% else %}background: #FDE8E7; border: 1px solid #FFCDD2;{% endif %}">
+        <div style="font-size: 7pt; text-transform: uppercase; letter-spacing: 0.03em; color: #8C8580; margin-bottom: 0.03in;">Booked → Completed</div>
+        <div style="font-size: 18pt; font-weight: 700; color: {% if btc >= 70 %}#2E7D32{% elif btc >= 50 %}#B8933A{% else %}#B53631{% endif %};">{% if data.marketing.booked > 0 %}{{ "{:.0f}".format(btc) }}%{% else %}—{% endif %}</div>
+        <div style="font-size: 7pt; color: #918A85; margin-top: 0.02in;">{{ data.marketing.completed }} completed</div>
+      </div>
+      <div style="flex: 1; text-align: center; padding: 0.1in; background: #F3EDF4; border: 1px solid #D4C5D6; border-radius: 8px;">
+        <div style="font-size: 7pt; text-transform: uppercase; letter-spacing: 0.03em; color: #8C8580; margin-bottom: 0.03in;">End-to-End</div>
+        <div style="font-size: 18pt; font-weight: 700; color: #4D1751;">{% if data.marketing.leads > 0 %}{{ "{:.1f}".format(data.marketing.completed / data.marketing.leads * 100) }}%{% else %}—{% endif %}</div>
+        <div style="font-size: 7pt; color: #918A85; margin-top: 0.02in;">{{ data.marketing.completed }} patients</div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── Analysis & Recommendations: controlled by show_marketing_recommendations toggle for every tier ── #}
+  {% if data.marketing_recommendations and data.show_marketing_recommendations %}
+  <div class="card">
+    <div class="section-subtitle">Analysis & Recommendations</div>
+    <div style="font-size: 9pt; line-height: 1.6; color: #5a5550;">
+      {% for para in data.marketing_recommendations.split('\n\n') %}
+        {% if para.strip() %}
+        <p style="margin-bottom: 0.08in;">{{ para | render_bold }}</p>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="footer">Moxie Partners, Inc. Copyright &copy;2025. Private and confidential.</div>
+</section>
+{% endif %}
+{% endif %}{# end show_marketing_section master toggle #}
+
+{# ════════════════════════════════════════════════════════════════════
+   MOXIE COVERED SYNC — GFE SAVINGS (toggleable; only renders when data exists)
+   ════════════════════════════════════════════════════════════════════ #}
+{% if data.show_gfe_section and (data.gfe_completed_month > 0 or data.gfe_completed_ytd > 0 or data.gfe_value_month > 0 or data.gfe_value_ytd > 0) %}
+<section class="page">
+  {% include "components/header.html.j2" %}
+  <div class="section-title">Moxie Covered Sync — GFE Savings</div>
+  <div style="font-size: 9pt; color: #5a5550; margin-bottom: 0.15in;">
+    Good Faith Exams completed through Moxie Covered Sync, with the cumulative
+    value covered for this month and year-to-date.
+  </div>
+
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.18in; margin-bottom: 0.2in;">
+    <div class="card" style="padding: 0.18in 0.2in;">
+      <div style="font-size: 8pt; text-transform: uppercase; letter-spacing: 0.05em; color: #8C8580; margin-bottom: 0.08in;">
+        Monthly GFE Savings — {{ data.month_name }} {{ data.year }}
+      </div>
+      <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+        <div>
+          <div style="font-size: 7pt; color: #8C8580; text-transform: uppercase; letter-spacing: 0.04em;">Completed GFEs</div>
+          <div style="font-size: 26pt; font-weight: 700; color: #4D1751; line-height: 1.1;">{{ "{:,}".format(data.gfe_completed_month) }}</div>
+        </div>
+        <div style="text-align: right;">
+          <div style="font-size: 7pt; color: #8C8580; text-transform: uppercase; letter-spacing: 0.04em;">Total GFE Value</div>
+          <div style="font-size: 22pt; font-weight: 700; color: #2E7D32; line-height: 1.1;">{{ "${:,.0f}".format(data.gfe_value_month) }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="card" style="padding: 0.18in 0.2in;">
+      <div style="font-size: 8pt; text-transform: uppercase; letter-spacing: 0.05em; color: #8C8580; margin-bottom: 0.08in;">
+        Year-to-Date GFE Savings — {{ data.year }}
+      </div>
+      <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+        <div>
+          <div style="font-size: 7pt; color: #8C8580; text-transform: uppercase; letter-spacing: 0.04em;">Completed GFEs</div>
+          <div style="font-size: 26pt; font-weight: 700; color: #4D1751; line-height: 1.1;">{{ "{:,}".format(data.gfe_completed_ytd) }}</div>
+        </div>
+        <div style="text-align: right;">
+          <div style="font-size: 7pt; color: #8C8580; text-transform: uppercase; letter-spacing: 0.04em;">Total GFE Value</div>
+          <div style="font-size: 22pt; font-weight: 700; color: #2E7D32; line-height: 1.1;">{{ "${:,.0f}".format(data.gfe_value_ytd) }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">Moxie Partners, Inc. Copyright &copy;2025. Private and confidential.</div>
+</section>
+{% endif %}
+
+{# ════════════════════════════════════════════════════════════════════
+   MOXIE SUPPLIES SAVINGS (if data exists)
+   ════════════════════════════════════════════════════════════════════ #}
+{% if data.supplies_spend_all > 0 %}
+<section class="page">
+  {% include "components/header.html.j2" %}
+  <div class="section-title">Moxie Supplies Savings</div>
+
+  {# ── Period Summary Tiles ── #}
+  <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.1in; margin-bottom: 0.18in;">
+    <div style="text-align: center; padding: 0.14in 0.1in; background: white; border: 1px solid #e5e0db; border-radius: 8px;">
+      <div style="font-size: 6.5pt; text-transform: uppercase; letter-spacing: 0.04em; color: #8C8580; margin-bottom: 0.04in;">This Month</div>
+      <div style="font-size: 15pt; font-weight: 700; color: #4D1751;">{{ "${:,.0f}".format(data.supplies_spend_month) }}</div>
+      <div style="font-size: 7pt; color: #8C8580;">spend</div>
+      {% if data.supplies_savings_month > 0 %}
+      <div style="font-size: 11pt; font-weight: 600; color: #2E7D32; margin-top: 0.03in;">{{ "${:,.0f}".format(data.supplies_savings_month) }}</div>
+      <div style="font-size: 7pt; color: #8C8580;">est. savings</div>
+      {% endif %}
+    </div>
+    <div style="text-align: center; padding: 0.14in 0.1in; background: white; border: 1px solid #e5e0db; border-radius: 8px;">
+      <div style="font-size: 6.5pt; text-transform: uppercase; letter-spacing: 0.04em; color: #8C8580; margin-bottom: 0.04in;">Last 3 Months</div>
+      <div style="font-size: 15pt; font-weight: 700; color: #4D1751;">{{ "${:,.0f}".format(data.supplies_spend_3mo) }}</div>
+      <div style="font-size: 7pt; color: #8C8580;">spend</div>
+      {% if data.supplies_savings_3mo > 0 %}
+      <div style="font-size: 11pt; font-weight: 600; color: #2E7D32; margin-top: 0.03in;">{{ "${:,.0f}".format(data.supplies_savings_3mo) }}</div>
+      <div style="font-size: 7pt; color: #8C8580;">est. savings</div>
+      {% endif %}
+    </div>
+    <div style="text-align: center; padding: 0.14in 0.1in; background: white; border: 1px solid #e5e0db; border-radius: 8px;">
+      <div style="font-size: 6.5pt; text-transform: uppercase; letter-spacing: 0.04em; color: #8C8580; margin-bottom: 0.04in;">Year to Date</div>
+      <div style="font-size: 15pt; font-weight: 700; color: #4D1751;">{{ "${:,.0f}".format(data.supplies_spend_ytd) }}</div>
+      <div style="font-size: 7pt; color: #8C8580;">spend</div>
+      {% if data.supplies_savings_ytd > 0 %}
+      <div style="font-size: 11pt; font-weight: 600; color: #2E7D32; margin-top: 0.03in;">{{ "${:,.0f}".format(data.supplies_savings_ytd) }}</div>
+      <div style="font-size: 7pt; color: #8C8580;">est. savings</div>
+      {% endif %}
+    </div>
+    <div style="text-align: center; padding: 0.14in 0.1in; background: white; border: 1px solid #e5e0db; border-radius: 8px;">
+      <div style="font-size: 6.5pt; text-transform: uppercase; letter-spacing: 0.04em; color: #8C8580; margin-bottom: 0.04in;">All Time</div>
+      <div style="font-size: 15pt; font-weight: 700; color: #4D1751;">{{ "${:,.0f}".format(data.supplies_spend_all) }}</div>
+      <div style="font-size: 7pt; color: #8C8580;">spend</div>
+      {% if data.supplies_savings_all > 0 %}
+      <div style="font-size: 11pt; font-weight: 600; color: #2E7D32; margin-top: 0.03in;">{{ "${:,.0f}".format(data.supplies_savings_all) }}</div>
+      <div style="font-size: 7pt; color: #8C8580;">est. savings</div>
+      {% endif %}
+    </div>
+  </div>
+
+  {# ── Last 3 Months by Vendor ── #}
+  {% if data.supplies_by_vendor_3mo %}
+  <div class="card">
+    <div class="section-subtitle">Last 3 Months by Vendor</div>
+    <table style="width: 100%; border-collapse: collapse; font-size: 9pt; margin-top: 0.08in;">
+      <thead>
+        <tr style="border-bottom: 2px solid var(--purple); text-align: left;">
+          <th style="padding: 5px 8px; font-weight: 600; color: var(--purple);">Vendor</th>
+          <th style="padding: 5px 8px; font-weight: 600; color: var(--purple); text-align: right;">Spend</th>
+          <th style="padding: 5px 8px; font-weight: 600; color: var(--purple); text-align: right;">Est. Savings</th>
+          <th style="padding: 5px 8px; font-weight: 600; color: var(--purple); text-align: right;">Savings %</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for v in data.supplies_by_vendor_3mo %}
+        <tr style="border-bottom: 1px solid #e8e3de;">
+          <td style="padding: 6px 8px; font-weight: 500;">{{ v.vendor }}</td>
+          <td style="padding: 6px 8px; text-align: right;">{{ "${:,.0f}".format(v.spend) }}</td>
+          <td style="padding: 6px 8px; text-align: right; color: #2E7D32; font-weight: 600;">{{ "${:,.0f}".format(v.savings) }}</td>
+          <td style="padding: 6px 8px; text-align: right;">{% if v.spend > 0 %}{{ "%.1f"|format(v.savings / v.spend * 100) }}%{% else %}—{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr style="border-top: 2px solid var(--purple); font-weight: 700;">
+          <td style="padding: 6px 8px;">Total</td>
+          <td style="padding: 6px 8px; text-align: right;">{{ "${:,.0f}".format(data.supplies_spend_3mo) }}</td>
+          <td style="padding: 6px 8px; text-align: right; color: #2E7D32;">{{ "${:,.0f}".format(data.supplies_savings_3mo) }}</td>
+          <td style="padding: 6px 8px; text-align: right;">{% if data.supplies_spend_3mo > 0 %}{{ "%.1f"|format(data.supplies_savings_3mo / data.supplies_spend_3mo * 100) }}%{% else %}—{% endif %}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+  {% endif %}
+
+  <div class="footer">Moxie Partners, Inc. Copyright &copy;2025. Private and confidential.</div>
+</section>
+{% endif %}
+
+{# ════════════════════════════════════════════════════════════════════
+   PAGE 5 — TAKEAWAYS & RECOMMENDATIONS
+   ════════════════════════════════════════════════════════════════════ #}
+<section class="page">
+  {% include "components/header.html.j2" %}
+  <div class="section-title">Takeaways & Recommendations</div>
+
+  {# Assessments #}
+  {% if data.assessments %}
+  <div class="card" style="margin-bottom: 0.18in;">
+    <div class="section-subtitle">{{ data.month_name }} Assessment</div>
+    <div class="assessments">
+      {% for a in data.assessments %}
+      {% set tag = a.tag | lower %}
+      <div class="assessment-card">
+        <div class="assessment-accent {{ tag }}"></div>
+        <div class="assessment-content">
+          <div>
+            <span class="assessment-badge badge-{{ tag }}">{{ a.tag }}</span>
+            <span class="assessment-title">{{ a.title }}</span>
+          </div>
+          <div class="assessment-text">{{ a.text }}</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="footer">Moxie Partners, Inc. Copyright &copy;2025. Private and confidential.</div>
+</section>
+
+{# ── PAGE 5b — PSM FEEDBACK (own page to avoid cutoff) ── #}
+{% if data.psm_feedback %}
+<section class="page">
+  {% include "components/header.html.j2" %}
+  <div class="psm-card">
+    <div class="psm-header">
+      <div class="psm-icon">&#9733;</div>
+      <div>
+        <div class="psm-title">Feedback from {{ data.psm_name if data.psm_name else "your Practice Success Manager" }}</div>
+        <div class="psm-subtitle">Personalized insights for {{ data.practice_name }}</div>
+      </div>
+    </div>
+    <div class="psm-body">
+      {% for para in data.psm_feedback.split('\n\n') %}
+        {% if para.strip() %}
+        <p>{{ para | render_bold }}</p>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+  <div class="footer">Moxie Partners, Inc. Copyright &copy;2025. Private and confidential.</div>
+</section>
+{% endif %}
+
+{# ════════════════════════════════════════════════════════════════════
+   PAGE 6 — BRAND BANK (only if image provided)
+   ════════════════════════════════════════════════════════════════════ #}
+{% if brand_bank_uri or data.brand_bank_items %}
+<section class="page">
+  {% include "components/header.html.j2" %}
+  <div class="section-title">{{ data.month_name }} Brand Bank</div>
+  <div style="text-align: center; font-size: 10pt; color: #B8933A; margin-bottom: 0.2in; letter-spacing: 0.05em;">Marketing Assets Available This Month</div>
+
+  {% if data.brand_bank_items %}
+  <div style="display: flex; flex-wrap: wrap; gap: 0.14in;">
+    {% for item in data.brand_bank_items %}
+    <div style="flex: 1 1 calc(50% - 0.14in); min-width: 2.8in; background: white; border: 1px solid #e5e0db; border-radius: 10px; padding: 0.16in 0.2in; display: flex; align-items: flex-start; gap: 0.14in;">
+      <div style="flex-shrink: 0; width: 0.36in; height: 0.36in; background: linear-gradient(135deg, #4D1751, #6B2D6E); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-size: 11pt;">
+        {% if 'Social' in item.category or 'Carousel' in item.category or 'Instagram' in item.category %}&#9733;
+        {% elif 'Print' in item.category or 'Flyer' in item.category or 'Poster' in item.category %}&#9881;
+        {% elif 'Event' in item.category or 'SMS' in item.category %}&#9830;
+        {% elif 'Email' in item.category %}&#9993;
+        {% elif 'Playbook' in item.category or 'Guide' in item.category %}&#9998;
+        {% else %}&#9670;{% endif %}
+      </div>
+      <div style="flex: 1;">
+        <div style="font-size: 9.5pt; font-weight: 700; color: #4D1751; margin-bottom: 0.03in; line-height: 1.3;">{{ item.title }}</div>
+        <div style="font-size: 7.5pt; color: #918A85; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600;">{{ item.category }}</div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% elif brand_bank_uri %}
+  <div class="card" style="text-align: center; padding: 0.3in;">
+    <img src="{{ brand_bank_uri }}" style="max-width: 100%; max-height: 8.5in; border-radius: 8px;" alt="Brand Bank">
+  </div>
+  {% endif %}
+
+  <div class="footer">Moxie Partners, Inc. Copyright &copy;2025. Private and confidential.</div>
+</section>
+{% endif %}
+
+{# ════════════════════════════════════════════════════════════════════
+   PAGE 7 — MOXIE SUITE LAUNCHES
+   ════════════════════════════════════════════════════════════════════ #}
+<section class="page">
+  {% include "components/header.html.j2" %}
+  <div class="section-title text-center" style="font-size: 20pt; margin-bottom: 0.06in;">
+    Moxie Suite Launches
+  </div>
+  <div style="text-align: center; font-size: 10pt; color: #B8933A; margin-bottom: 0.2in; letter-spacing: 0.05em;">New and Exciting</div>
+
+  {% if data.launches %}
+  <div style="display: flex; flex-direction: column; gap: 0.14in;">
+    {% for launch in data.launches %}
+    <div style="background: white; border: 1px solid #e5e0db; border-radius: 10px; padding: 0.16in 0.2in;">
+      <div style="display: flex; align-items: center; gap: 0.1in; margin-bottom: 0.06in;">
+        {% if launch.url %}
+        <a href="{{ launch.url }}" style="font-size: 12pt; font-weight: 700; color: #4D1751; text-decoration: none;">{{ launch.title }}</a>
+        {% else %}
+        <span style="font-size: 12pt; font-weight: 700; color: #4D1751;">{{ launch.title }}</span>
+        {% endif %}
+        {% if launch.category %}
+        <div style="font-size: 7pt; font-weight: 600; color: #B8933A; background: #FDF6EE; border: 1px solid #E8D5B0; border-radius: 10px; padding: 2px 8px; text-transform: uppercase; letter-spacing: 0.03em;">{{ launch.category }}</div>
+        {% endif %}
+      </div>
+      {% if launch.description %}
+      <div style="font-size: 9pt; line-height: 1.6; color: #5a5550;">{{ launch.description }}</div>
+      {% endif %}
+      {% if launch.url %}
+      <div style="margin-top: 0.08in;">
+        <a href="{{ launch.url }}" style="font-size: 8.5pt; font-weight: 600; color: #4D1751; text-decoration: none; background: #F3EDF4; border-radius: 6px; padding: 4px 12px; display: inline-block;">Learn More &rarr;</a>
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% elif launches_image_uri %}
+  <div style="text-align: center;">
+    <img src="{{ launches_image_uri }}" style="max-width: 100%; max-height: 8.5in; height: auto; border-radius: 8px;">
+  </div>
+  {% endif %}
+
+  <div class="footer">Moxie Partners, Inc. Copyright &copy;2025. Private and confidential.</div>
+</section>
+
+{# ════════════════════════════════════════════════════════════════════
+   PAGE 8 — PARTNERSHIPS
+   ════════════════════════════════════════════════════════════════════ #}
+<section class="page">
+  {% include "components/header.html.j2" %}
+  <div class="partnerships-heading">Considering adding a new device to your practice?</div>
+  <div class="partnerships-sub">
+    Before you make a decision, connect with your PSM to explore<br>
+    Moxie's exclusive discounts with top companies!
+  </div>
+  <div class="partner-logos">
+    {% for uri in partner_uris %}
+    <div class="partner-logo-card">
+      <img src="{{ uri }}" alt="Partner">
+    </div>
+    {% endfor %}
+    <div class="partner-logo-card">
+      <div class="and-more">And more!</div>
+    </div>
+  </div>
+  <div class="footer">Moxie Partners, Inc. Copyright &copy;2025. Private and confidential.</div>
+</section>
+
+</body>
+</html>

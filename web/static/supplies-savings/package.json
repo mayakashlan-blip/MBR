@@ -1,0 +1,13 @@
+{
+  "name": "shannon-dashboard",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "mkdir -p dist && cp index.html dist/index.html",
+    "test": "vitest run",
+    "dev": "npx serve -p 3000 ."
+  },
+  "devDependencies": {
+    "vitest": "^4.1.0"
+  }
+}
