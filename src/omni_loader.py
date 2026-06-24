@@ -1167,10 +1167,16 @@ def load_from_omni(practice_name: str, month: int, year: int,
             data.supplies_spend_all = sav["all"]["spend"]
             data.supplies_savings_all = sav["all"]["savings"]
             data.supplies_by_vendor_3mo = sav.get("by_vendor_3mo", [])
+            reb = sav.get("rebates", {})
+            data.supplies_rebates_month = reb.get("month", 0.0)
+            data.supplies_rebates_3mo = reb.get("m3", 0.0)
+            data.supplies_rebates_ytd = reb.get("ytd", 0.0)
+            data.supplies_rebates_all = reb.get("all", 0.0)
             print(f"  Supplies: month=${data.supplies_spend_month:,.0f}, "
                   f"3mo=${data.supplies_spend_3mo:,.0f}, "
                   f"YTD=${data.supplies_spend_ytd:,.0f}, "
-                  f"all=${data.supplies_spend_all:,.0f}")
+                  f"all=${data.supplies_spend_all:,.0f}, "
+                  f"rebates_3mo=${data.supplies_rebates_3mo:,.0f}")
     except Exception as e:
         print(f"  Warning: Could not load supplies transaction data: {e}")
 

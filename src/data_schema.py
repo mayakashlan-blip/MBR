@@ -242,7 +242,11 @@ class MBRData:
     supplies_savings_ytd: float = 0.0
     supplies_spend_all: float = 0.0
     supplies_savings_all: float = 0.0
-    supplies_by_vendor_3mo: list[dict] = field(default_factory=list)  # [{vendor, spend, savings}]
+    supplies_by_vendor_3mo: list[dict] = field(default_factory=list)  # [{vendor, spend, savings, rebates}]
+    supplies_rebates_month: float = 0.0
+    supplies_rebates_3mo: float = 0.0
+    supplies_rebates_ytd: float = 0.0
+    supplies_rebates_all: float = 0.0
 
     # Moxie Covered Sync GFE Savings
     gfe_completed_month: int = 0

@@ -732,6 +732,10 @@
       <div style="font-size: 11pt; font-weight: 600; color: #2E7D32; margin-top: 0.03in;">{{ "${:,.0f}".format(data.supplies_savings_month) }}</div>
       <div style="font-size: 7pt; color: #8C8580;">est. savings</div>
       {% endif %}
+      {% if data.supplies_rebates_month > 0 %}
+      <div style="font-size: 10pt; font-weight: 600; color: #1565C0; margin-top: 0.03in;">{{ "${:,.0f}".format(data.supplies_rebates_month) }}</div>
+      <div style="font-size: 7pt; color: #8C8580;">rebates</div>
+      {% endif %}
     </div>
     <div style="text-align: center; padding: 0.14in 0.1in; background: white; border: 1px solid #e5e0db; border-radius: 8px;">
       <div style="font-size: 6.5pt; text-transform: uppercase; letter-spacing: 0.04em; color: #8C8580; margin-bottom: 0.04in;">Last 3 Months</div>
@@ -740,6 +744,10 @@
       {% if data.supplies_savings_3mo > 0 %}
       <div style="font-size: 11pt; font-weight: 600; color: #2E7D32; margin-top: 0.03in;">{{ "${:,.0f}".format(data.supplies_savings_3mo) }}</div>
       <div style="font-size: 7pt; color: #8C8580;">est. savings</div>
+      {% endif %}
+      {% if data.supplies_rebates_3mo > 0 %}
+      <div style="font-size: 10pt; font-weight: 600; color: #1565C0; margin-top: 0.03in;">{{ "${:,.0f}".format(data.supplies_rebates_3mo) }}</div>
+      <div style="font-size: 7pt; color: #8C8580;">rebates</div>
       {% endif %}
     </div>
     <div style="text-align: center; padding: 0.14in 0.1in; background: white; border: 1px solid #e5e0db; border-radius: 8px;">
@@ -750,6 +758,10 @@
       <div style="font-size: 11pt; font-weight: 600; color: #2E7D32; margin-top: 0.03in;">{{ "${:,.0f}".format(data.supplies_savings_ytd) }}</div>
       <div style="font-size: 7pt; color: #8C8580;">est. savings</div>
       {% endif %}
+      {% if data.supplies_rebates_ytd > 0 %}
+      <div style="font-size: 10pt; font-weight: 600; color: #1565C0; margin-top: 0.03in;">{{ "${:,.0f}".format(data.supplies_rebates_ytd) }}</div>
+      <div style="font-size: 7pt; color: #8C8580;">rebates</div>
+      {% endif %}
     </div>
     <div style="text-align: center; padding: 0.14in 0.1in; background: white; border: 1px solid #e5e0db; border-radius: 8px;">
       <div style="font-size: 6.5pt; text-transform: uppercase; letter-spacing: 0.04em; color: #8C8580; margin-bottom: 0.04in;">All Time</div>
@@ -758,6 +770,10 @@
       {% if data.supplies_savings_all > 0 %}
       <div style="font-size: 11pt; font-weight: 600; color: #2E7D32; margin-top: 0.03in;">{{ "${:,.0f}".format(data.supplies_savings_all) }}</div>
       <div style="font-size: 7pt; color: #8C8580;">est. savings</div>
+      {% endif %}
+      {% if data.supplies_rebates_all > 0 %}
+      <div style="font-size: 10pt; font-weight: 600; color: #1565C0; margin-top: 0.03in;">{{ "${:,.0f}".format(data.supplies_rebates_all) }}</div>
+      <div style="font-size: 7pt; color: #8C8580;">rebates</div>
       {% endif %}
     </div>
   </div>
@@ -772,6 +788,7 @@
           <th style="padding: 5px 8px; font-weight: 600; color: var(--purple);">Vendor</th>
           <th style="padding: 5px 8px; font-weight: 600; color: var(--purple); text-align: right;">Spend</th>
           <th style="padding: 5px 8px; font-weight: 600; color: var(--purple); text-align: right;">Est. Savings</th>
+          <th style="padding: 5px 8px; font-weight: 600; color: var(--purple); text-align: right;">Rebates</th>
           <th style="padding: 5px 8px; font-weight: 600; color: var(--purple); text-align: right;">Savings %</th>
         </tr>
       </thead>
@@ -781,7 +798,8 @@
           <td style="padding: 6px 8px; font-weight: 500;">{{ v.vendor }}</td>
           <td style="padding: 6px 8px; text-align: right;">{{ "${:,.0f}".format(v.spend) }}</td>
           <td style="padding: 6px 8px; text-align: right; color: #2E7D32; font-weight: 600;">{{ "${:,.0f}".format(v.savings) }}</td>
-          <td style="padding: 6px 8px; text-align: right;">{% if v.spend > 0 %}{{ "%.1f"|format(v.savings / v.spend * 100) }}%{% else %}—{% endif %}</td>
+          <td style="padding: 6px 8px; text-align: right; color: #1565C0; font-weight: 600;">{% if v.get('rebates', 0) > 0 %}{{ "${:,.0f}".format(v.rebates) }}{% else %}—{% endif %}</td>
+          <td style="padding: 6px 8px; text-align: right;">{% if v.spend > 0 %}{{ "%.1f"|format((v.savings + v.get('rebates', 0)) / v.spend * 100) }}%{% else %}—{% endif %}</td>
         </tr>
         {% endfor %}
       </tbody>
@@ -790,7 +808,8 @@
           <td style="padding: 6px 8px;">Total</td>
           <td style="padding: 6px 8px; text-align: right;">{{ "${:,.0f}".format(data.supplies_spend_3mo) }}</td>
           <td style="padding: 6px 8px; text-align: right; color: #2E7D32;">{{ "${:,.0f}".format(data.supplies_savings_3mo) }}</td>
-          <td style="padding: 6px 8px; text-align: right;">{% if data.supplies_spend_3mo > 0 %}{{ "%.1f"|format(data.supplies_savings_3mo / data.supplies_spend_3mo * 100) }}%{% else %}—{% endif %}</td>
+          <td style="padding: 6px 8px; text-align: right; color: #1565C0;">{% if data.supplies_rebates_3mo > 0 %}{{ "${:,.0f}".format(data.supplies_rebates_3mo) }}{% else %}—{% endif %}</td>
+          <td style="padding: 6px 8px; text-align: right;">{% if data.supplies_spend_3mo > 0 %}{{ "%.1f"|format((data.supplies_savings_3mo + data.supplies_rebates_3mo) / data.supplies_spend_3mo * 100) }}%{% else %}—{% endif %}</td>
         </tr>
       </tfoot>
     </table>

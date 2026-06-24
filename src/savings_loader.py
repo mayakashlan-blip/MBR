@@ -383,6 +383,35 @@ def _calc_merz(rows, moxie_id, name_map, bounds):
     return p
 
 
+def _calc_rebates(moxie_id, bounds):
+    """Load rebates from rebates.json filtered by medspa_id and period."""
+    rows = _load_json("rebates.json")
+    moxie_id_str = str(moxie_id)
+    matched = [r for r in rows if str(r.get("Medspa ID", "")).strip() == moxie_id_str]
+    if not matched:
+        return None
+
+    vendor_cols = ["Galderma", "Allergan", "Evolus", "Merz"]
+    totals = {col: {"mo": 0.0, "m3": 0.0, "ytd": 0.0, "all": 0.0} for col in vendor_cols}
+
+    for r in matched:
+        d = _pd(r.get("Applied Date"))
+        for col in vendor_cols:
+            amt = _pm(r.get(col, ""))
+            if amt <= 0:
+                continue
+            totals[col]["all"] += amt
+            if d:
+                if bounds["mo_st"] <= d <= bounds["end"]:
+                    totals[col]["mo"] += amt
+                if bounds["m3_st"] <= d <= bounds["end"]:
+                    totals[col]["m3"] += amt
+                if bounds["ytd_st"] <= d <= bounds["end"]:
+                    totals[col]["ytd"] += amt
+
+    return totals
+
+
 def load_savings_for_practice(practice_name: str, month: int, year: int) -> dict:
     """Compute spend and savings matching Shannon's dashboard exactly."""
     medspas = _load_json("medspas.json")
@@ -422,6 +451,7 @@ def load_savings_for_practice(practice_name: str, month: int, year: int) -> dict
 
     total = _mk_periods()
     by_vendor_3mo = []
+    vendor_results = {}
 
     for vendor_name, calc_fn in calcs.items():
         try:
@@ -431,14 +461,37 @@ def load_savings_for_practice(practice_name: str, month: int, year: int) -> dict
             continue
         if not result:
             continue
+        vendor_results[vendor_name] = result
         for period in ["mo", "m3", "ytd", "all"]:
             total[period]["sp"] += result[period]["sp"]
             total[period]["sv"] += result[period]["sv"]
-        if result["m3"]["sp"] > 0 or result["m3"]["sv"] > 0:
+
+    # Load rebates and attach to each vendor
+    rebates_by_vendor = _calc_rebates(moxie_id, bounds) or {}
+    rebate_totals = {"mo": 0.0, "m3": 0.0, "ytd": 0.0, "all": 0.0}
+    for col, periods in rebates_by_vendor.items():
+        for p in ["mo", "m3", "ytd", "all"]:
+            rebate_totals[p] += periods[p]
+
+    for vendor_name, result in vendor_results.items():
+        # Match rebates.json column name to vendor name (Evolus → Evolus, Revance has no rebates col)
+        vendor_rebates_3mo = rebates_by_vendor.get(vendor_name, {}).get("m3", 0.0)
+        if result["m3"]["sp"] > 0 or result["m3"]["sv"] > 0 or vendor_rebates_3mo > 0:
             by_vendor_3mo.append({
                 "vendor": vendor_name,
                 "spend": round(result["m3"]["sp"], 2),
                 "savings": round(result["m3"]["sv"], 2),
+                "rebates": round(vendor_rebates_3mo, 2),
+            })
+
+    # Add vendors that only have rebates (no spend in 3-month window)
+    for col, periods in rebates_by_vendor.items():
+        if col not in vendor_results and periods["m3"] > 0:
+            by_vendor_3mo.append({
+                "vendor": col,
+                "spend": 0.0,
+                "savings": 0.0,
+                "rebates": round(periods["m3"], 2),
             })
 
     by_vendor_3mo.sort(key=lambda v: v["spend"], reverse=True)
@@ -449,4 +502,10 @@ def load_savings_for_practice(practice_name: str, month: int, year: int) -> dict
         "ytd": {"spend": round(total["ytd"]["sp"], 2), "savings": round(total["ytd"]["sv"], 2)},
         "all": {"spend": round(total["all"]["sp"], 2), "savings": round(total["all"]["sv"], 2)},
         "by_vendor_3mo": by_vendor_3mo,
+        "rebates": {
+            "month": round(rebate_totals["mo"], 2),
+            "m3": round(rebate_totals["m3"], 2),
+            "ytd": round(rebate_totals["ytd"], 2),
+            "all": round(rebate_totals["all"], 2),
+        },
     }
