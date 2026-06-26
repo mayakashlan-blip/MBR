@@ -891,6 +891,37 @@ def api_upload_monthly_brand_bank():
 
 
 @app.route("/api/generate", methods=["POST"])
+@app.route("/api/status")
+def api_status():
+    """Return app status — used by the dashboard to show warnings."""
+    return jsonify({
+        "db_enabled": _DB_ENABLED,
+        "storage": "supabase" if _DB_ENABLED else "file",
+    })
+
+
+@app.route("/api/exists", methods=["POST"])
+def api_exists():
+    """Quick check: does a saved session exist for this practice+month+year?
+    Returns in <1s so the dashboard can show the right status message before
+    starting the full generate.
+    """
+    practice = (request.json or {}).get("practice", "").strip()
+    month = int((request.json or {}).get("month", 1))
+    year = int((request.json or {}).get("year", 2026))
+    if not practice:
+        return jsonify({"exists": False})
+    session_id = _practice_key(practice, month, year)
+    if session_id in sessions:
+        return jsonify({"exists": True, "session_id": session_id})
+    if _DB_ENABLED:
+        raw = _db.load_session_raw(session_id)
+        return jsonify({"exists": bool(raw), "session_id": session_id})
+    path = SESSIONS_DIR / f"{session_id}.json"
+    return jsonify({"exists": path.exists(), "session_id": session_id})
+
+
+@app.route("/api/generate", methods=["POST"])
 def api_generate():
     """Generate a report for a practice.
 

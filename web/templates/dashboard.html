@@ -85,6 +85,10 @@
 
   <!-- ── Main Content ── -->
   <div>
+  <div id="db-warning" style="display:none; background:#FFF8E1; border:1px solid #DDA03C; border-radius:8px; padding:10px 14px; margin-bottom:16px; font-size:13px; color:#775620;">
+    ⚠️ <strong>Supabase not connected.</strong> Reports won't be cached — every generate pulls fresh data from Omni (30–60s). Set <code>SUPABASE_URL</code> and <code>SUPABASE_SERVICE_KEY</code> in Render environment settings.
+  </div>
+
   <div class="card generate-card">
     <div class="form-row">
       <div class="form-group" style="flex:2">
@@ -197,6 +201,11 @@
 </div>
 
 <script>
+// Check Supabase connectivity and warn if not configured
+fetch('/api/status').then(r => r.json()).then(s => {
+  if (!s.db_enabled) document.getElementById('db-warning').style.display = 'block';
+}).catch(() => {});
+
 // Load practices for autocomplete (name + ID)
 let allPractices = [];
 fetch('/api/practices')
@@ -222,16 +231,15 @@ function resolvePractice(input) {
   return input;
 }
 
+const MONTH_NAMES = ['','January','February','March','April','May','June',
+                     'July','August','September','October','November','December'];
+
 function generateReport() {
   const rawInput = document.getElementById('practice').value.trim();
-  const month = document.getElementById('month').value;
-  const year = document.getElementById('year').value;
+  const month = parseInt(document.getElementById('month').value);
+  const year = parseInt(document.getElementById('year').value);
 
-  if (!rawInput) {
-    showError('Please enter a practice name or medspa ID.');
-    return;
-  }
-
+  if (!rawInput) { showError('Please enter a practice name or medspa ID.'); return; }
   const practice = resolvePractice(rawInput);
   if (!practice) {
     showError('Medspa ID ' + rawInput + ' not found. Make sure the ID is correct.');
@@ -240,32 +248,43 @@ function generateReport() {
 
   const btn = document.getElementById('generate-btn');
   btn.disabled = true;
-  btn.textContent = 'Generating...';
-
+  btn.textContent = 'Checking...';
   document.getElementById('status').classList.remove('hidden');
   document.getElementById('error').classList.add('hidden');
-  document.getElementById('status-text').textContent =
-    'Opening report... If no saved version exists, fresh Omni data will load (30–60s).';
+  document.getElementById('status-text').textContent = 'Checking for saved report…';
 
-  const monthNames = ['','January','February','March','April','May','June',
-                      'July','August','September','October','November','December'];
-
-  fetch('/api/generate', {
+  // Step 1: fast exists-check so we can show the right message immediately
+  fetch('/api/exists', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({practice, month: parseInt(month), year: parseInt(year)})
+    body: JSON.stringify({practice, month, year})
+  })
+  .then(r => r.json())
+  .then(check => {
+    if (check.exists) {
+      btn.textContent = 'Opening...';
+      document.getElementById('status-text').textContent = '✓ Saved report found — opening now…';
+    } else {
+      btn.textContent = 'Generating...';
+      document.getElementById('status-text').textContent =
+        'No saved report — pulling fresh data from Omni. This takes 30–60s…';
+    }
+    // Step 2: full generate (fast for cache hits, slow for fresh pulls)
+    return fetch('/api/generate', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({practice, month, year})
+    });
   })
   .then(r => r.json())
   .then(data => {
     btn.disabled = false;
     btn.textContent = 'Generate Report';
     document.getElementById('status').classList.add('hidden');
-
     if (data.error) {
       showError(data.error);
     } else {
-      trackRecentOpen(data.session_id, practice, parseInt(month), parseInt(year),
-                      monthNames[parseInt(month)]);
+      trackRecentOpen(data.session_id, practice, month, year, MONTH_NAMES[month]);
       window.location.href = '/editor/' + data.session_id;
     }
   })
@@ -375,7 +394,7 @@ function openRecent(session_id, practice, month, year, month_name) {
   btn.disabled = true;
   document.getElementById('status').classList.remove('hidden');
   document.getElementById('error').classList.add('hidden');
-  document.getElementById('status-text').textContent = 'Opening ' + practice + '…';
+  document.getElementById('status-text').textContent = '✓ Saved report found — opening now…';
 
   fetch('/api/generate', {
     method: 'POST',
