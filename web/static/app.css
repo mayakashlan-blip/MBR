@@ -57,7 +57,7 @@ body {
   font-family: 'Playfair Display', serif;
   font-size: 22px;
   font-weight: 700;
-  color: white;
+  color: var(--gold);
 }
 
 .nav-sep { color: rgba(255,255,255,0.3); font-size: 18px; }

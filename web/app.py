@@ -1039,6 +1039,16 @@ def api_preview(session_id):
     return Response(sess["html"], content_type="text/html")
 
 
+@app.route("/api/rerender/<session_id>", methods=["POST"])
+def api_rerender(session_id):
+    """Force re-render the report HTML from the current template + data."""
+    sess = _get_session(session_id)
+    if not sess:
+        return jsonify({"error": "Session not found"}), 404
+    _rerender(sess)
+    return jsonify({"ok": True})
+
+
 @app.route("/api/update/<session_id>", methods=["POST"])
 def api_update(session_id):
     """Update editable fields and re-render (auto-save, no version snapshot)."""

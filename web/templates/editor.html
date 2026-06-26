@@ -636,6 +636,7 @@
 
     <div class="export-bar">
       <button class="btn btn-primary" onclick="saveReport()" id="save-btn">Save</button>
+      <button class="btn btn-secondary" onclick="refreshPreview()" id="refresh-btn">Refresh Preview</button>
       <button class="btn btn-secondary" onclick="exportPDF()" id="export-btn">Export PDF</button>
       <button class="btn btn-secondary" onclick="exportPPTX()" id="export-pptx-btn">Export PPTX</button>
       <a href="/" class="btn btn-secondary">Back to Dashboard</a>
@@ -855,6 +856,25 @@ function collectData() {
     memberships_cancelled: numVal('ed-mem-cancelled'),
     mrr: numVal('ed-mrr'),
   };
+}
+
+function refreshPreview() {
+  const btn = document.getElementById('refresh-btn');
+  const indicator = document.getElementById('save-indicator');
+  btn.disabled = true;
+  btn.textContent = 'Refreshing...';
+  indicator.textContent = '';
+  fetch('/api/rerender/' + SESSION_ID, { method: 'POST' })
+    .then(r => r.json())
+    .then(() => {
+      document.getElementById('preview-frame').src = '/api/preview/' + SESSION_ID + '?t=' + Date.now();
+      indicator.textContent = 'Preview refreshed';
+      setTimeout(() => { indicator.textContent = ''; }, 2000);
+    })
+    .finally(() => {
+      btn.disabled = false;
+      btn.textContent = 'Refresh Preview';
+    });
 }
 
 function saveChanges() {

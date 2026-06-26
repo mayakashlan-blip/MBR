@@ -96,7 +96,7 @@
         <svg class="gauge-svg" viewBox="0 0 100 100">
           <circle cx="50" cy="50" r="40" fill="none" stroke="#E8E3DE" stroke-width="7"/>
           <circle class="gauge-arc" cx="50" cy="50" r="40" fill="none"
-                  stroke="#4D1751" stroke-width="7" stroke-linecap="round"
+                  stroke="#00362D" stroke-width="7" stroke-linecap="round"
                   stroke-dasharray="{{ g.circ }}" stroke-dashoffset="{{ g.offset }}"
                   transform="rotate(-90 50 50)"/>
         </svg>
@@ -182,10 +182,10 @@
         {% set is_current = loop.last %}
         {% set bar_h = (entry.value / series_max * 100) if series_max > 0 else 0 %}
         <div style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%;">
-          <div style="font-size: 7pt; font-weight: 600; color: {% if is_current %}#4D1751{% else %}#5a5550{% endif %}; margin-bottom: 0.03in;">
+          <div style="font-size: 7pt; font-weight: 600; color: {% if is_current %}#00362D{% else %}#5a5550{% endif %}; margin-bottom: 0.03in;">
             ${{ "{:,.0f}".format(entry.value) }}
           </div>
-          <div style="width: 100%; height: {{ bar_h }}%; min-height: 2px; background: {% if is_current %}#4D1751{% else %}#C8B6CB{% endif %}; border-radius: 3px 3px 0 0;"></div>
+          <div style="width: 100%; height: {{ bar_h }}%; min-height: 2px; background: {% if is_current %}#00362D{% else %}#71A5A1{% endif %}; border-radius: 3px 3px 0 0;"></div>
           <div style="font-size: 7pt; color: #8C8580; margin-top: 0.04in;">{{ entry.label }}</div>
         </div>
         {% endfor %}
@@ -460,7 +460,7 @@
 
   <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1.2in 0.8in; text-align: center;">
     <div style="width: 0.8in; height: 0.8in; background: #F3EDF4; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 0.2in;">
-      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#4D1751" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#00362D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
       </svg>
     </div>
@@ -484,7 +484,7 @@
 
   {# ── ROI Banner ── #}
   {% set roi = data.marketing.first_visit_roi %}
-  <div style="background: linear-gradient(135deg, #4D1751 0%, #6B2D6E 100%); color: white; border-radius: 10px; padding: 0.16in 0.24in; margin-bottom: 0.18in; display: flex; align-items: center; justify-content: space-between;">
+  <div style="background: linear-gradient(135deg, #00362D 0%, #1A5247 100%); color: white; border-radius: 10px; padding: 0.16in 0.24in; margin-bottom: 0.18in; display: flex; align-items: center; justify-content: space-between;">
     <div>
       <div style="font-size: 8pt; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.8; margin-bottom: 0.03in;">First-Visit Campaign ROI</div>
       <div style="font-size: 10pt; line-height: 1.5;">
@@ -505,32 +505,32 @@
   <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.1in; margin-bottom: 0.15in;">
     <div style="text-align: center; padding: 0.12in 0.08in; background: white; border: 1px solid #e5e0db; border-radius: 8px;">
       <div style="font-size: 6.5pt; text-transform: uppercase; letter-spacing: 0.04em; color: #8C8580; margin-bottom: 0.02in;">Ad Spend</div>
-      <div style="font-size: 16pt; font-weight: 700; color: #4D1751;">{{ "${:,.0f}".format(data.marketing.ad_spend) }}</div>
+      <div style="font-size: 16pt; font-weight: 700; color: #00362D;">{{ "${:,.0f}".format(data.marketing.ad_spend) }}</div>
       <div style="font-size: 6.5pt; color: #918A85;">Monthly Budget</div>
     </div>
     <div style="text-align: center; padding: 0.12in 0.08in; background: white; border: 1px solid #e5e0db; border-radius: 8px;">
       <div style="font-size: 6.5pt; text-transform: uppercase; letter-spacing: 0.04em; color: #8C8580; margin-bottom: 0.02in;">New Patient Leads</div>
-      <div style="font-size: 16pt; font-weight: 700; color: #4D1751;">{{ "{:,}".format(data.marketing.leads) }}</div>
+      <div style="font-size: 16pt; font-weight: 700; color: #00362D;">{{ "{:,}".format(data.marketing.leads) }}</div>
       <div style="font-size: 6.5pt; color: #918A85;">From Campaigns</div>
     </div>
     <div style="text-align: center; padding: 0.12in 0.08in; background: white; border: 1px solid #e5e0db; border-radius: 8px;">
       <div style="font-size: 6.5pt; text-transform: uppercase; letter-spacing: 0.04em; color: #8C8580; margin-bottom: 0.02in;">Appts Booked</div>
-      <div style="font-size: 16pt; font-weight: 700; color: #4D1751;">{{ "{:,}".format(data.marketing.booked) }}</div>
+      <div style="font-size: 16pt; font-weight: 700; color: #00362D;">{{ "{:,}".format(data.marketing.booked) }}</div>
       <div style="font-size: 6.5pt; color: #918A85;">New Patients</div>
     </div>
     <div style="text-align: center; padding: 0.12in 0.08in; background: white; border: 1px solid #e5e0db; border-radius: 8px;">
       <div style="font-size: 6.5pt; text-transform: uppercase; letter-spacing: 0.04em; color: #8C8580; margin-bottom: 0.02in;">Appts Completed</div>
-      <div style="font-size: 16pt; font-weight: 700; color: #4D1751;">{{ "{:,}".format(data.marketing.completed) }}</div>
+      <div style="font-size: 16pt; font-weight: 700; color: #00362D;">{{ "{:,}".format(data.marketing.completed) }}</div>
       <div style="font-size: 6.5pt; color: #918A85;">First Visits</div>
     </div>
     <div style="text-align: center; padding: 0.12in 0.08in; background: white; border: 1px solid #e5e0db; border-radius: 8px;">
       <div style="font-size: 6.5pt; text-transform: uppercase; letter-spacing: 0.04em; color: #8C8580; margin-bottom: 0.02in;">Total Revenue (All Clients)</div>
-      <div style="font-size: 16pt; font-weight: 700; color: #4D1751;">{{ "${:,.0f}".format(data.marketing.total_revenue_all_clients) }}</div>
+      <div style="font-size: 16pt; font-weight: 700; color: #00362D;">{{ "${:,.0f}".format(data.marketing.total_revenue_all_clients) }}</div>
       <div style="font-size: 6.5pt; color: #918A85;">New &amp; Returning Patients</div>
     </div>
     <div style="text-align: center; padding: 0.12in 0.08in; background: white; border: 1px solid #e5e0db; border-radius: 8px;">
       <div style="font-size: 6.5pt; text-transform: uppercase; letter-spacing: 0.04em; color: #8C8580; margin-bottom: 0.02in;">Total New Client Revenue</div>
-      <div style="font-size: 16pt; font-weight: 700; color: #4D1751;">{{ "${:,.0f}".format(data.marketing.revenue) }}</div>
+      <div style="font-size: 16pt; font-weight: 700; color: #00362D;">{{ "${:,.0f}".format(data.marketing.revenue) }}</div>
       <div style="font-size: 6.5pt; color: #918A85;">Attributed to Marketing</div>
     </div>
   </div>
@@ -541,7 +541,7 @@
     <div style="display: flex; gap: 0.12in; margin-top: 0.08in;">
       <div style="flex: 1; text-align: center; padding: 0.1in; border: 1px solid #e5e0db; border-radius: 8px;">
         <div style="font-size: 7pt; text-transform: uppercase; letter-spacing: 0.03em; color: #8C8580; margin-bottom: 0.04in;">First-Visit ROI</div>
-        <div style="font-size: 20pt; font-weight: 700; color: #4D1751; margin-bottom: 0.04in;">{{ "{:.1f}".format(roi if roi else 0) }}x</div>
+        <div style="font-size: 20pt; font-weight: 700; color: #00362D; margin-bottom: 0.04in;">{{ "{:.1f}".format(roi if roi else 0) }}x</div>
         <div style="display: inline-block; font-size: 7pt; font-weight: 600; padding: 2px 8px; border-radius: 10px;
                     {% if roi and roi >= 3 %}background: #E8F5E9; color: #2E7D32;{% elif roi and roi >= 2 %}background: #FFF8E1; color: #B8933A;{% else %}background: #FDE8E7; color: #B53631;{% endif %}">
           {% if roi and roi >= 3 %}Meets Target{% elif roi and roi >= 2 %}On Track{% else %}Below Target{% endif %}
@@ -550,7 +550,7 @@
       </div>
       <div style="flex: 1; text-align: center; padding: 0.1in; border: 1px solid #e5e0db; border-radius: 8px;">
         <div style="font-size: 7pt; text-transform: uppercase; letter-spacing: 0.03em; color: #8C8580; margin-bottom: 0.04in;">Lead → Booking Rate</div>
-        <div style="font-size: 20pt; font-weight: 700; color: #4D1751; margin-bottom: 0.04in;">{{ "{:.0f}".format(data.marketing.lead_to_booking_rate * 100 if data.marketing.lead_to_booking_rate else 0) }}%</div>
+        <div style="font-size: 20pt; font-weight: 700; color: #00362D; margin-bottom: 0.04in;">{{ "{:.0f}".format(data.marketing.lead_to_booking_rate * 100 if data.marketing.lead_to_booking_rate else 0) }}%</div>
         <div style="display: inline-block; font-size: 7pt; font-weight: 600; padding: 2px 8px; border-radius: 10px;
                     {% if data.marketing.lead_to_booking_rate and data.marketing.lead_to_booking_rate >= 0.15 %}background: #E8F5E9; color: #2E7D32;{% else %}background: #FDE8E7; color: #B53631;{% endif %}">
           {% if data.marketing.lead_to_booking_rate and data.marketing.lead_to_booking_rate >= 0.15 %}Meets Target{% else %}Below Target{% endif %}
@@ -559,12 +559,12 @@
       </div>
       <div style="flex: 1; text-align: center; padding: 0.1in; border: 1px solid #e5e0db; border-radius: 8px;">
         <div style="font-size: 7pt; text-transform: uppercase; letter-spacing: 0.03em; color: #8C8580; margin-bottom: 0.04in;">First-Visit AOV</div>
-        <div style="font-size: 20pt; font-weight: 700; color: #4D1751; margin-bottom: 0.04in;">{{ data.marketing.first_visit_aov | dollar(False) if data.marketing.first_visit_aov else "—" }}</div>
+        <div style="font-size: 20pt; font-weight: 700; color: #00362D; margin-bottom: 0.04in;">{{ data.marketing.first_visit_aov | dollar(False) if data.marketing.first_visit_aov else "—" }}</div>
         <div style="font-size: 7pt; color: #918A85; margin-top: 0.03in;">New patients from campaigns</div>
       </div>
       <div style="flex: 1; text-align: center; padding: 0.1in; border: 1px solid #e5e0db; border-radius: 8px;">
         <div style="font-size: 7pt; text-transform: uppercase; letter-spacing: 0.03em; color: #8C8580; margin-bottom: 0.04in;">Cost per Lead</div>
-        <div style="font-size: 20pt; font-weight: 700; color: #4D1751; margin-bottom: 0.04in;">{% if data.marketing.leads > 0 %}{{ "${:,.0f}".format(data.marketing.ad_spend / data.marketing.leads) }}{% else %}—{% endif %}</div>
+        <div style="font-size: 20pt; font-weight: 700; color: #00362D; margin-bottom: 0.04in;">{% if data.marketing.leads > 0 %}{{ "${:,.0f}".format(data.marketing.ad_spend / data.marketing.leads) }}{% else %}—{% endif %}</div>
         <div style="font-size: 7pt; color: #918A85; margin-top: 0.03in;">Ad spend / leads</div>
       </div>
     </div>
@@ -590,27 +590,27 @@
       <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 0.08in;">
         <div style="text-align: center; padding: 0.06in 0.04in; background: white; border: 1px solid #ece7e2; border-radius: 6px;">
           <div style="font-size: 6pt; text-transform: uppercase; letter-spacing: 0.04em; color: #8C8580; margin-bottom: 0.02in;">Spend</div>
-          <div style="font-size: 11pt; font-weight: 700; color: #4D1751;">{{ "${:,.0f}".format(c.ad_spend) }}</div>
+          <div style="font-size: 11pt; font-weight: 700; color: #00362D;">{{ "${:,.0f}".format(c.ad_spend) }}</div>
         </div>
         <div style="text-align: center; padding: 0.06in 0.04in; background: white; border: 1px solid #ece7e2; border-radius: 6px;">
           <div style="font-size: 6pt; text-transform: uppercase; letter-spacing: 0.04em; color: #8C8580; margin-bottom: 0.02in;">Leads</div>
-          <div style="font-size: 11pt; font-weight: 700; color: #4D1751;">{{ "{:,}".format(c.leads) }}</div>
+          <div style="font-size: 11pt; font-weight: 700; color: #00362D;">{{ "{:,}".format(c.leads) }}</div>
         </div>
         <div style="text-align: center; padding: 0.06in 0.04in; background: white; border: 1px solid #ece7e2; border-radius: 6px;">
           <div style="font-size: 6pt; text-transform: uppercase; letter-spacing: 0.04em; color: #8C8580; margin-bottom: 0.02in;">Booked</div>
-          <div style="font-size: 11pt; font-weight: 700; color: #4D1751;">{{ "{:,}".format(c.booked) }}</div>
+          <div style="font-size: 11pt; font-weight: 700; color: #00362D;">{{ "{:,}".format(c.booked) }}</div>
         </div>
         <div style="text-align: center; padding: 0.06in 0.04in; background: white; border: 1px solid #ece7e2; border-radius: 6px;">
           <div style="font-size: 6pt; text-transform: uppercase; letter-spacing: 0.04em; color: #8C8580; margin-bottom: 0.02in;">Completed</div>
-          <div style="font-size: 11pt; font-weight: 700; color: #4D1751;">{{ "{:,}".format(c.completed) }}</div>
+          <div style="font-size: 11pt; font-weight: 700; color: #00362D;">{{ "{:,}".format(c.completed) }}</div>
         </div>
         <div style="text-align: center; padding: 0.06in 0.04in; background: white; border: 1px solid #ece7e2; border-radius: 6px;">
           <div style="font-size: 6pt; text-transform: uppercase; letter-spacing: 0.04em; color: #8C8580; margin-bottom: 0.02in;">New Client Rev.</div>
-          <div style="font-size: 11pt; font-weight: 700; color: #4D1751;">{{ "${:,.0f}".format(c.revenue) }}</div>
+          <div style="font-size: 11pt; font-weight: 700; color: #00362D;">{{ "${:,.0f}".format(c.revenue) }}</div>
         </div>
         <div style="text-align: center; padding: 0.06in 0.04in; background: white; border: 1px solid #ece7e2; border-radius: 6px;">
           <div style="font-size: 6pt; text-transform: uppercase; letter-spacing: 0.04em; color: #8C8580; margin-bottom: 0.02in;">CPL</div>
-          <div style="font-size: 11pt; font-weight: 700; color: #4D1751;">{% if c.cpl > 0 %}{{ "${:,.0f}".format(c.cpl) }}{% else %}—{% endif %}</div>
+          <div style="font-size: 11pt; font-weight: 700; color: #00362D;">{% if c.cpl > 0 %}{{ "${:,.0f}".format(c.cpl) }}{% else %}—{% endif %}</div>
         </div>
       </div>
     </div>
@@ -639,7 +639,7 @@
       </div>
       <div style="flex: 1; text-align: center; padding: 0.1in; background: #F3EDF4; border: 1px solid #D4C5D6; border-radius: 8px;">
         <div style="font-size: 7pt; text-transform: uppercase; letter-spacing: 0.03em; color: #8C8580; margin-bottom: 0.03in;">End-to-End</div>
-        <div style="font-size: 18pt; font-weight: 700; color: #4D1751;">{% if data.marketing.leads > 0 %}{{ "{:.1f}".format(data.marketing.completed / data.marketing.leads * 100) }}%{% else %}—{% endif %}</div>
+        <div style="font-size: 18pt; font-weight: 700; color: #00362D;">{% if data.marketing.leads > 0 %}{{ "{:.1f}".format(data.marketing.completed / data.marketing.leads * 100) }}%{% else %}—{% endif %}</div>
         <div style="font-size: 7pt; color: #918A85; margin-top: 0.02in;">{{ data.marketing.completed }} patients</div>
       </div>
     </div>
@@ -685,7 +685,7 @@
       <div style="display: flex; justify-content: space-between; align-items: flex-end;">
         <div>
           <div style="font-size: 7pt; color: #8C8580; text-transform: uppercase; letter-spacing: 0.04em;">Completed GFEs</div>
-          <div style="font-size: 26pt; font-weight: 700; color: #4D1751; line-height: 1.1;">{{ "{:,}".format(data.gfe_completed_month) }}</div>
+          <div style="font-size: 26pt; font-weight: 700; color: #00362D; line-height: 1.1;">{{ "{:,}".format(data.gfe_completed_month) }}</div>
         </div>
         <div style="text-align: right;">
           <div style="font-size: 7pt; color: #8C8580; text-transform: uppercase; letter-spacing: 0.04em;">Total GFE Value</div>
@@ -700,7 +700,7 @@
       <div style="display: flex; justify-content: space-between; align-items: flex-end;">
         <div>
           <div style="font-size: 7pt; color: #8C8580; text-transform: uppercase; letter-spacing: 0.04em;">Completed GFEs</div>
-          <div style="font-size: 26pt; font-weight: 700; color: #4D1751; line-height: 1.1;">{{ "{:,}".format(data.gfe_completed_ytd) }}</div>
+          <div style="font-size: 26pt; font-weight: 700; color: #00362D; line-height: 1.1;">{{ "{:,}".format(data.gfe_completed_ytd) }}</div>
         </div>
         <div style="text-align: right;">
           <div style="font-size: 7pt; color: #8C8580; text-transform: uppercase; letter-spacing: 0.04em;">Total GFE Value</div>
@@ -726,7 +726,7 @@
   <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.1in; margin-bottom: 0.18in;">
     <div style="text-align: center; padding: 0.14in 0.1in; background: white; border: 1px solid #e5e0db; border-radius: 8px;">
       <div style="font-size: 6.5pt; text-transform: uppercase; letter-spacing: 0.04em; color: #8C8580; margin-bottom: 0.04in;">This Month</div>
-      <div style="font-size: 15pt; font-weight: 700; color: #4D1751;">{{ "${:,.0f}".format(data.supplies_spend_month) }}</div>
+      <div style="font-size: 15pt; font-weight: 700; color: #00362D;">{{ "${:,.0f}".format(data.supplies_spend_month) }}</div>
       <div style="font-size: 7pt; color: #8C8580;">spend</div>
       {% if data.supplies_savings_month > 0 %}
       <div style="font-size: 11pt; font-weight: 600; color: #2E7D32; margin-top: 0.03in;">{{ "${:,.0f}".format(data.supplies_savings_month) }}</div>
@@ -739,7 +739,7 @@
     </div>
     <div style="text-align: center; padding: 0.14in 0.1in; background: white; border: 1px solid #e5e0db; border-radius: 8px;">
       <div style="font-size: 6.5pt; text-transform: uppercase; letter-spacing: 0.04em; color: #8C8580; margin-bottom: 0.04in;">Last 3 Months</div>
-      <div style="font-size: 15pt; font-weight: 700; color: #4D1751;">{{ "${:,.0f}".format(data.supplies_spend_3mo) }}</div>
+      <div style="font-size: 15pt; font-weight: 700; color: #00362D;">{{ "${:,.0f}".format(data.supplies_spend_3mo) }}</div>
       <div style="font-size: 7pt; color: #8C8580;">spend</div>
       {% if data.supplies_savings_3mo > 0 %}
       <div style="font-size: 11pt; font-weight: 600; color: #2E7D32; margin-top: 0.03in;">{{ "${:,.0f}".format(data.supplies_savings_3mo) }}</div>
@@ -752,7 +752,7 @@
     </div>
     <div style="text-align: center; padding: 0.14in 0.1in; background: white; border: 1px solid #e5e0db; border-radius: 8px;">
       <div style="font-size: 6.5pt; text-transform: uppercase; letter-spacing: 0.04em; color: #8C8580; margin-bottom: 0.04in;">Year to Date</div>
-      <div style="font-size: 15pt; font-weight: 700; color: #4D1751;">{{ "${:,.0f}".format(data.supplies_spend_ytd) }}</div>
+      <div style="font-size: 15pt; font-weight: 700; color: #00362D;">{{ "${:,.0f}".format(data.supplies_spend_ytd) }}</div>
       <div style="font-size: 7pt; color: #8C8580;">spend</div>
       {% if data.supplies_savings_ytd > 0 %}
       <div style="font-size: 11pt; font-weight: 600; color: #2E7D32; margin-top: 0.03in;">{{ "${:,.0f}".format(data.supplies_savings_ytd) }}</div>
@@ -765,7 +765,7 @@
     </div>
     <div style="text-align: center; padding: 0.14in 0.1in; background: white; border: 1px solid #e5e0db; border-radius: 8px;">
       <div style="font-size: 6.5pt; text-transform: uppercase; letter-spacing: 0.04em; color: #8C8580; margin-bottom: 0.04in;">All Time</div>
-      <div style="font-size: 15pt; font-weight: 700; color: #4D1751;">{{ "${:,.0f}".format(data.supplies_spend_all) }}</div>
+      <div style="font-size: 15pt; font-weight: 700; color: #00362D;">{{ "${:,.0f}".format(data.supplies_spend_all) }}</div>
       <div style="font-size: 7pt; color: #8C8580;">spend</div>
       {% if data.supplies_savings_all > 0 %}
       <div style="font-size: 11pt; font-weight: 600; color: #2E7D32; margin-top: 0.03in;">{{ "${:,.0f}".format(data.supplies_savings_all) }}</div>
@@ -889,7 +889,7 @@
   <div style="display: flex; flex-wrap: wrap; gap: 0.14in;">
     {% for item in data.brand_bank_items %}
     <div style="flex: 1 1 calc(50% - 0.14in); min-width: 2.8in; background: white; border: 1px solid #e5e0db; border-radius: 10px; padding: 0.16in 0.2in; display: flex; align-items: flex-start; gap: 0.14in;">
-      <div style="flex-shrink: 0; width: 0.36in; height: 0.36in; background: linear-gradient(135deg, #4D1751, #6B2D6E); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-size: 11pt;">
+      <div style="flex-shrink: 0; width: 0.36in; height: 0.36in; background: linear-gradient(135deg, #00362D, #1A5247); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-size: 11pt;">
         {% if 'Social' in item.category or 'Carousel' in item.category or 'Instagram' in item.category %}&#9733;
         {% elif 'Print' in item.category or 'Flyer' in item.category or 'Poster' in item.category %}&#9881;
         {% elif 'Event' in item.category or 'SMS' in item.category %}&#9830;
@@ -898,7 +898,7 @@
         {% else %}&#9670;{% endif %}
       </div>
       <div style="flex: 1;">
-        <div style="font-size: 9.5pt; font-weight: 700; color: #4D1751; margin-bottom: 0.03in; line-height: 1.3;">{{ item.title }}</div>
+        <div style="font-size: 9.5pt; font-weight: 700; color: #00362D; margin-bottom: 0.03in; line-height: 1.3;">{{ item.title }}</div>
         <div style="font-size: 7.5pt; color: #918A85; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600;">{{ item.category }}</div>
       </div>
     </div>
@@ -930,9 +930,9 @@
     <div style="background: white; border: 1px solid #e5e0db; border-radius: 10px; padding: 0.16in 0.2in;">
       <div style="display: flex; align-items: center; gap: 0.1in; margin-bottom: 0.06in;">
         {% if launch.url %}
-        <a href="{{ launch.url }}" style="font-size: 12pt; font-weight: 700; color: #4D1751; text-decoration: none;">{{ launch.title }}</a>
+        <a href="{{ launch.url }}" style="font-size: 12pt; font-weight: 700; color: #00362D; text-decoration: none;">{{ launch.title }}</a>
         {% else %}
-        <span style="font-size: 12pt; font-weight: 700; color: #4D1751;">{{ launch.title }}</span>
+        <span style="font-size: 12pt; font-weight: 700; color: #00362D;">{{ launch.title }}</span>
         {% endif %}
         {% if launch.category %}
         <div style="font-size: 7pt; font-weight: 600; color: #B8933A; background: #FDF6EE; border: 1px solid #E8D5B0; border-radius: 10px; padding: 2px 8px; text-transform: uppercase; letter-spacing: 0.03em;">{{ launch.category }}</div>
@@ -943,7 +943,7 @@
       {% endif %}
       {% if launch.url %}
       <div style="margin-top: 0.08in;">
-        <a href="{{ launch.url }}" style="font-size: 8.5pt; font-weight: 600; color: #4D1751; text-decoration: none; background: #F3EDF4; border-radius: 6px; padding: 4px 12px; display: inline-block;">Learn More &rarr;</a>
+        <a href="{{ launch.url }}" style="font-size: 8.5pt; font-weight: 600; color: #00362D; text-decoration: none; background: #F3EDF4; border-radius: 6px; padding: 4px 12px; display: inline-block;">Learn More &rarr;</a>
       </div>
       {% endif %}
     </div>
