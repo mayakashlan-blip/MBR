@@ -354,11 +354,6 @@ def _load_session(session_id: str) -> dict:
     except Exception as e:
         print(f"  Warning: could not inject monthly assets on load: {e}")
 
-    from src.html_renderer import render_html
-    html = render_html(data,
-                       brand_bank_path=payload.get("brand_bank_path"),
-                       marketing_image_path=payload.get("marketing_image_path"),
-                       launches_image_path=payload.get("launches_image_path"))
     created_raw = payload.get("created") or ""
     try:
         created = datetime.fromisoformat(created_raw.replace("Z", "+00:00"))
@@ -366,7 +361,8 @@ def _load_session(session_id: str) -> dict:
         created = datetime.now()
     return {
         "data": data,
-        "html": html,
+        "html": "",
+        "needs_render": True,  # render lazily on first /api/preview call, not on load
         "brand_bank_path": payload.get("brand_bank_path"),
         "marketing_image_path": payload.get("marketing_image_path"),
         "launches_image_path": payload.get("launches_image_path"),
