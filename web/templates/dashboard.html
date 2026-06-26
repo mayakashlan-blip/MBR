@@ -1,13 +1,90 @@
 {% extends "layout.html" %}
 {% block title %}MBR Generator — Dashboard{% endblock %}
 
+{% block head %}
+<style>
+  main { max-width: 1100px; }
+  .dash-layout {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+  .recent-sidebar {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    padding: 20px;
+    position: sticky;
+    top: 24px;
+  }
+  .recent-sidebar h3 {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--purple);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    margin: 0 0 14px;
+  }
+  .recent-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.12s;
+    text-decoration: none;
+  }
+  .recent-item:hover { background: var(--emerald-tint); }
+  .recent-icon {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: var(--emerald-tint);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    color: var(--purple); font-size: 14px;
+  }
+  .recent-name {
+    font-size: 12px; font-weight: 600; color: #2D2A28;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .recent-period { font-size: 11px; color: #8C8580; }
+  .recent-opens {
+    margin-left: auto; flex-shrink: 0;
+    font-size: 10px; font-weight: 600;
+    color: var(--purple); background: var(--emerald-tint);
+    padding: 2px 7px; border-radius: 10px;
+  }
+  .recent-empty {
+    font-size: 12px; color: #b0a89e; text-align: center;
+    padding: 20px 0; line-height: 1.5;
+  }
+  @media (max-width: 720px) {
+    .dash-layout { grid-template-columns: 1fr; }
+    .recent-sidebar { position: static; }
+  }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container">
+<div style="max-width:1100px; margin:0 auto; padding: 0 24px;">
   <div class="hero">
     <h1>Generate a Monthly Business Review</h1>
     <p>Select a practice, choose the reporting period, and generate a polished MBR report.</p>
   </div>
 
+  <div class="dash-layout">
+
+  <!-- ── Recently Opened Sidebar ── -->
+  <div class="recent-sidebar">
+    <h3>Recently Opened</h3>
+    <div id="recent-reports-list">
+      <div class="recent-empty">No reports opened yet.<br>Generate one to get started.</div>
+    </div>
+  </div>
+
+  <!-- ── Main Content ── -->
+  <div>
   <div class="card generate-card">
     <div class="form-row">
       <div class="form-group" style="flex:2">
@@ -115,10 +192,8 @@
     .tier-badge.Enterprise { background: #EEF4F2; color: #00362D; }
   </style>
 
-  <div class="recent-section" id="recent-section" style="display:none">
-    <h3>Recent Reports</h3>
-    <div id="recent-list"></div>
-  </div>
+  </div> <!-- end main content -->
+  </div> <!-- end dash-layout -->
 </div>
 
 <script>
@@ -172,6 +247,9 @@ function generateReport() {
   document.getElementById('status-text').textContent =
     'Opening report... If no saved version exists, fresh Omni data will load (30–60s).';
 
+  const monthNames = ['','January','February','March','April','May','June',
+                      'July','August','September','October','November','December'];
+
   fetch('/api/generate', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
@@ -186,6 +264,8 @@ function generateReport() {
     if (data.error) {
       showError(data.error);
     } else {
+      trackRecentOpen(data.session_id, practice, parseInt(month), parseInt(year),
+                      monthNames[parseInt(month)]);
       window.location.href = '/editor/' + data.session_id;
     }
   })
@@ -270,5 +350,76 @@ function escapeHtml(s) {
 
 // Default to "All" active
 filterByTier('all');
+
+// ── Recently Opened ──────────────────────────────────────────────────────────
+const RECENT_KEY = 'mbr_recent_reports';
+const MAX_RECENT = 12;
+
+function trackRecentOpen(session_id, practice, month, year, month_name) {
+  let list = [];
+  try { list = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]'); } catch(e) {}
+  // Remove existing entry for same session, then prepend updated one
+  list = list.filter(r => r.session_id !== session_id);
+  const existing = list.find(r => r.session_id === session_id) || {};
+  list.unshift({
+    session_id, practice, month, year, month_name,
+    opens: (existing.opens || 0) + 1,
+    last_opened: Date.now()
+  });
+  if (list.length > MAX_RECENT) list = list.slice(0, MAX_RECENT);
+  localStorage.setItem(RECENT_KEY, JSON.stringify(list));
+}
+
+function openRecent(session_id, practice, month, year, month_name) {
+  const btn = document.getElementById('generate-btn');
+  btn.disabled = true;
+  document.getElementById('status').classList.remove('hidden');
+  document.getElementById('error').classList.add('hidden');
+  document.getElementById('status-text').textContent = 'Opening ' + practice + '…';
+
+  fetch('/api/generate', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({practice, month, year})
+  })
+  .then(r => r.json())
+  .then(data => {
+    btn.disabled = false;
+    document.getElementById('status').classList.add('hidden');
+    if (data.error) {
+      showError(data.error);
+    } else {
+      trackRecentOpen(session_id, practice, month, year, month_name);
+      window.location.href = '/editor/' + data.session_id;
+    }
+  })
+  .catch(err => {
+    btn.disabled = false;
+    document.getElementById('status').classList.add('hidden');
+    showError('Connection error: ' + err.message);
+  });
+}
+
+function renderRecentReports() {
+  let list = [];
+  try { list = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]'); } catch(e) {}
+  const el = document.getElementById('recent-reports-list');
+  if (!list.length) {
+    el.innerHTML = '<div class="recent-empty">No reports opened yet.<br>Generate one to get started.</div>';
+    return;
+  }
+  el.innerHTML = list.map(r => `
+    <div class="recent-item" onclick="openRecent(${JSON.stringify(r.session_id)}, ${JSON.stringify(r.practice)}, ${r.month}, ${r.year}, ${JSON.stringify(r.month_name)})">
+      <div class="recent-icon">&#128196;</div>
+      <div style="min-width:0; flex:1;">
+        <div class="recent-name" title="${escapeHtml(r.practice)}">${escapeHtml(r.practice)}</div>
+        <div class="recent-period">${escapeHtml(r.month_name || '')} ${r.year}</div>
+      </div>
+      ${r.opens > 1 ? `<div class="recent-opens">${r.opens}×</div>` : ''}
+    </div>
+  `).join('');
+}
+
+renderRecentReports();
 </script>
 {% endblock %}
