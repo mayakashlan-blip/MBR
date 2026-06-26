@@ -34,7 +34,7 @@
   .sidebar h2 {
     font-family: 'Playfair Display', serif;
     font-size: 16px;
-    color: #4D1751;
+    color: #00362D;
     margin: 0 0 4px;
   }
   .sidebar .practice-info {
@@ -51,7 +51,7 @@
     display: block;
     font-size: 11px;
     font-weight: 600;
-    color: #4D1751;
+    color: #00362D;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     margin-bottom: 6px;
@@ -61,7 +61,7 @@
     border: 1px solid #d2cbc4;
     border-radius: 6px;
     padding: 8px 10px;
-    font-family: 'Inter', sans-serif;
+    font-family: 'Instrument Sans', sans-serif;
     font-size: 12px;
     line-height: 1.5;
     resize: vertical;
@@ -69,7 +69,7 @@
   }
   .sidebar-section textarea:focus {
     outline: none;
-    border-color: #4D1751;
+    border-color: #00362D;
     box-shadow: 0 0 0 2px rgba(77,23,81,0.1);
   }
   .sidebar-section input[type="text"],
@@ -78,13 +78,13 @@
     border: 1px solid #d2cbc4;
     border-radius: 6px;
     padding: 6px 10px;
-    font-family: 'Inter', sans-serif;
+    font-family: 'Instrument Sans', sans-serif;
     font-size: 12px;
     color: #2D2A28;
   }
   .sidebar-section input:focus {
     outline: none;
-    border-color: #4D1751;
+    border-color: #00362D;
     box-shadow: 0 0 0 2px rgba(77,23,81,0.1);
   }
   .assessment-item {
@@ -111,7 +111,7 @@
     padding: 4px 6px;
     border: 1px solid #d2cbc4;
     border-radius: 4px;
-    font-family: 'Inter', sans-serif;
+    font-family: 'Instrument Sans', sans-serif;
   }
   .assessment-item textarea {
     font-size: 11px;
@@ -128,7 +128,7 @@
   }
   .add-btn {
     font-size: 12px;
-    color: #4D1751;
+    color: #00362D;
     background: none;
     border: 1px dashed #d2cbc4;
     border-radius: 6px;
@@ -200,7 +200,7 @@
     transition: all 0.15s;
     position: relative;
   }
-  .upload-zone:hover { border-color: #4D1751; background: #faf7f3; }
+  .upload-zone:hover { border-color: #00362D; background: #faf7f3; }
   .upload-zone.has-file { border-color: #2E7D32; background: #f0f7f0; }
   .upload-zone input[type="file"] {
     position: absolute;
@@ -212,7 +212,7 @@
     font-size: 12px;
     color: #8C8580;
   }
-  .upload-zone .upload-text strong { color: #4D1751; }
+  .upload-zone .upload-text strong { color: #00362D; }
   .upload-zone .file-name {
     font-size: 11px;
     color: #2E7D32;
@@ -374,7 +374,7 @@
           <div><label style="font-size:10px;">Membership Sales ($)</label><input type="number" id="ed-mem-sales" value="{{ data.membership_sales }}" step="0.01" oninput="updateGrossTotal(); debounceSave();" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:5px 8px; font-size:11px;"></div>
           <div><label style="font-size:10px;">Custom Items ($)</label><input type="number" id="ed-custom" value="{{ data.custom_items }}" step="0.01" oninput="updateGrossTotal(); debounceSave();" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:5px 8px; font-size:11px;"></div>
           <div><label style="font-size:10px;">Retail Revenue ($)</label><input type="number" id="ed-retail-rev" value="{{ data.retail_revenue }}" step="0.01" oninput="updateGrossTotal(); debounceSave();" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:5px 8px; font-size:11px;"></div>
-          <div><label style="font-size:10px;">Total Gross (auto)</label><div id="ed-total-gross-display" style="padding:5px 8px; font-size:11px; font-weight:600; color:#4D1751; background:#F7F4F0; border:1px solid #e8e0d8; border-radius:6px;">{{ "${:,.2f}".format(data.total_gross) }}</div></div>
+          <div><label style="font-size:10px;">Total Gross (auto)</label><div id="ed-total-gross-display" style="padding:5px 8px; font-size:11px; font-weight:600; color:#00362D; background:#F7F4F0; border:1px solid #e8e0d8; border-radius:6px;">{{ "${:,.2f}".format(data.total_gross) }}</div></div>
           <div><label style="font-size:10px;">Discounts ($)</label><input type="number" id="ed-discounts" value="{{ data.discounts }}" step="0.01" oninput="debounceSave();" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:5px 8px; font-size:11px;"></div>
           <div><label style="font-size:10px;">Client Fees ($)</label><input type="number" id="ed-fees" value="{{ data.client_fees }}" step="0.01" oninput="debounceSave();" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:5px 8px; font-size:11px;"></div>
           <div><label style="font-size:10px;">Retail MoM % (e.g. 0.12 = +12%)</label><input type="number" id="ed-retail-mom" value="{{ data.retail_revenue_mom_pct if data.retail_revenue_mom_pct is not none else '' }}" step="0.001" placeholder="auto" oninput="debounceSave();" style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:5px 8px; font-size:11px;"></div>
@@ -456,7 +456,7 @@
           {% set r.overall_rating = rev.overall_rating if rev.overall_rating is not none else '' %}
         {% endfor %}
         <div style="margin-bottom: 10px;">
-          <div style="font-size: 11px; font-weight: 600; color: #4D1751; margin-bottom: 4px;">{{ platform }}</div>
+          <div style="font-size: 11px; font-weight: 600; color: #00362D; margin-bottom: 4px;">{{ platform }}</div>
           <div class="mkt-grid">
             <div class="mkt-field">
               <label>New Reviews</label>
@@ -487,7 +487,7 @@
         <span class="section-toggle collapsed" id="marketing-toggle">&#9662;</span>
       </div>
       <div class="section-body hidden" id="marketing-body">
-        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; margin-bottom: 10px; padding: 8px 10px; background:#F3EDF4; border:1px solid #d6c5d8; border-radius:6px; font-size:11px; color:#4D1751; font-weight:500;">
+        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; margin-bottom: 10px; padding: 8px 10px; background:#EEF4F2; border:1px solid #b8d4cf; border-radius:6px; font-size:11px; color:#00362D; font-weight:500;">
           <input type="checkbox" id="ed-show-marketing" {% if data.show_marketing_section %}checked{% endif %} onchange="debounceSave()" style="margin:0;">
           Show Marketing Performance page on report
         </label>
@@ -591,7 +591,7 @@
             Show on report
           </label>
         </label>
-        <textarea id="marketing-recs-text" rows="5" oninput="debounceSave()" placeholder="AI-generated recommendations will appear here, or type your own..." style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:8px 10px; font-family:'Inter',sans-serif; font-size:11px; line-height:1.5; resize:vertical; color:#2D2A28;">{{ data.marketing_recommendations or '' }}</textarea>
+        <textarea id="marketing-recs-text" rows="5" oninput="debounceSave()" placeholder="AI-generated recommendations will appear here, or type your own..." style="width:100%; border:1px solid #d2cbc4; border-radius:6px; padding:8px 10px; font-family:'Instrument Sans',sans-serif; font-size:11px; line-height:1.5; resize:vertical; color:#2D2A28;">{{ data.marketing_recommendations or '' }}</textarea>
         <div class="formatting-hint">Use **text** for bold. Leave empty to auto-generate.</div>
         <button class="btn btn-secondary" onclick="generateMarketingRecs()" id="gen-mkt-recs-btn" style="margin-top: 6px; font-size: 11px; padding: 4px 10px;">Generate Recommendations</button>
         <div id="mkt-recs-status" style="font-size: 11px; color: #8C8580; margin-top: 4px;"></div>
@@ -606,7 +606,7 @@
       </div>
       <div class="section-body hidden" id="launches-body">
         <div style="font-size: 11px; color: #8C8580; margin-bottom: 8px;">
-          Sourced from monthly assets. <a href="/" style="color: #4D1751;">Edit on Dashboard</a> to change for all practices.
+          Sourced from monthly assets. <a href="/" style="color: #00362D;">Edit on Dashboard</a> to change for all practices.
         </div>
         <div id="launches-items" style="margin-top: 8px;">
           <div id="launches-list"></div>
@@ -623,7 +623,7 @@
       </div>
       <div class="section-body hidden" id="brand-bank-body">
         <div style="font-size: 11px; color: #8C8580; margin-bottom: 8px;">
-          Sourced from monthly assets. <a href="/" style="color: #4D1751;">Edit on Dashboard</a> to change for all practices.
+          Sourced from monthly assets. <a href="/" style="color: #00362D;">Edit on Dashboard</a> to change for all practices.
         </div>
         <div id="brand-bank-items" style="margin-top: 8px;">
           <div id="brand-bank-list"></div>

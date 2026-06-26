@@ -1,9 +1,11 @@
 /* ── MBR Web App Styles ── */
 
 :root {
-  --purple: #4D1751;
-  --purple-light: #6B2D6E;
-  --gold: #B8933A;
+  --purple: #00362D;        /* Dark Emerald — primary brand anchor */
+  --purple-light: #1A5247;  /* Mid Emerald — hover states */
+  --gold: #BB8139;
+  --gold-light: #DDA03C;
+  --smoke: #282623;
   --cream: #FDF6EE;
   --card-bg: #FFFFFF;
   --gray: #8C8580;
@@ -12,13 +14,14 @@
   --body: #4A4744;
   --red: #B53631;
   --green: #2E7D32;
+  --emerald-tint: #EEF4F2;  /* Light emerald for badges / tints */
   --radius: 8px;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
-  font-family: 'Inter', -apple-system, sans-serif;
+  font-family: 'Instrument Sans', -apple-system, sans-serif;
   color: var(--dark);
   background: var(--cream);
   min-height: 100vh;
@@ -143,7 +146,7 @@ main {
   padding: 10px 14px;
   border: 1px solid var(--gray-light);
   border-radius: var(--radius);
-  font-family: 'Inter', sans-serif;
+  font-family: 'Instrument Sans', sans-serif;
   font-size: 14px;
   color: var(--dark);
   background: white;
@@ -154,7 +157,7 @@ main {
 .form-group select:focus {
   outline: none;
   border-color: var(--purple);
-  box-shadow: 0 0 0 3px rgba(77,23,81,0.1);
+  box-shadow: 0 0 0 3px rgba(0,54,45,0.12);
 }
 
 .form-group input::placeholder { color: var(--gray-light); }
@@ -166,7 +169,7 @@ main {
   justify-content: center;
   padding: 8px 20px;
   border-radius: var(--radius);
-  font-family: 'Inter', sans-serif;
+  font-family: 'Instrument Sans', sans-serif;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
