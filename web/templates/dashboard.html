@@ -1,90 +1,13 @@
 {% extends "layout.html" %}
 {% block title %}MBR Generator — Dashboard{% endblock %}
 
-{% block head %}
-<style>
-  main { max-width: 1100px; }
-  .dash-layout {
-    display: grid;
-    grid-template-columns: 260px 1fr;
-    gap: 24px;
-    align-items: start;
-  }
-  .recent-sidebar {
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
-    padding: 20px;
-    position: sticky;
-    top: 24px;
-  }
-  .recent-sidebar h3 {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--purple);
-    text-transform: uppercase;
-    letter-spacing: 0.07em;
-    margin: 0 0 14px;
-  }
-  .recent-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 9px 10px;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: background 0.12s;
-    text-decoration: none;
-  }
-  .recent-item:hover { background: var(--emerald-tint); }
-  .recent-icon {
-    width: 32px; height: 32px; border-radius: 8px;
-    background: var(--emerald-tint);
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
-    color: var(--purple); font-size: 14px;
-  }
-  .recent-name {
-    font-size: 12px; font-weight: 600; color: #2D2A28;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-  .recent-period { font-size: 11px; color: #8C8580; }
-  .recent-opens {
-    margin-left: auto; flex-shrink: 0;
-    font-size: 10px; font-weight: 600;
-    color: var(--purple); background: var(--emerald-tint);
-    padding: 2px 7px; border-radius: 10px;
-  }
-  .recent-empty {
-    font-size: 12px; color: #b0a89e; text-align: center;
-    padding: 20px 0; line-height: 1.5;
-  }
-  @media (max-width: 720px) {
-    .dash-layout { grid-template-columns: 1fr; }
-    .recent-sidebar { position: static; }
-  }
-</style>
-{% endblock %}
-
 {% block content %}
-<div style="max-width:1100px; margin:0 auto; padding: 0 24px;">
+<div style="max-width:800px; margin:0 auto; padding: 0 24px;">
   <div class="hero">
     <h1>Generate a Monthly Business Review</h1>
     <p>Select a practice, choose the reporting period, and generate a polished MBR report.</p>
   </div>
 
-  <div class="dash-layout">
-
-  <!-- ── Recently Opened Sidebar ── -->
-  <div class="recent-sidebar">
-    <h3>Recently Opened</h3>
-    <div id="recent-reports-list">
-      <div class="recent-empty">No reports opened yet.<br>Generate one to get started.</div>
-    </div>
-  </div>
-
-  <!-- ── Main Content ── -->
-  <div>
   <div class="card generate-card">
     <div class="form-row">
       <div class="form-group" style="flex:2">
@@ -125,7 +48,7 @@
 
     <div id="status" class="status hidden">
       <div class="spinner"></div>
-      <span id="status-text">Loading data from Omni...</span>
+      <span id="status-text">Pulling data from Omni (30–60s)…</span>
     </div>
 
     <div id="error" class="error-msg hidden"></div>
@@ -158,43 +81,41 @@
     </div>
   </div>
 
-  <style>
-    .tier-btn {
-      padding: 6px 14px;
-      font-size: 13px;
-      font-weight: 500;
-      border: 1.5px solid #d2cbc4;
-      border-radius: 999px;
-      background: white;
-      color: #4A4744;
-      cursor: pointer;
-      transition: all 0.15s;
-    }
-    .tier-btn:hover { border-color: #282623; color: #282623; }
-    .tier-btn.active { background: #282623; color: white; border-color: #282623; }
-    .tier-row {
-      display: flex; justify-content: space-between; align-items: center;
-      padding: 8px 12px; border-bottom: 1px solid #f0ebe6;
-      cursor: pointer; font-size: 13px;
-    }
-    .tier-row:hover { background: #FAFAF7; }
-    .tier-row:last-child { border-bottom: none; }
-    .tier-name { font-weight: 500; color: #2D2A28; }
-    .tier-meta { font-size: 11px; color: #8C8580; }
-    .tier-badge {
-      font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 10px;
-      text-transform: uppercase; letter-spacing: 0.04em;
-    }
-    .tier-badge.Momentum { background: #E8F4FD; color: #1E5B8E; }
-    .tier-badge.Growth { background: #E8F5E9; color: #2E7D32; }
-    .tier-badge.Silver { background: #F0F0F0; color: #5A5550; }
-    .tier-badge.Gold { background: #FFF8E1; color: #B8933A; }
-    .tier-badge.Enterprise { background: #F0EDE8; color: #282623; }
-  </style>
-
-  </div> <!-- end main content -->
-  </div> <!-- end dash-layout -->
 </div>
+
+<style>
+  .tier-btn {
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    border: 1.5px solid #d2cbc4;
+    border-radius: 999px;
+    background: white;
+    color: #4A4744;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .tier-btn:hover { border-color: #282623; color: #282623; }
+  .tier-btn.active { background: #282623; color: white; border-color: #282623; }
+  .tier-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 12px; border-bottom: 1px solid #f0ebe6;
+    cursor: pointer; font-size: 13px;
+  }
+  .tier-row:hover { background: #FAFAF7; }
+  .tier-row:last-child { border-bottom: none; }
+  .tier-name { font-weight: 500; color: #2D2A28; }
+  .tier-meta { font-size: 11px; color: #8C8580; }
+  .tier-badge {
+    font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 10px;
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .tier-badge.Momentum { background: #E8F4FD; color: #1E5B8E; }
+  .tier-badge.Growth { background: #E8F5E9; color: #2E7D32; }
+  .tier-badge.Silver { background: #F0F0F0; color: #5A5550; }
+  .tier-badge.Gold { background: #FFF8E1; color: #B8933A; }
+  .tier-badge.Enterprise { background: #F0EDE8; color: #282623; }
+</style>
 
 <script>
 // Load practices for autocomplete (name + ID)
@@ -214,16 +135,12 @@ fetch('/api/practices')
   .catch(() => {});
 
 function resolvePractice(input) {
-  // If input is a number, look up by medspa ID
   if (/^\d+$/.test(input)) {
     const match = allPractices.find(p => p.id === parseInt(input));
     return match ? match.name : null;
   }
   return input;
 }
-
-const MONTH_NAMES = ['','January','February','March','April','May','June',
-                     'July','August','September','October','November','December'];
 
 async function generateReport() {
   const rawInput = document.getElementById('practice').value.trim();
@@ -238,45 +155,21 @@ async function generateReport() {
   }
 
   const btn = document.getElementById('generate-btn');
-  const statusText = document.getElementById('status-text');
   btn.disabled = true;
-  btn.textContent = 'Loading...';
+  btn.textContent = 'Generating...';
   document.getElementById('status').classList.remove('hidden');
   document.getElementById('error').classList.add('hidden');
-  statusText.textContent = 'Opening report…';
-
-  // Soft exists-check — if it fails for any reason, just proceed to generate
-  try {
-    const r = await fetch('/api/exists', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({practice, month, year})
-    });
-    const check = await r.json();
-    if (check.exists) {
-      btn.textContent = 'Opening...';
-      statusText.textContent = '✓ Saved report found — opening now…';
-    } else {
-      btn.textContent = 'Generating...';
-      statusText.textContent = 'No saved report — pulling fresh data from Omni (30–60s)…';
-    }
-  } catch(e) {
-    // exists-check failed — proceed to generate anyway
-    btn.textContent = 'Generating...';
-    statusText.textContent = 'Loading report…';
-  }
 
   try {
     const r = await fetch('/api/generate', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({practice, month, year})
+      body: JSON.stringify({practice, month, year, force_refresh: true})
     });
     const data = await r.json();
     if (data.error) {
       showError(data.error);
     } else {
-      trackRecentOpen(data.session_id, practice, month, year, MONTH_NAMES[month]);
       window.location.href = '/editor/' + data.session_id;
     }
   } catch(err) {
@@ -294,16 +187,12 @@ function showError(msg) {
   el.classList.remove('hidden');
 }
 
-// Enter key triggers generate
 document.getElementById('practice').addEventListener('keypress', e => {
   if (e.key === 'Enter') generateReport();
 });
 
 // ── Segment / Tier Browser ──
 let currentTier = 'all';
-
-// Tier data now comes directly from /api/practices (Omni's provider_segment_post_launch)
-// Wait briefly for allPractices to populate, then render
 setTimeout(renderTierList, 500);
 
 function filterByTier(tier) {
@@ -318,7 +207,6 @@ function renderTierList() {
   const list = document.getElementById('tier-list');
   const search = (document.getElementById('tier-search').value || '').toLowerCase().trim();
 
-  // Build filtered set of practices using tier from /api/practices (Omni)
   const filtered = allPractices
     .filter(p => {
       const tier = p.tier || '';
@@ -359,61 +247,9 @@ function escapeHtml(s) {
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-// Default to "All" active
 filterByTier('all');
 
-// ── Recently Opened ──────────────────────────────────────────────────────────
-const RECENT_KEY = 'mbr_recent_reports';
-const MAX_RECENT = 12;
-
-function trackRecentOpen(session_id, practice, month, year, month_name) {
-  let list = [];
-  try { list = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]'); } catch(e) {}
-  const existing = list.find(r => r.session_id === session_id) || {};
-  list = list.filter(r => r.session_id !== session_id);
-  list.unshift({
-    session_id, practice, month, year, month_name,
-    opens: (existing.opens || 0) + 1,
-    last_opened: Date.now()
-  });
-  if (list.length > MAX_RECENT) list = list.slice(0, MAX_RECENT);
-  localStorage.setItem(RECENT_KEY, JSON.stringify(list));
-}
-
-function openRecent(session_id, practice, month, year, month_name) {
-  trackRecentOpen(session_id, practice, month, year, month_name);
-  window.location.href = '/editor/' + session_id;
-}
-
-function renderRecentReports() {
-  let list = [];
-  try { list = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]'); } catch(e) {}
-  const el = document.getElementById('recent-reports-list');
-  if (!list.length) {
-    el.innerHTML = '<div class="recent-empty">No reports opened yet.<br>Generate one to get started.</div>';
-    return;
-  }
-  el.innerHTML = list.map((r, i) => `
-    <div class="recent-item" data-idx="${i}">
-      <div class="recent-icon">&#128196;</div>
-      <div style="min-width:0; flex:1;">
-        <div class="recent-name" title="${escapeHtml(r.practice)}">${escapeHtml(r.practice)}</div>
-        <div class="recent-period">${escapeHtml(r.month_name || '')} ${r.year}</div>
-      </div>
-      ${r.opens > 1 ? `<div class="recent-opens">${r.opens}&times;</div>` : ''}
-    </div>
-  `).join('');
-  // Attach click handlers via JS to avoid quote-escaping in onclick attributes
-  el.querySelectorAll('.recent-item').forEach(div => {
-    const r = list[parseInt(div.dataset.idx)];
-    div.addEventListener('click', () =>
-      openRecent(r.session_id, r.practice, r.month, r.year, r.month_name));
-  });
-}
-
-renderRecentReports();
-
-// Pre-warm: fire a no-op request so the Render instance is awake before the user clicks generate
+// Pre-warm: wake the Render instance in the background as soon as the dashboard loads
 fetch('/api/status').catch(() => {});
 </script>
 {% endblock %}
