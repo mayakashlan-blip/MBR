@@ -176,7 +176,7 @@ table {
 
 /* ── Cover Page ── */
 .page.cover-page {
-  background: var(--smoke);
+  background: var(--cream);
   padding: 0;
 }
 
@@ -188,7 +188,7 @@ table {
   height: 100%;
   text-align: center;
   padding: 1.5in 0.8in;
-  background: var(--smoke);
+  background: var(--cream);
   position: relative;
 }
 
@@ -201,7 +201,7 @@ table {
   font-family: 'Playfair Display', Georgia, serif;
   font-size: 38pt;
   font-weight: 700;
-  color: #FFFFFF;
+  color: var(--smoke);
   line-height: 1.15;
   margin-bottom: 0.35in;
 }
@@ -210,7 +210,7 @@ table {
   font-family: 'Instrument Sans', sans-serif;
   font-size: 11pt;
   font-weight: 500;
-  color: var(--gold-light);
+  color: var(--gold);
   letter-spacing: 0.2em;
   text-transform: uppercase;
   margin-bottom: 0.12in;
@@ -221,7 +221,7 @@ table {
   font-size: 18pt;
   font-weight: 400;
   font-style: italic;
-  color: rgba(255,255,255,0.75);
+  color: var(--body-text);
 }
 
 .cover-divider {
@@ -242,7 +242,7 @@ table {
 
 .cover-footer-text {
   font-size: 7pt;
-  color: rgba(255,255,255,0.35);
+  color: var(--muted-text);
   letter-spacing: 0.03em;
 }
 
