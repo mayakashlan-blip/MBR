@@ -85,10 +85,6 @@
 
   <!-- ── Main Content ── -->
   <div>
-  <div id="db-warning" style="display:none; background:#FFF8E1; border:1px solid #DDA03C; border-radius:8px; padding:10px 14px; margin-bottom:16px; font-size:13px; color:#775620;">
-    ⚠️ <strong>Supabase not connected.</strong> Reports won't be cached — every generate pulls fresh data from Omni (30–60s). Set <code>SUPABASE_URL</code> and <code>SUPABASE_SERVICE_KEY</code> in Render environment settings.
-  </div>
-
   <div class="card generate-card">
     <div class="form-row">
       <div class="form-group" style="flex:2">
@@ -174,8 +170,8 @@
       cursor: pointer;
       transition: all 0.15s;
     }
-    .tier-btn:hover { border-color: #00362D; color: #00362D; }
-    .tier-btn.active { background: #00362D; color: white; border-color: #00362D; }
+    .tier-btn:hover { border-color: #282623; color: #282623; }
+    .tier-btn.active { background: #282623; color: white; border-color: #282623; }
     .tier-row {
       display: flex; justify-content: space-between; align-items: center;
       padding: 8px 12px; border-bottom: 1px solid #f0ebe6;
@@ -193,7 +189,7 @@
     .tier-badge.Growth { background: #E8F5E9; color: #2E7D32; }
     .tier-badge.Silver { background: #F0F0F0; color: #5A5550; }
     .tier-badge.Gold { background: #FFF8E1; color: #B8933A; }
-    .tier-badge.Enterprise { background: #EEF4F2; color: #00362D; }
+    .tier-badge.Enterprise { background: #F0EDE8; color: #282623; }
   </style>
 
   </div> <!-- end main content -->
@@ -201,11 +197,6 @@
 </div>
 
 <script>
-// Check Supabase connectivity and warn if not configured
-fetch('/api/status').then(r => r.json()).then(s => {
-  if (!s.db_enabled) document.getElementById('db-warning').style.display = 'block';
-}).catch(() => {});
-
 // Load practices for autocomplete (name + ID)
 let allPractices = [];
 fetch('/api/practices')
@@ -377,9 +368,8 @@ const MAX_RECENT = 12;
 function trackRecentOpen(session_id, practice, month, year, month_name) {
   let list = [];
   try { list = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]'); } catch(e) {}
-  // Remove existing entry for same session, then prepend updated one
-  list = list.filter(r => r.session_id !== session_id);
   const existing = list.find(r => r.session_id === session_id) || {};
+  list = list.filter(r => r.session_id !== session_id);
   list.unshift({
     session_id, practice, month, year, month_name,
     opens: (existing.opens || 0) + 1,
@@ -427,16 +417,22 @@ function renderRecentReports() {
     el.innerHTML = '<div class="recent-empty">No reports opened yet.<br>Generate one to get started.</div>';
     return;
   }
-  el.innerHTML = list.map(r => `
-    <div class="recent-item" onclick="openRecent(${JSON.stringify(r.session_id)}, ${JSON.stringify(r.practice)}, ${r.month}, ${r.year}, ${JSON.stringify(r.month_name)})">
+  el.innerHTML = list.map((r, i) => `
+    <div class="recent-item" data-idx="${i}">
       <div class="recent-icon">&#128196;</div>
       <div style="min-width:0; flex:1;">
         <div class="recent-name" title="${escapeHtml(r.practice)}">${escapeHtml(r.practice)}</div>
         <div class="recent-period">${escapeHtml(r.month_name || '')} ${r.year}</div>
       </div>
-      ${r.opens > 1 ? `<div class="recent-opens">${r.opens}×</div>` : ''}
+      ${r.opens > 1 ? `<div class="recent-opens">${r.opens}&times;</div>` : ''}
     </div>
   `).join('');
+  // Attach click handlers via JS to avoid quote-escaping in onclick attributes
+  el.querySelectorAll('.recent-item').forEach(div => {
+    const r = list[parseInt(div.dataset.idx)];
+    div.addEventListener('click', () =>
+      openRecent(r.session_id, r.practice, r.month, r.year, r.month_name));
+  });
 }
 
 renderRecentReports();

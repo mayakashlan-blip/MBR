@@ -1,8 +1,8 @@
 /* ── MBR Web App Styles ── */
 
 :root {
-  --purple: #00362D;        /* Dark Emerald — primary brand anchor */
-  --purple-light: #1A5247;  /* Mid Emerald — hover states */
+  --purple: #282623;        /* Smoke/Charcoal — primary brand anchor */
+  --purple-light: #3D3A37;  /* Lighter charcoal — hover states */
   --gold: #BB8139;
   --gold-light: #DDA03C;
   --smoke: #282623;
@@ -14,7 +14,7 @@
   --body: #4A4744;
   --red: #B53631;
   --green: #2E7D32;
-  --emerald-tint: #EEF4F2;  /* Light emerald for badges / tints */
+  --emerald-tint: #F0EDE8;  /* Warm beige tint for badges / tints */
   --radius: 8px;
 }
 
