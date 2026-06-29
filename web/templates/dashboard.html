@@ -225,7 +225,7 @@ function resolvePractice(input) {
 const MONTH_NAMES = ['','January','February','March','April','May','June',
                      'July','August','September','October','November','December'];
 
-function generateReport() {
+async function generateReport() {
   const rawInput = document.getElementById('practice').value.trim();
   const month = parseInt(document.getElementById('month').value);
   const year = parseInt(document.getElementById('year').value);
@@ -238,53 +238,54 @@ function generateReport() {
   }
 
   const btn = document.getElementById('generate-btn');
+  const statusText = document.getElementById('status-text');
   btn.disabled = true;
-  btn.textContent = 'Checking...';
+  btn.textContent = 'Loading...';
   document.getElementById('status').classList.remove('hidden');
   document.getElementById('error').classList.add('hidden');
-  document.getElementById('status-text').textContent = 'Checking for saved report…';
+  statusText.textContent = 'Opening report…';
 
-  // Step 1: fast exists-check so we can show the right message immediately
-  fetch('/api/exists', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({practice, month, year})
-  })
-  .then(r => r.json())
-  .then(check => {
-    if (check.exists) {
-      btn.textContent = 'Opening...';
-      document.getElementById('status-text').textContent = '✓ Saved report found — opening now…';
-    } else {
-      btn.textContent = 'Generating...';
-      document.getElementById('status-text').textContent =
-        'No saved report — pulling fresh data from Omni. This takes 30–60s…';
-    }
-    // Step 2: full generate (fast for cache hits, slow for fresh pulls)
-    return fetch('/api/generate', {
+  // Soft exists-check — if it fails for any reason, just proceed to generate
+  try {
+    const r = await fetch('/api/exists', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({practice, month, year})
     });
-  })
-  .then(r => r.json())
-  .then(data => {
-    btn.disabled = false;
-    btn.textContent = 'Generate Report';
-    document.getElementById('status').classList.add('hidden');
+    const check = await r.json();
+    if (check.exists) {
+      btn.textContent = 'Opening...';
+      statusText.textContent = '✓ Saved report found — opening now…';
+    } else {
+      btn.textContent = 'Generating...';
+      statusText.textContent = 'No saved report — pulling fresh data from Omni (30–60s)…';
+    }
+  } catch(e) {
+    // exists-check failed — proceed to generate anyway
+    btn.textContent = 'Generating...';
+    statusText.textContent = 'Loading report…';
+  }
+
+  try {
+    const r = await fetch('/api/generate', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({practice, month, year})
+    });
+    const data = await r.json();
     if (data.error) {
       showError(data.error);
     } else {
       trackRecentOpen(data.session_id, practice, month, year, MONTH_NAMES[month]);
       window.location.href = '/editor/' + data.session_id;
     }
-  })
-  .catch(err => {
+  } catch(err) {
+    showError('Connection error: ' + err.message);
+  } finally {
     btn.disabled = false;
     btn.textContent = 'Generate Report';
     document.getElementById('status').classList.add('hidden');
-    showError('Connection error: ' + err.message);
-  });
+  }
 }
 
 function showError(msg) {
