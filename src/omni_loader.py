@@ -48,7 +48,7 @@ def _api_get(path: str, api_key: str):
         return json.loads(resp.read().decode())
 
 
-def _run_query(query_body: dict, api_key: str, retries: int = 4) -> dict:
+def _run_query(query_body: dict, api_key: str, retries: int = 7) -> dict:
     """Execute an Omni query and return the parsed Arrow result as a dict.
 
     Retries on HTTP 429 (rate limit) and 5xx with exponential backoff,
@@ -74,9 +74,10 @@ def _run_query(query_body: dict, api_key: str, retries: int = 4) -> dict:
                 if attempt < retries:
                     retry_after = e.headers.get("Retry-After")
                     if retry_after and retry_after.isdigit():
-                        wait = min(int(retry_after), 30)
+                        wait = min(int(retry_after), 60)
                     else:
-                        wait = min(2 ** attempt, 16)  # 1, 2, 4, 8, 16
+                        wait = min(4 ** attempt, 60)  # 1, 4, 16, 60, 60, 60, 60
+                    print(f"  Rate limited (attempt {attempt+1}/{retries}), waiting {wait}s…")
                     time.sleep(wait)
                     continue
             raise
@@ -274,7 +275,7 @@ def load_from_omni(practice_name: str, month: int, year: int,
         "Utilization", "Payments & Refunds",
     ]
     batch1 = {}
-    with ThreadPoolExecutor(max_workers=3) as pool:
+    with ThreadPoolExecutor(max_workers=2) as pool:
         futures = {pool.submit(run_safe, name): name for name in batch1_names}
         for future in as_completed(futures):
             batch1[futures[future]] = future.result()
@@ -364,7 +365,7 @@ def load_from_omni(practice_name: str, month: int, year: int,
             return None
 
     mom_results = {}
-    with ThreadPoolExecutor(max_workers=3) as pool:
+    with ThreadPoolExecutor(max_workers=2) as pool:
         mom_futures = {
             pool.submit(run_prev, "KPI: Net Revenue"): "prev_rev",
             pool.submit(run_prev, "KPI: Paid Appointments"): "prev_appt",
