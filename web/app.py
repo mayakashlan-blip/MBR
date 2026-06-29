@@ -602,10 +602,14 @@ def dashboard():
 def editor(session_id):
     sess = _get_session(session_id)
     if not sess:
-        return redirect(url_for("dashboard"))
+        return render_template("editor.html",
+                               session_id=session_id,
+                               data=None,
+                               not_found=True)
     return render_template("editor.html",
                            session_id=session_id,
-                           data=sess["data"])
+                           data=sess["data"],
+                           not_found=False)
 
 
 @app.route("/archive")

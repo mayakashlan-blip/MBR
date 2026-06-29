@@ -1,5 +1,5 @@
 {% extends "layout.html" %}
-{% block title %}Edit Report — {{ data.practice_name }}{% endblock %}
+{% block title %}{% if not_found %}Report Not Found{% else %}Edit Report — {{ data.practice_name }}{% endif %}{% endblock %}
 {% block head %}
 <style>
   main { padding: 0; max-width: 100%; }
@@ -258,6 +258,19 @@
 {% endblock %}
 
 {% block content %}
+{% if not_found %}
+<div style="display:flex; align-items:center; justify-content:center; min-height:60vh; padding:40px;">
+  <div style="max-width:480px; text-align:center;">
+    <div style="font-size:40px; margin-bottom:16px;">&#128203;</div>
+    <h2 style="font-family:'Playfair Display',serif; font-size:22px; color:#282623; margin:0 0 10px;">Report not found</h2>
+    <p style="font-size:14px; color:#8C8580; margin:0 0 24px; line-height:1.6;">
+      This report isn't available on this server instance — it may have been cleared during a redeploy.
+      Go back to the dashboard to regenerate it.
+    </p>
+    <a href="/" class="btn btn-primary" style="display:inline-block; text-decoration:none;">Back to Dashboard</a>
+  </div>
+</div>
+{% else %}
 <div class="editor-layout">
   <div class="sidebar">
     <h2>{{ data.practice_name }}</h2>
@@ -1445,4 +1458,5 @@ function restoreVersion(filename) {
   });
 }
 </script>
+{% endif %}
 {% endblock %}

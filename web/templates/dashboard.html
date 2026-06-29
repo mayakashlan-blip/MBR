@@ -381,33 +381,8 @@ function trackRecentOpen(session_id, practice, month, year, month_name) {
 }
 
 function openRecent(session_id, practice, month, year, month_name) {
-  const btn = document.getElementById('generate-btn');
-  btn.disabled = true;
-  document.getElementById('status').classList.remove('hidden');
-  document.getElementById('error').classList.add('hidden');
-  document.getElementById('status-text').textContent = '✓ Saved report found — opening now…';
-
-  fetch('/api/generate', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({practice, month, year})
-  })
-  .then(r => r.json())
-  .then(data => {
-    btn.disabled = false;
-    document.getElementById('status').classList.add('hidden');
-    if (data.error) {
-      showError(data.error);
-    } else {
-      trackRecentOpen(session_id, practice, month, year, month_name);
-      window.location.href = '/editor/' + data.session_id;
-    }
-  })
-  .catch(err => {
-    btn.disabled = false;
-    document.getElementById('status').classList.add('hidden');
-    showError('Connection error: ' + err.message);
-  });
+  trackRecentOpen(session_id, practice, month, year, month_name);
+  window.location.href = '/editor/' + session_id;
 }
 
 function renderRecentReports() {
@@ -437,5 +412,8 @@ function renderRecentReports() {
 }
 
 renderRecentReports();
+
+// Pre-warm: fire a no-op request so the Render instance is awake before the user clicks generate
+fetch('/api/status').catch(() => {});
 </script>
 {% endblock %}
