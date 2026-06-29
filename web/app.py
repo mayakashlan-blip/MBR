@@ -890,7 +890,6 @@ def api_upload_monthly_brand_bank():
     return jsonify({"ok": True, "brand_bank_items": items, "filename": file.filename})
 
 
-@app.route("/api/generate", methods=["POST"])
 @app.route("/api/status")
 def api_status():
     """Return app status — used by the dashboard to show warnings."""
