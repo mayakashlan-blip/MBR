@@ -142,6 +142,7 @@
     border-top: 1px solid #e5e0db;
     margin-top: 12px;
     display: flex;
+    flex-wrap: wrap;
     gap: 8px;
   }
   .save-indicator {
@@ -652,6 +653,7 @@
       <button class="btn btn-secondary" onclick="refreshPreview()" id="refresh-btn">Refresh Preview</button>
       <button class="btn btn-secondary" onclick="exportPDF()" id="export-btn">Export PDF</button>
       <button class="btn btn-secondary" onclick="exportPPTX()" id="export-pptx-btn">Export PPTX</button>
+      <button class="btn btn-secondary" onclick="openEmailModal()" id="email-btn">Email Report</button>
       <a href="/" class="btn btn-secondary">Back to Dashboard</a>
     </div>
     <div style="margin-top:8px; padding-top:8px; border-top:1px dashed #d2cbc4;">
@@ -671,6 +673,22 @@
       <div style="font-size:13px; color:#8C8580; font-family:'Instrument Sans',sans-serif;">Rendering report…</div>
     </div>
     <iframe id="preview-frame" src="/api/preview/{{ session_id }}" onload="document.getElementById('preview-loading').style.display='none';"></iframe>
+  </div>
+</div>
+
+<!-- ── Email Modal ── -->
+<div id="email-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:1000; align-items:center; justify-content:center;">
+  <div style="background:white; border-radius:14px; padding:28px; width:420px; max-width:90vw; box-shadow:0 8px 40px rgba(0,0,0,0.18);">
+    <h3 style="font-family:'Playfair Display',serif; font-size:18px; color:#282623; margin:0 0 6px;">Email Report</h3>
+    <p style="font-size:13px; color:#8C8580; margin:0 0 20px;">The PDF will be sent as an attachment.</p>
+    <label style="font-size:12px; font-weight:600; color:#282623; display:block; margin-bottom:6px;">Recipient Email</label>
+    <input id="email-recipient" type="email" placeholder="name@example.com"
+           style="width:100%; border:1px solid #d2cbc4; border-radius:8px; padding:10px 12px; font-size:14px; margin-bottom:16px; box-sizing:border-box; font-family:'Instrument Sans',sans-serif;">
+    <div id="email-status" style="font-size:12px; min-height:18px; margin-bottom:12px;"></div>
+    <div style="display:flex; gap:10px; justify-content:flex-end;">
+      <button onclick="closeEmailModal()" style="background:none; border:1px solid #d2cbc4; color:#4A4744; padding:8px 16px; border-radius:8px; font-size:13px; cursor:pointer; font-family:'Instrument Sans',sans-serif;">Cancel</button>
+      <button id="email-send-btn" onclick="sendEmail()" style="background:#282623; color:white; border:none; padding:8px 20px; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; font-family:'Instrument Sans',sans-serif;">Send</button>
+    </div>
   </div>
 </div>
 
@@ -1457,6 +1475,67 @@ function restoreVersion(filename) {
     document.getElementById('save-indicator').textContent = '';
   });
 }
+
+function openEmailModal() {
+  document.getElementById('email-recipient').value = '';
+  document.getElementById('email-status').textContent = '';
+  document.getElementById('email-send-btn').disabled = false;
+  document.getElementById('email-send-btn').textContent = 'Send';
+  const modal = document.getElementById('email-modal');
+  modal.style.display = 'flex';
+  setTimeout(() => document.getElementById('email-recipient').focus(), 50);
+}
+
+function closeEmailModal() {
+  document.getElementById('email-modal').style.display = 'none';
+}
+
+async function sendEmail() {
+  const email = document.getElementById('email-recipient').value.trim();
+  const status = document.getElementById('email-status');
+  const btn = document.getElementById('email-send-btn');
+
+  if (!email || !email.includes('@')) {
+    status.style.color = '#B53631';
+    status.textContent = 'Please enter a valid email address.';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Sending…';
+  status.style.color = '#8C8580';
+  status.textContent = 'Generating PDF and sending…';
+
+  try {
+    const r = await fetch('/api/email/' + SESSION_ID, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({email}),
+    });
+    const data = await r.json();
+    if (data.ok) {
+      status.style.color = '#2E7D32';
+      status.textContent = 'Sent! Check ' + email;
+      btn.textContent = 'Sent';
+      setTimeout(closeEmailModal, 2000);
+    } else {
+      status.style.color = '#B53631';
+      status.textContent = data.error || 'Send failed.';
+      btn.disabled = false;
+      btn.textContent = 'Send';
+    }
+  } catch (err) {
+    status.style.color = '#B53631';
+    status.textContent = 'Connection error: ' + err.message;
+    btn.disabled = false;
+    btn.textContent = 'Send';
+  }
+}
+
+// Close modal on backdrop click
+document.getElementById('email-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeEmailModal();
+});
 </script>
 {% endif %}
 {% endblock %}
