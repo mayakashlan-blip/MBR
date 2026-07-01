@@ -681,9 +681,10 @@
   <div style="background:white; border-radius:14px; padding:28px; width:420px; max-width:90vw; box-shadow:0 8px 40px rgba(0,0,0,0.18);">
     <h3 style="font-family:'Playfair Display',serif; font-size:18px; color:#282623; margin:0 0 6px;">Email Report</h3>
     <p style="font-size:13px; color:#8C8580; margin:0 0 20px;">The PDF will be sent as an attachment.</p>
-    <label style="font-size:12px; font-weight:600; color:#282623; display:block; margin-bottom:6px;">Recipient Email</label>
-    <input id="email-recipient" type="email" placeholder="name@example.com"
-           style="width:100%; border:1px solid #d2cbc4; border-radius:8px; padding:10px 12px; font-size:14px; margin-bottom:16px; box-sizing:border-box; font-family:'Instrument Sans',sans-serif;">
+    <label style="font-size:12px; font-weight:600; color:#282623; display:block; margin-bottom:6px;">Recipient Email(s)</label>
+    <input id="email-recipient" type="text" placeholder="one@example.com, two@example.com"
+           style="width:100%; border:1px solid #d2cbc4; border-radius:8px; padding:10px 12px; font-size:14px; margin-bottom:6px; box-sizing:border-box; font-family:'Instrument Sans',sans-serif;">
+    <div style="font-size:11px; color:#8C8580; margin-bottom:16px;">Separate multiple addresses with a comma.</div>
     <div id="email-status" style="font-size:12px; min-height:18px; margin-bottom:12px;"></div>
     <div style="display:flex; gap:10px; justify-content:flex-end;">
       <button onclick="closeEmailModal()" style="background:none; border:1px solid #d2cbc4; color:#4A4744; padding:8px 16px; border-radius:8px; font-size:13px; cursor:pointer; font-family:'Instrument Sans',sans-serif;">Cancel</button>
@@ -1491,13 +1492,18 @@ function closeEmailModal() {
 }
 
 async function sendEmail() {
-  const email = document.getElementById('email-recipient').value.trim();
+  const raw = document.getElementById('email-recipient').value.trim();
   const status = document.getElementById('email-status');
   const btn = document.getElementById('email-send-btn');
 
-  if (!email || !email.includes('@')) {
+  // Parse comma-separated list and validate each
+  const emails = raw.split(',').map(e => e.trim()).filter(Boolean);
+  const invalid = emails.filter(e => !e.includes('@'));
+  if (!emails.length || invalid.length) {
     status.style.color = '#B53631';
-    status.textContent = 'Please enter a valid email address.';
+    status.textContent = invalid.length
+      ? 'Invalid address: ' + invalid.join(', ')
+      : 'Please enter at least one email address.';
     return;
   }
 
@@ -1510,14 +1516,14 @@ async function sendEmail() {
     const r = await fetch('/api/email/' + SESSION_ID, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({email}),
+      body: JSON.stringify({emails}),
     });
     const data = await r.json();
     if (data.ok) {
       status.style.color = '#2E7D32';
-      status.textContent = 'Sent! Check ' + email;
-      btn.textContent = 'Sent';
-      setTimeout(closeEmailModal, 2000);
+      status.textContent = '✓ Sent to ' + emails.join(', ');
+      btn.textContent = 'Sent ✓';
+      setTimeout(closeEmailModal, 2500);
     } else {
       status.style.color = '#B53631';
       status.textContent = data.error || 'Send failed.';

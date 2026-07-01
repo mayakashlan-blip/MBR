@@ -1272,9 +1272,11 @@ def api_email(session_id):
     if not gmail_user or not gmail_password:
         return jsonify({"error": "GMAIL_USER and GMAIL_APP_PASSWORD are not configured on this server."}), 400
 
-    recipient = (request.json or {}).get("email", "").strip()
-    if not recipient or "@" not in recipient:
-        return jsonify({"error": "Please enter a valid email address."}), 400
+    body = request.json or {}
+    raw = body.get("emails") or ([body.get("email")] if body.get("email") else [])
+    recipients = [e.strip() for e in raw if e and "@" in str(e)]
+    if not recipients:
+        return jsonify({"error": "Please enter at least one valid email address."}), 400
 
     sess = _get_session(session_id)
     if not sess:
@@ -1301,7 +1303,7 @@ def api_email(session_id):
     msg = EmailMessage()
     msg["Subject"] = f"Monthly Business Review — {data.practice_name} — {data.month_name} {data.year}"
     msg["From"] = f"Moxie Reports <{gmail_user}>"
-    msg["To"] = recipient
+    msg["To"] = ", ".join(recipients)
     msg.set_content(
         f"Hi,\n\nPlease find attached the Monthly Business Review for "
         f"{data.practice_name} — {data.month_name} {data.year}.\n\n"
