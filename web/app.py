@@ -903,6 +903,37 @@ def api_status():
     })
 
 
+@app.route("/api/download-monthly-asset")
+def api_download_monthly_asset():
+    """Download a saved monthly asset file (launches or brand bank)."""
+    month = int(request.args.get("month", 1))
+    year = int(request.args.get("year", 2026))
+    asset_type = request.args.get("type", "launches")  # "launches" or "brand_bank"
+
+    if asset_type not in ("launches", "brand_bank"):
+        return jsonify({"error": "Invalid type"}), 400
+
+    assets = _load_monthly_assets(month, year)
+    filename_key = "launches_file" if asset_type == "launches" else "brand_bank_file"
+    original_filename = assets.get(filename_key) or f"{_monthly_key(month, year)}_{asset_type}"
+
+    suffix = Path(original_filename).suffix.lower() or ".pptx"
+    storage_key = f"{_monthly_key(month, year)}_{asset_type}{suffix}"
+
+    if _DB_ENABLED:
+        try:
+            local_path = _db.download_file("monthly-assets", storage_key, suffix=suffix)
+            return send_file(local_path, as_attachment=True, download_name=original_filename)
+        except Exception as e:
+            return jsonify({"error": f"File not found in storage: {e}"}), 404
+
+    # File-based fallback
+    local_path = MONTHLY_DIR / storage_key
+    if not local_path.exists():
+        return jsonify({"error": "File not found"}), 404
+    return send_file(str(local_path), as_attachment=True, download_name=original_filename)
+
+
 _SUPPLY_DATA_WHITELIST = {
     'transactions_galderma.json', 'transactions_allergan.json',
     'transactions_evolus.json', 'transactions_merz.json',

@@ -86,8 +86,9 @@
           <label style="font-weight: 600; font-size: 14px;">Moxie Suite Launches</label>
           <span id="launches-count" style="font-size: 12px; color: #8C8580;"></span>
         </div>
-        <div id="launches-saved-file" style="display:none; font-size: 12px; color: #2E7D32; background: #E8F5E9; border-radius: 6px; padding: 8px 12px; margin-bottom: 10px;">
-          <span style="font-weight: 600;">Saved file:</span> <span id="launches-filename"></span>
+        <div id="launches-saved-file" style="display:none; font-size: 12px; color: #4A4744; background: #F3EDF4; border-radius: 6px; padding: 8px 12px; margin-bottom: 10px; display: none; align-items: center; justify-content: space-between; gap: 8px;">
+          <span><span style="font-weight: 600;">Saved:</span> <span id="launches-filename"></span></span>
+          <button onclick="downloadAsset('launches')" style="flex-shrink:0; font-size:11px; padding:3px 10px; border-radius:5px; border:1px solid #d2cbc4; background:white; color:#282623; cursor:pointer; font-weight:500;">Download</button>
         </div>
         <div style="font-size: 12px; color: #8C8580; margin-bottom: 10px;">
           Upload as <strong>PDF</strong> to preserve hyperlinks.
@@ -109,8 +110,9 @@
           <label style="font-weight: 600; font-size: 14px;">Brand Bank</label>
           <span id="brand-bank-count" style="font-size: 12px; color: #8C8580;"></span>
         </div>
-        <div id="bb-saved-file" style="display:none; font-size: 12px; color: #2E7D32; background: #E8F5E9; border-radius: 6px; padding: 8px 12px; margin-bottom: 10px;">
-          <span style="font-weight: 600;">Saved file:</span> <span id="bb-filename"></span>
+        <div id="bb-saved-file" style="display:none; font-size: 12px; color: #4A4744; background: #F3EDF4; border-radius: 6px; padding: 8px 12px; margin-bottom: 10px; align-items: center; justify-content: space-between; gap: 8px;">
+          <span><span style="font-weight: 600;">Saved:</span> <span id="bb-filename"></span></span>
+          <button onclick="downloadAsset('brand_bank')" style="flex-shrink:0; font-size:11px; padding:3px 10px; border-radius:5px; border:1px solid #d2cbc4; background:white; color:#282623; cursor:pointer; font-weight:500;">Download</button>
         </div>
         <div class="upload-zone" id="monthly-bb-zone" style="margin-bottom: 10px;">
           <input type="file" accept="image/*,.pdf" onchange="handleMonthlyBBUpload(this)">
@@ -170,7 +172,7 @@ function loadMonthlyAssets() {
       renderMonthlyBB(data.brand_bank_items || []);
 
       if (data.launches_file) {
-        document.getElementById('launches-saved-file').style.display = 'block';
+        document.getElementById('launches-saved-file').style.display = 'flex';
         document.getElementById('launches-filename').textContent = data.launches_file;
         document.getElementById('monthly-launches-text').innerHTML = '<strong>' + esc(data.launches_file) + '</strong> (saved)';
       } else {
@@ -179,7 +181,7 @@ function loadMonthlyAssets() {
       }
 
       if (data.brand_bank_file) {
-        document.getElementById('bb-saved-file').style.display = 'block';
+        document.getElementById('bb-saved-file').style.display = 'flex';
         document.getElementById('bb-filename').textContent = data.brand_bank_file;
         document.getElementById('monthly-bb-text').innerHTML = '<strong>' + esc(data.brand_bank_file) + '</strong> (saved)';
       } else {
@@ -336,7 +338,7 @@ function handleMonthlyLaunchesUpload(input) {
     .then(resp => {
       if (resp.ok) {
         renderMonthlyLaunches(resp.launches || []);
-        document.getElementById('launches-saved-file').style.display = 'block';
+        document.getElementById('launches-saved-file').style.display = 'flex';
         document.getElementById('launches-filename').textContent = resp.filename || file.name;
         document.getElementById('monthly-launches-text').innerHTML = '<strong>' + esc(file.name) + '</strong> (saved)';
         document.getElementById('monthly-launches-status').textContent = (resp.launches?.length || 0) + ' features extracted & saved';
@@ -368,7 +370,7 @@ function handleMonthlyBBUpload(input) {
     .then(resp => {
       if (resp.ok) {
         renderMonthlyBB(resp.brand_bank_items || []);
-        document.getElementById('bb-saved-file').style.display = 'block';
+        document.getElementById('bb-saved-file').style.display = 'flex';
         document.getElementById('bb-filename').textContent = resp.filename || file.name;
         document.getElementById('monthly-bb-text').innerHTML = '<strong>' + esc(file.name) + '</strong> (saved)';
         document.getElementById('monthly-bb-status').textContent = (resp.brand_bank_items?.length || 0) + ' assets extracted & saved';
@@ -451,6 +453,11 @@ function deleteAsset(month, year, type, btn) {
     }
   })
   .catch(() => { btn.disabled = false; btn.textContent = 'Retry'; });
+}
+
+function downloadAsset(type) {
+  const month = getAssetMonth(), year = getAssetYear();
+  window.location.href = `/api/download-monthly-asset?month=${month}&year=${year}&type=${type}`;
 }
 
 // Load on page init
