@@ -5,8 +5,8 @@
 
 :root {
   /* Primary brand colors — June 2026 Moxie brand guide */
-  --purple: #00362D;          /* Dark Emerald — primary anchor */
-  --purple-light: #1A5247;    /* Mid Emerald — hover/secondary */
+  --purple: #282623;          /* Smoke — primary anchor */
+  --purple-light: #3D3A37;    /* Smoke light — hover/secondary */
   --emerald: #00362D;         /* Dark Emerald — new primary anchor */
   --emerald-light: #71A5A1;   /* Light Emerald */
   --smoke: #282623;           /* Smoke — dark neutral */
