@@ -903,6 +903,38 @@ def api_status():
     })
 
 
+_SUPPLY_DATA_WHITELIST = {
+    'transactions_galderma.json', 'transactions_allergan.json',
+    'transactions_evolus.json', 'transactions_merz.json',
+    'transactions_revance.json', 'rebates.json', 'medspas.json',
+    'name_map.json', 'medspa_meta.json', 'revenue_monthly.json',
+    'pricing_eras.json', 'vendor_config.json',
+}
+
+
+@app.route("/api/supply-data/<path:filename>")
+def api_supply_data(filename):
+    """Serve supply savings data — live from Shannon's GitHub Pages for transaction
+    files, local static files for reference data. Used by the savings dashboard."""
+    basename = filename.split('/')[-1]
+    if basename not in _SUPPLY_DATA_WHITELIST:
+        return jsonify({"error": "Not found"}), 404
+
+    # For transaction files, try Shannon's live GitHub Pages first
+    from src.savings_loader import _fetch_remote_json, _REMOTE_TRANSACTION_FILES
+    if basename in _REMOTE_TRANSACTION_FILES:
+        remote = _fetch_remote_json(basename)
+        if remote is not None:
+            return jsonify(remote)
+
+    # Fall back to local committed copy
+    local_path = Path(app.static_folder) / 'supplies-savings' / 'data' / basename
+    if not local_path.exists():
+        return jsonify({"error": "Not found"}), 404
+    with open(local_path) as f:
+        return app.response_class(f.read(), mimetype='application/json')
+
+
 @app.route("/api/exists", methods=["POST"])
 def api_exists():
     """Quick check: does a saved session exist for this practice+month+year?
