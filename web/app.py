@@ -1261,6 +1261,65 @@ def api_export(session_id):
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/email/<session_id>", methods=["POST"])
+def api_email(session_id):
+    """Generate PDF and send it to the given recipient via Gmail SMTP."""
+    import smtplib
+    from email.message import EmailMessage
+
+    gmail_user = os.environ.get("GMAIL_USER", "")
+    gmail_password = os.environ.get("GMAIL_APP_PASSWORD", "")
+    if not gmail_user or not gmail_password:
+        return jsonify({"error": "GMAIL_USER and GMAIL_APP_PASSWORD are not configured on this server."}), 400
+
+    recipient = (request.json or {}).get("email", "").strip()
+    if not recipient or "@" not in recipient:
+        return jsonify({"error": "Please enter a valid email address."}), 400
+
+    sess = _get_session(session_id)
+    if not sess:
+        return jsonify({"error": "Session not found"}), 404
+    data = sess["data"]
+
+    if sess.get("needs_render") or not sess.get("html"):
+        _rerender(sess)
+        sess["needs_render"] = False
+
+    tmp = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
+    tmp.close()
+    try:
+        from src.html_renderer import html_to_pdf
+        html_to_pdf(sess["html"], tmp.name)
+        with open(tmp.name, "rb") as f:
+            pdf_bytes = f.read()
+    finally:
+        os.unlink(tmp.name)
+
+    safe_name = data.practice_name.replace(" ", "_")
+    filename = f"{safe_name}_MBR_{data.month_name}_{data.year}.pdf"
+
+    msg = EmailMessage()
+    msg["Subject"] = f"Monthly Business Review — {data.practice_name} — {data.month_name} {data.year}"
+    msg["From"] = f"Moxie Reports <{gmail_user}>"
+    msg["To"] = recipient
+    msg.set_content(
+        f"Hi,\n\nPlease find attached the Monthly Business Review for "
+        f"{data.practice_name} — {data.month_name} {data.year}.\n\n"
+        f"Moxie Partners, Inc. · Private & Confidential"
+    )
+    msg.add_attachment(pdf_bytes, maintype="application", subtype="pdf", filename=filename)
+
+    try:
+        with smtplib.SMTP("smtp.gmail.com", 587) as smtp:
+            smtp.ehlo()
+            smtp.starttls()
+            smtp.login(gmail_user, gmail_password)
+            smtp.send_message(msg)
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/upload-brand-bank/<session_id>", methods=["POST"])
 def api_upload_brand_bank(session_id):
     """Upload a brand bank image for the report."""
