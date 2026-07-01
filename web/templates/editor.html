@@ -677,14 +677,43 @@
 </div>
 
 <!-- ── Email Modal ── -->
+<style>
+  .email-pill-box {
+    display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+    border: 1px solid #d2cbc4; border-radius: 8px;
+    padding: 8px 10px; min-height: 44px; cursor: text;
+    margin-bottom: 8px; background: white;
+    transition: border-color 0.15s;
+  }
+  .email-pill-box:focus-within { border-color: #282623; }
+  .email-pill {
+    display: flex; align-items: center; gap: 5px;
+    background: #F0EDE8; color: #282623;
+    border-radius: 20px; padding: 3px 10px 3px 12px;
+    font-size: 12px; font-weight: 500;
+  }
+  .email-pill button {
+    background: none; border: none; cursor: pointer;
+    color: #8C8580; font-size: 14px; line-height: 1;
+    padding: 0; display: flex; align-items: center;
+  }
+  .email-pill button:hover { color: #B53631; }
+  .email-pill-input {
+    border: none; outline: none; font-size: 13px;
+    font-family: 'Instrument Sans', sans-serif;
+    flex: 1; min-width: 160px; padding: 2px 0;
+    color: #2D2A28; background: transparent;
+  }
+</style>
 <div id="email-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:1000; align-items:center; justify-content:center;">
-  <div style="background:white; border-radius:14px; padding:28px; width:420px; max-width:90vw; box-shadow:0 8px 40px rgba(0,0,0,0.18);">
+  <div style="background:white; border-radius:14px; padding:28px; width:440px; max-width:90vw; box-shadow:0 8px 40px rgba(0,0,0,0.18);">
     <h3 style="font-family:'Playfair Display',serif; font-size:18px; color:#282623; margin:0 0 6px;">Email Report</h3>
     <p style="font-size:13px; color:#8C8580; margin:0 0 20px;">The PDF will be sent as an attachment.</p>
-    <label style="font-size:12px; font-weight:600; color:#282623; display:block; margin-bottom:6px;">Recipient Email(s)</label>
-    <input id="email-recipient" type="text" placeholder="one@example.com, two@example.com"
-           style="width:100%; border:1px solid #d2cbc4; border-radius:8px; padding:10px 12px; font-size:14px; margin-bottom:6px; box-sizing:border-box; font-family:'Instrument Sans',sans-serif;">
-    <div style="font-size:11px; color:#8C8580; margin-bottom:16px;">Separate multiple addresses with a comma.</div>
+    <label style="font-size:12px; font-weight:600; color:#282623; display:block; margin-bottom:6px;">Recipients</label>
+    <div class="email-pill-box" id="email-pill-box" onclick="document.getElementById('email-pill-input').focus()">
+      <input id="email-pill-input" class="email-pill-input" type="text" placeholder="Type an email and press Enter…">
+    </div>
+    <div style="font-size:11px; color:#8C8580; margin-bottom:16px;">Press Enter or comma after each address to add it.</div>
     <div id="email-status" style="font-size:12px; min-height:18px; margin-bottom:12px;"></div>
     <div style="display:flex; gap:10px; justify-content:flex-end;">
       <button onclick="closeEmailModal()" style="background:none; border:1px solid #d2cbc4; color:#4A4744; padding:8px 16px; border-radius:8px; font-size:13px; cursor:pointer; font-family:'Instrument Sans',sans-serif;">Cancel</button>
@@ -1477,14 +1506,61 @@ function restoreVersion(filename) {
   });
 }
 
+// ── Email pill input ──────────────────────────────────────────────
+let emailPills = [];
+
+function renderPills() {
+  const box = document.getElementById('email-pill-box');
+  const input = document.getElementById('email-pill-input');
+  // Remove existing pills (keep the input)
+  box.querySelectorAll('.email-pill').forEach(el => el.remove());
+  emailPills.forEach((addr, i) => {
+    const pill = document.createElement('div');
+    pill.className = 'email-pill';
+    pill.innerHTML = `<span>${addr}</span><button type="button" onclick="removePill(${i})" title="Remove">&times;</button>`;
+    box.insertBefore(pill, input);
+  });
+  input.placeholder = emailPills.length ? 'Add another…' : 'Type an email and press Enter…';
+}
+
+function addPill(val) {
+  const addr = val.trim().replace(/,+$/, '');
+  if (addr && addr.includes('@') && !emailPills.includes(addr)) {
+    emailPills.push(addr);
+    renderPills();
+  }
+  document.getElementById('email-pill-input').value = '';
+}
+
+function removePill(i) {
+  emailPills.splice(i, 1);
+  renderPills();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const input = document.getElementById('email-pill-input');
+  if (!input) return;
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      addPill(input.value);
+    } else if (e.key === 'Backspace' && !input.value && emailPills.length) {
+      removePill(emailPills.length - 1);
+    }
+  });
+  input.addEventListener('blur', () => { if (input.value.trim()) addPill(input.value); });
+});
+
 function openEmailModal() {
-  document.getElementById('email-recipient').value = '';
+  emailPills = [];
+  renderPills();
+  document.getElementById('email-pill-input').value = '';
   document.getElementById('email-status').textContent = '';
   document.getElementById('email-send-btn').disabled = false;
   document.getElementById('email-send-btn').textContent = 'Send';
   const modal = document.getElementById('email-modal');
   modal.style.display = 'flex';
-  setTimeout(() => document.getElementById('email-recipient').focus(), 50);
+  setTimeout(() => document.getElementById('email-pill-input').focus(), 50);
 }
 
 function closeEmailModal() {
@@ -1492,18 +1568,16 @@ function closeEmailModal() {
 }
 
 async function sendEmail() {
-  const raw = document.getElementById('email-recipient').value.trim();
+  // Flush any partially typed address in the input
+  const input = document.getElementById('email-pill-input');
+  if (input.value.trim()) addPill(input.value);
+
   const status = document.getElementById('email-status');
   const btn = document.getElementById('email-send-btn');
 
-  // Parse comma-separated list and validate each
-  const emails = raw.split(',').map(e => e.trim()).filter(Boolean);
-  const invalid = emails.filter(e => !e.includes('@'));
-  if (!emails.length || invalid.length) {
+  if (!emailPills.length) {
     status.style.color = '#B53631';
-    status.textContent = invalid.length
-      ? 'Invalid address: ' + invalid.join(', ')
-      : 'Please enter at least one email address.';
+    status.textContent = 'Add at least one email address.';
     return;
   }
 
@@ -1516,12 +1590,12 @@ async function sendEmail() {
     const r = await fetch('/api/email/' + SESSION_ID, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({emails}),
+      body: JSON.stringify({emails: emailPills}),
     });
     const data = await r.json();
     if (data.ok) {
       status.style.color = '#2E7D32';
-      status.textContent = '✓ Sent to ' + emails.join(', ');
+      status.textContent = '✓ Sent to ' + emailPills.join(', ');
       btn.textContent = 'Sent ✓';
       setTimeout(closeEmailModal, 2500);
     } else {
