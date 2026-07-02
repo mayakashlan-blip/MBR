@@ -799,7 +799,7 @@
           <td style="padding: 6px 8px; text-align: right;">{{ "${:,.0f}".format(v.spend) }}</td>
           <td style="padding: 6px 8px; text-align: right; color: var(--green); font-weight: 600;">{{ "${:,.0f}".format(v.savings) }}</td>
           <td style="padding: 6px 8px; text-align: right; color: var(--topaz); font-weight: 600;">{% if v.get('rebates', 0) > 0 %}{{ "${:,.0f}".format(v.rebates) }}{% else %}—{% endif %}</td>
-          <td style="padding: 6px 8px; text-align: right;">{% if v.spend > 0 %}{{ "%.1f"|format((v.savings + v.get('rebates', 0)) / v.spend * 100) }}%{% else %}—{% endif %}</td>
+          <td style="padding: 6px 8px; text-align: right;">{% if v.spend > 0 %}{{ "%.1f"|format((v.savings + v.get('rebates', 0)) / (v.spend + v.savings + v.get('rebates', 0)) * 100) }}%{% else %}—{% endif %}</td>
         </tr>
         {% endfor %}
       </tbody>
@@ -809,7 +809,7 @@
           <td style="padding: 6px 8px; text-align: right;">{{ "${:,.0f}".format(data.supplies_spend_3mo) }}</td>
           <td style="padding: 6px 8px; text-align: right; color: var(--green);">{{ "${:,.0f}".format(data.supplies_savings_3mo) }}</td>
           <td style="padding: 6px 8px; text-align: right; color: var(--topaz);">{% if data.supplies_rebates_3mo > 0 %}{{ "${:,.0f}".format(data.supplies_rebates_3mo) }}{% else %}—{% endif %}</td>
-          <td style="padding: 6px 8px; text-align: right;">{% if data.supplies_spend_3mo > 0 %}{{ "%.1f"|format((data.supplies_savings_3mo + data.supplies_rebates_3mo) / data.supplies_spend_3mo * 100) }}%{% else %}—{% endif %}</td>
+          <td style="padding: 6px 8px; text-align: right;">{% if data.supplies_spend_3mo > 0 %}{{ "%.1f"|format((data.supplies_savings_3mo + data.supplies_rebates_3mo) / (data.supplies_spend_3mo + data.supplies_savings_3mo + data.supplies_rebates_3mo) * 100) }}%{% else %}—{% endif %}</td>
         </tr>
       </tfoot>
     </table>

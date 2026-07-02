@@ -149,7 +149,7 @@ function bounds() {
 function pd(s) { if(!s) return null; var t = s.trim(); var d = /^\d{4}-\d{2}-\d{2}$/.test(t) ? new Date(t + 'T00:00:00') : new Date(t); return isNaN(d) ? null : d; }
 function pm(v) { return parseFloat((v||'').toString().replace(/[$,\s]/g,'')) || 0; }
 function fmt(n) { return (n && n > 0) ? '$' + Math.round(n).toLocaleString() : '—'; }
-function pct(s, sp) { return sp > 0 ? (s/sp*100).toFixed(1) + '%' : '—'; }
+function pct(s, sp) { return (sp + s) > 0 ? (s/(sp+s)*100).toFixed(1) + '%' : '—'; }
 function mk(d) { return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'); }
 function inMo(d)  { var b=bounds(); return d >= b.moSt  && d <= b.end; }
 function inM3(d)  { var b=bounds(); return d >= b.m3St  && d <= b.end; }
