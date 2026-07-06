@@ -286,6 +286,13 @@
           {% endif %}
         </div>
         <div class="staff-metric">
+          <div class="sm-label">Net Rev</div>
+          <div class="sm-value">{{ s.net_revenue | dollar(False) }}</div>
+          {% if s.net_revenue_mom_pct is not none %}
+          <div class="sm-mom{% if s.net_revenue_mom_pct >= 0 %} positive{% else %} negative{% endif %}">{{ "▲" if s.net_revenue_mom_pct >= 0 else "▼" }} {{ "%.0f"|format((s.net_revenue_mom_pct * 100)|abs) }}%</div>
+          {% endif %}
+        </div>
+        <div class="staff-metric">
           <div class="sm-label">AOV</div>
           <div class="sm-value">{{ s.aov | dollar(False) }}</div>
           {% if s.aov_mom_pct is not none %}

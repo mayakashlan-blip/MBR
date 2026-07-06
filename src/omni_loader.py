@@ -790,10 +790,12 @@ def load_from_omni(practice_name: str, month: int, year: int,
                     prev_aovs = v
 
             prev_rev_lookup = {}
+            prev_net_rev_lookup = {}
             prev_aov_lookup = {}
             for i in range(len(prev_names)):
                 if prev_names[i]:
                     prev_rev_lookup[prev_names[i]] = float(prev_gross_revs[i]) if i < len(prev_gross_revs) and prev_gross_revs[i] else 0
+                    prev_net_rev_lookup[prev_names[i]] = float(prev_net_revs[i]) if i < len(prev_net_revs) and prev_net_revs[i] else 0
                     prev_aov_lookup[prev_names[i]] = float(prev_aovs[i]) if i < len(prev_aovs) and prev_aovs[i] else 0
 
             # Prior-month utilization per provider
@@ -857,6 +859,7 @@ def load_from_omni(practice_name: str, month: int, year: int,
             # Apply MoM to each staff member
             for s in data.staff:
                 s.revenue_mom_pct = _safe_mom(s.gross_revenue, prev_rev_lookup.get(s.name), 500)
+                s.net_revenue_mom_pct = _safe_mom(s.net_revenue, prev_net_rev_lookup.get(s.name), 500)
                 s.aov_mom_pct = _safe_mom(s.aov, prev_aov_lookup.get(s.name), 50)
                 s.utilization_mom_pct = _safe_mom(s.utilization, prev_util_lookup.get(s.name), 0.05)
                 s.rebooking_mom_pct = _safe_mom(s.rebooking_rate, prev_rebook_lookup.get(s.name), 0.05)

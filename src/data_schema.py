@@ -18,6 +18,7 @@ class StaffMember:
     hours_worked: Optional[float] = None  # appointment hours for the month
     # MoM changes (per-provider)
     revenue_mom_pct: Optional[float] = None
+    net_revenue_mom_pct: Optional[float] = None
     aov_mom_pct: Optional[float] = None
     utilization_mom_pct: Optional[float] = None
     rebooking_mom_pct: Optional[float] = None
