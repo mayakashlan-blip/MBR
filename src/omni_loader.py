@@ -226,8 +226,21 @@ def load_from_omni(practice_name: str, month: int, year: int,
             tiers = tier_r.get(tier_field, [])
             ids = tier_r.get(id_field, [])
             target_norm = _norm_name(practice_name)
+            # 1. Exact normalized match
             tier_idx = next((i for i, n in enumerate(tier_names)
                              if n and _norm_name(n) == target_norm), None)
+            # 2. Prefix match — handles "Glow & Go" in Omni vs "Glow & Go Aesthetics" entered
+            if tier_idx is None:
+                tier_idx = next(
+                    (i for i, n in enumerate(tier_names)
+                     if n and len(_norm_name(n)) >= 6 and (
+                         target_norm.startswith(_norm_name(n)) or
+                         _norm_name(n).startswith(target_norm)
+                     )),
+                    None
+                )
+                if tier_idx is not None:
+                    print(f"  Prefix match: '{practice_name}' ~ '{tier_names[tier_idx]}'")
             if tier_idx is not None:
                 # Use the canonical Omni name for all downstream EQUALS filters
                 # so "&" vs "and" or other spacing differences don't cause zeros.

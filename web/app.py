@@ -966,6 +966,43 @@ def api_supply_data(filename):
         return app.response_class(f.read(), mimetype='application/json')
 
 
+@app.route("/api/debug-practice")
+def api_debug_practice():
+    """Show what Omni returns for a practice name lookup. Dev/debug only."""
+    practice = request.args.get("name", "").strip()
+    if not practice or not OMNI_KEY:
+        return jsonify({"error": "name param required and OMNI_API_KEY must be set"})
+    try:
+        import copy
+        from src.omni_loader import _run_query, _api_get, DASHBOARD_ID
+        dashboard = _api_get(f"/v1/documents/{DASHBOARD_ID}/queries", OMNI_KEY)
+        queries = {q["name"]: q["query"] for q in dashboard.get("queries", [])}
+        tier_q = copy.deepcopy(queries.get("Medspa Name", {}))
+        if not tier_q:
+            return jsonify({"error": "Medspa Name query not found", "available": list(queries.keys())[:10]})
+        tier_q["filters"]["dbt__moxie_medspas_mart.medspa_name"] = {
+            "kind": "CONTAINS", "type": "string",
+            "values": [practice.split()[0]],
+            "is_negative": False,
+        }
+        for f in ["dbt__moxie_medspas_mart.provider_segment_post_launch",
+                  "dbt__moxie_medspas_mart.medspa_name",
+                  "dbt__moxie_medspas_mart.medspa_id"]:
+            if f not in tier_q.get("fields", []):
+                tier_q.setdefault("fields", []).append(f)
+        tier_q["limit"] = 50
+        result = _run_query(tier_q, OMNI_KEY)
+        names = result.get("dbt__moxie_medspas_mart.medspa_name", [])
+        tiers = result.get("dbt__moxie_medspas_mart.provider_segment_post_launch", [])
+        ids = result.get("dbt__moxie_medspas_mart.medspa_id", [])
+        rows = [{"name": names[i], "tier": tiers[i] if i < len(tiers) else None,
+                 "id": ids[i] if i < len(ids) else None}
+                for i in range(len(names)) if names[i]]
+        return jsonify({"query_prefix": practice.split()[0], "rows": rows})
+    except Exception as e:
+        return jsonify({"error": str(e)})
+
+
 @app.route("/api/exists", methods=["POST"])
 def api_exists():
     """Quick check: does a saved session exist for this practice+month+year?
