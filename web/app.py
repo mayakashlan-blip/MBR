@@ -1003,6 +1003,67 @@ def api_debug_practice():
         return jsonify({"error": str(e)})
 
 
+@app.route("/api/debug-gfe")
+def api_debug_gfe():
+    """Show raw GFE query result for a practice+month+year. Dev/debug only."""
+    practice = request.args.get("name", "").strip()
+    month = int(request.args.get("month", 6))
+    year = int(request.args.get("year", 2026))
+    if not practice or not OMNI_KEY:
+        return jsonify({"error": "name param required and OMNI_API_KEY must be set"})
+    try:
+        import copy, re as _re
+        from src.omni_loader import _run_query, _api_get, DASHBOARD_ID
+        dashboard = _api_get(f"/v1/documents/{DASHBOARD_ID}/queries", OMNI_KEY)
+        queries = {q["name"]: q["query"] for q in dashboard.get("queries", [])}
+        gfe_patterns = ("gfe", "good faith", "covered sync", "covered async", "moxie sync",
+                        "moxie async", "mco gfe", "completed gfe")
+        gfe_query_name = next(
+            (n for n in queries if any(s in n.lower() for s in gfe_patterns)), None
+        )
+        if not gfe_query_name:
+            return jsonify({"error": "No GFE query found", "available": list(queries.keys())})
+        start_date = f"{year}-{month:02d}-01"
+        gq = copy.deepcopy(queries[gfe_query_name])
+        gq["filters"]["dbt__moxie_medspas_mart.medspa_name"] = {
+            "kind": "EQUALS", "type": "string", "values": [practice], "is_negative": False,
+        }
+        all_field_names = list(gq.get("fields", [])) + list(gq.get("filters", {}).keys())
+        unbracketed = [f for f in all_field_names
+                       if "[" not in f and ("date" in f.lower() or "_at" in f.lower() or "issued" in f.lower())]
+        date_field = unbracketed[0] if unbracketed else None
+        if not date_field:
+            bracketed = next((f for f in all_field_names
+                              if "[" in f and ("date" in f.lower() or "_at" in f.lower() or "issued" in f.lower())), None)
+            date_field = _re.sub(r"\[[^\]]+\](?:__raw)?$", "", bracketed) if bracketed else None
+        if date_field:
+            gq["filters"][date_field] = {
+                "kind": "TIME_FOR_INTERVAL_DURATION", "type": "date", "ui_type": "PAST",
+                "left_side": start_date, "right_side": "1 months", "is_negative": False,
+            }
+        month_r = _run_query(gq, OMNI_KEY)
+        # YTD
+        ytd_gq = copy.deepcopy(queries[gfe_query_name])
+        ytd_gq["filters"]["dbt__moxie_medspas_mart.medspa_name"] = {
+            "kind": "EQUALS", "type": "string", "values": [practice], "is_negative": False,
+        }
+        if date_field:
+            ytd_gq["filters"][date_field] = {
+                "kind": "TIME_FOR_INTERVAL_DURATION", "type": "date", "ui_type": "PAST",
+                "left_side": f"{year}-01-01", "right_side": f"{month} months", "is_negative": False,
+            }
+        ytd_r = _run_query(ytd_gq, OMNI_KEY)
+        return jsonify({
+            "gfe_query_name": gfe_query_name,
+            "date_field_used": date_field,
+            "monthly_raw": {k: v for k, v in month_r.items() if not k.startswith("$")},
+            "ytd_raw": {k: v for k, v in ytd_r.items() if not k.startswith("$")},
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({"error": str(e), "traceback": traceback.format_exc()})
+
+
 @app.route("/api/exists", methods=["POST"])
 def api_exists():
     """Quick check: does a saved session exist for this practice+month+year?

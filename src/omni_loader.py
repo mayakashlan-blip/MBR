@@ -1031,31 +1031,23 @@ def load_from_omni(practice_name: str, month: int, year: int,
                 see is interpreted as 'larger == dollars, smaller integer
                 == count' to disambiguate if the field names are unclear.
 
-                is_ytd=True: sum all rows (each row = one month).
-                is_ytd=False: use v[0] only — monthly query should return one
-                  aggregated row; summing would double-count if the query is
-                  grouped by practitioner or another sub-dimension.
+                Rows are grouped by practitioner; sum gives practice total.
+                Monthly: sum([41, 3]) = 44 ✓
+                YTD: sum all month×practitioner rows. May overcount — the debug
+                endpoint /api/debug-gfe shows the raw structure to verify.
                 """
                 if not result:
                     return 0, 0.0
-                candidates = []  # [(key_lower, key, raw)]
+                candidates = []  # [(key_lower, key, summed_total)]
                 for k, v in result.items():
                     if not v or k.startswith("$"):
                         continue
-                    if is_ytd:
-                        # YTD queries return one row per month — sum them.
-                        total = 0.0
-                        for item in v:
-                            try:
-                                total += float(item)
-                            except (TypeError, ValueError):
-                                pass
-                    else:
-                        # Monthly query: use the first aggregated row only.
+                    total = 0.0
+                    for item in v:
                         try:
-                            total = float(v[0]) if v[0] is not None else 0.0
+                            total += float(item)
                         except (TypeError, ValueError):
-                            total = 0.0
+                            pass
                     if total == 0.0 and all(item is None for item in v):
                         continue
                     candidates.append((k.lower(), k, total))
