@@ -961,67 +961,58 @@ def load_from_omni(practice_name: str, month: int, year: int,
     except Exception as e:
         print(f"  Warning: Could not load retention data: {e}")
 
-    # ── Moxie Covered Sync GFE Savings (main dashboard) ──
-    # Query name and field names aren't fixed across dashboards, so we
-    # match by case-insensitive substring ("gfe", "good faith", "covered
-    # sync") and pull count/value fields by partial key match. Logs the
-    # exact field names returned so we can refine if these patterns miss.
+    # ── Moxie Covered Async GFE Savings (main dashboard) ──
     print("  Loading GFE savings...")
-    # Each Moxie Covered Sync GFE is billed at a flat rate. If the Omni
-    # query returns a count but no dollar field, we derive value as
-    # count * GFE_UNIT_PRICE.
     GFE_UNIT_PRICE = 25.0
     try:
-        gfe_patterns = ("gfe", "good faith", "covered sync", "moxie sync",
-                        "telehealth", "provider visit", "medical director",
-                        "mco gfe", "completed gfe")
-        gfe_query_name = next(
-            (n for n in queries.keys()
-             if any(s in n.lower() for s in gfe_patterns)),
-            None,
-        )
-        if not gfe_query_name:
-            print(f"  GFE query not found in dashboard. Available queries: "
-                  f"{list(queries.keys())}")
-        if gfe_query_name:
-            print(f"  GFE query found: '{gfe_query_name}'")
+        # Use the dedicated monthly/YTD queries that match the Omni GFE dashboard.
+        # Fall back to pattern-matching if those names aren't present (older dashboards).
+        MONTHLY_GFE_QUERY = "Monthly GFE Savings"
+        YTD_GFE_QUERY     = "YTD GFE Savings"
+        gfe_patterns = ("gfe", "good faith", "covered sync", "covered async",
+                        "moxie sync", "moxie async", "mco gfe", "completed gfe")
 
-            def _gfe_pull(start_date_val, duration_val):
-                gq = copy.deepcopy(queries[gfe_query_name])
-                gq["filters"]["dbt__moxie_medspas_mart.medspa_name"] = {
-                    "kind": "EQUALS", "type": "string",
-                    "values": [practice_name], "is_negative": False,
+        month_gfe_query = (MONTHLY_GFE_QUERY if MONTHLY_GFE_QUERY in queries
+                           else next((n for n in queries if any(s in n.lower() for s in gfe_patterns)), None))
+        ytd_gfe_query   = (YTD_GFE_QUERY if YTD_GFE_QUERY in queries
+                           else month_gfe_query)
+
+        def _gfe_pull_named(query_name, start_date_val, duration_val):
+            gq = copy.deepcopy(queries[query_name])
+            gq["filters"]["dbt__moxie_medspas_mart.medspa_name"] = {
+                "kind": "EQUALS", "type": "string",
+                "values": [practice_name], "is_negative": False,
+            }
+            import re as _re
+            all_field_names = list(gq.get("fields", [])) + list(gq.get("filters", {}).keys())
+            unbracketed = [f for f in all_field_names
+                           if "[" not in f
+                           and ("date" in f.lower() or "_at" in f.lower() or "issued" in f.lower())]
+            if unbracketed:
+                date_field = unbracketed[0]
+            else:
+                bracketed = next(
+                    (f for f in all_field_names
+                     if "[" in f
+                     and ("date" in f.lower() or "_at" in f.lower() or "issued" in f.lower())),
+                    None,
+                )
+                date_field = _re.sub(r"\[[^\]]+\](?:__raw)?$", "", bracketed) if bracketed else None
+            if date_field:
+                gq["filters"][date_field] = {
+                    "kind": "TIME_FOR_INTERVAL_DURATION", "type": "date",
+                    "ui_type": "PAST",
+                    "left_side": start_date_val, "right_side": duration_val,
+                    "is_negative": False,
                 }
-                # Find the underlying date column to filter on. Bracketed
-                # variants like `review_finished_at[month]` are dimension
-                # groupings, not filterable date columns — strip the bracket
-                # suffix to get the real field. Prefer fields already present
-                # without brackets; fall back to deriving from a dimension.
-                import re as _re
-                all_field_names = list(gq.get("fields", [])) + list(gq.get("filters", {}).keys())
-                unbracketed = [f for f in all_field_names
-                               if "[" not in f
-                               and ("date" in f.lower() or "_at" in f.lower() or "issued" in f.lower())]
-                if unbracketed:
-                    date_field = unbracketed[0]
-                else:
-                    bracketed = next(
-                        (f for f in all_field_names
-                         if "[" in f
-                         and ("date" in f.lower() or "_at" in f.lower() or "issued" in f.lower())),
-                        None,
-                    )
-                    # Strip [month], [year], [quarter], [day], [...]__raw suffixes
-                    date_field = _re.sub(r"\[[^\]]+\](?:__raw)?$", "", bracketed) if bracketed else None
-                if date_field:
-                    gq["filters"][date_field] = {
-                        "kind": "TIME_FOR_INTERVAL_DURATION", "type": "date",
-                        "ui_type": "PAST",
-                        "left_side": start_date_val, "right_side": duration_val,
-                        "is_negative": False,
-                    }
-                    print(f"  GFE date filter: {date_field}")
-                return _run_query(gq, api_key)
+            return _run_query(gq, api_key)
+
+        # Keep _gfe_pull as alias for any legacy callers
+        def _gfe_pull(start_date_val, duration_val):
+            name = month_gfe_query or next((n for n in queries if any(s in n.lower() for s in gfe_patterns)), None)
+            if not name:
+                raise RuntimeError("No GFE query found")
+            return _gfe_pull_named(name, start_date_val, duration_val)
 
             def _gfe_extract(result, is_ytd=False):
                 """Pull count + dollar value from a GFE query result.
@@ -1116,29 +1107,31 @@ def load_from_omni(practice_name: str, month: int, year: int,
 
                 return count_val, value_val
 
-            # Month
+            # Month — use dedicated "Monthly GFE Savings" query
             try:
-                month_r = _gfe_pull(start_date, duration)
-                data.gfe_completed_month, data.gfe_value_month = _gfe_extract(month_r, is_ytd=False)
-                if data.gfe_completed_month > 0 and data.gfe_value_month == 0.0:
-                    data.gfe_value_month = data.gfe_completed_month * GFE_UNIT_PRICE
-                if month_r:
-                    sample = {k: (v[0] if v else None) for k, v in month_r.items() if not k.startswith("$")}
-                    print(f"  GFE month raw: {sample}")
+                if month_gfe_query:
+                    month_r = _gfe_pull_named(month_gfe_query, start_date, duration)
+                    data.gfe_completed_month, data.gfe_value_month = _gfe_extract(month_r, is_ytd=False)
+                    if data.gfe_completed_month > 0 and data.gfe_value_month == 0.0:
+                        data.gfe_value_month = data.gfe_completed_month * GFE_UNIT_PRICE
+                    if month_r:
+                        sample = {k: (v[0] if v else None) for k, v in month_r.items() if not k.startswith("$")}
+                        print(f"  GFE month raw ({month_gfe_query}): {sample}")
             except Exception as e:
                 print(f"  Warning: GFE monthly query failed: {e}")
 
-            # YTD: from Jan 1 of current year through current month
+            # YTD — use dedicated "YTD GFE Savings" query
             try:
-                ytd_start = f"{year}-01-01"
-                ytd_months = month  # months 1..current inclusive
-                ytd_r = _gfe_pull(ytd_start, f"{ytd_months} months")
-                data.gfe_completed_ytd, data.gfe_value_ytd = _gfe_extract(ytd_r, is_ytd=True)
-                if data.gfe_completed_ytd > 0 and data.gfe_value_ytd == 0.0:
-                    data.gfe_value_ytd = data.gfe_completed_ytd * GFE_UNIT_PRICE
-                if ytd_r:
-                    sample = {k: (v[0] if v else None) for k, v in ytd_r.items() if not k.startswith("$")}
-                    print(f"  GFE YTD raw: {sample}")
+                if ytd_gfe_query:
+                    ytd_start = f"{year}-01-01"
+                    ytd_months = month
+                    ytd_r = _gfe_pull_named(ytd_gfe_query, ytd_start, f"{ytd_months} months")
+                    data.gfe_completed_ytd, data.gfe_value_ytd = _gfe_extract(ytd_r, is_ytd=True)
+                    if data.gfe_completed_ytd > 0 and data.gfe_value_ytd == 0.0:
+                        data.gfe_value_ytd = data.gfe_completed_ytd * GFE_UNIT_PRICE
+                    if ytd_r:
+                        sample = {k: (v[0] if v else None) for k, v in ytd_r.items() if not k.startswith("$")}
+                        print(f"  GFE YTD raw ({ytd_gfe_query}): {sample}")
             except Exception as e:
                 print(f"  Warning: GFE YTD query failed: {e}")
 
