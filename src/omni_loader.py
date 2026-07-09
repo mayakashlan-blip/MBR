@@ -1135,10 +1135,10 @@ def load_from_omni(practice_name: str, month: int, year: int,
             except Exception as e:
                 print(f"  Warning: GFE YTD query failed: {e}")
 
-            print(f"  GFE: month {data.gfe_completed_month} @ ${data.gfe_value_month:,.0f}, "
-                  f"YTD {data.gfe_completed_ytd} @ ${data.gfe_value_ytd:,.0f}")
-        else:
-            print(f"  GFE query not found (looked for 'gfe', 'good faith', 'covered sync')")
+        print(f"  GFE: month {data.gfe_completed_month} @ ${data.gfe_value_month:,.0f}, "
+              f"YTD {data.gfe_completed_ytd} @ ${data.gfe_value_ytd:,.0f}")
+        if not month_gfe_query:
+            print(f"  GFE query not found (looked for 'Monthly GFE Savings' or pattern match)")
     except Exception as e:
         print(f"  Warning: Could not load GFE savings: {e}")
 
