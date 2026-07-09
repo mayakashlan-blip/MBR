@@ -1023,13 +1023,18 @@ def load_from_omni(practice_name: str, month: int, year: int,
                     print(f"  GFE date filter: {date_field}")
                 return _run_query(gq, api_key)
 
-            def _gfe_extract(result):
+            def _gfe_extract(result, is_ytd=False):
                 """Pull count + dollar value from a GFE query result.
 
                 Two-pass match: first prefer GFE-specific field names, then
                 fall back to broader patterns. The first numeric column we
                 see is interpreted as 'larger == dollars, smaller integer
                 == count' to disambiguate if the field names are unclear.
+
+                is_ytd=True: sum all rows (each row = one month).
+                is_ytd=False: use v[0] only — monthly query should return one
+                  aggregated row; summing would double-count if the query is
+                  grouped by practitioner or another sub-dimension.
                 """
                 if not result:
                     return 0, 0.0
@@ -1037,14 +1042,20 @@ def load_from_omni(practice_name: str, month: int, year: int,
                 for k, v in result.items():
                     if not v or k.startswith("$"):
                         continue
-                    # Sum all rows — YTD queries return one row per month;
-                    # taking only v[0] would give January's count, not the total.
-                    total = 0.0
-                    for item in v:
+                    if is_ytd:
+                        # YTD queries return one row per month — sum them.
+                        total = 0.0
+                        for item in v:
+                            try:
+                                total += float(item)
+                            except (TypeError, ValueError):
+                                pass
+                    else:
+                        # Monthly query: use the first aggregated row only.
                         try:
-                            total += float(item)
+                            total = float(v[0]) if v[0] is not None else 0.0
                         except (TypeError, ValueError):
-                            pass
+                            total = 0.0
                     if total == 0.0 and all(item is None for item in v):
                         continue
                     candidates.append((k.lower(), k, total))
@@ -1108,7 +1119,7 @@ def load_from_omni(practice_name: str, month: int, year: int,
             # Month
             try:
                 month_r = _gfe_pull(start_date, duration)
-                data.gfe_completed_month, data.gfe_value_month = _gfe_extract(month_r)
+                data.gfe_completed_month, data.gfe_value_month = _gfe_extract(month_r, is_ytd=False)
                 if data.gfe_completed_month > 0 and data.gfe_value_month == 0.0:
                     data.gfe_value_month = data.gfe_completed_month * GFE_UNIT_PRICE
                 if month_r:
@@ -1122,7 +1133,7 @@ def load_from_omni(practice_name: str, month: int, year: int,
                 ytd_start = f"{year}-01-01"
                 ytd_months = month  # months 1..current inclusive
                 ytd_r = _gfe_pull(ytd_start, f"{ytd_months} months")
-                data.gfe_completed_ytd, data.gfe_value_ytd = _gfe_extract(ytd_r)
+                data.gfe_completed_ytd, data.gfe_value_ytd = _gfe_extract(ytd_r, is_ytd=True)
                 if data.gfe_completed_ytd > 0 and data.gfe_value_ytd == 0.0:
                     data.gfe_value_ytd = data.gfe_completed_ytd * GFE_UNIT_PRICE
                 if ytd_r:
