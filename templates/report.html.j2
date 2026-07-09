@@ -673,14 +673,14 @@
 {% endif %}{# end show_marketing_section master toggle #}
 
 {# ════════════════════════════════════════════════════════════════════
-   MOXIE COVERED SYNC — GFE SAVINGS (toggleable; only renders when data exists)
+   MOXIE COVERED ASYNC — GFE SAVINGS (toggleable; only renders when data exists)
    ════════════════════════════════════════════════════════════════════ #}
 {% if data.show_gfe_section and (data.gfe_completed_month > 0 or data.gfe_completed_ytd > 0 or data.gfe_value_month > 0 or data.gfe_value_ytd > 0) %}
 <section class="page">
   {% include "components/header.html.j2" %}
-  <div class="section-title">Moxie Covered Sync — GFE Savings</div>
+  <div class="section-title">Moxie Covered Async — GFE Savings</div>
   <div style="font-size: 9pt; color: #5a5550; margin-bottom: 0.15in;">
-    Good Faith Exams completed through Moxie Covered Sync, with the cumulative
+    Good Faith Exams completed through Moxie Covered Async, with the cumulative
     value covered for this month and year-to-date.
   </div>
 

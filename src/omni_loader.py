@@ -1016,10 +1016,17 @@ def load_from_omni(practice_name: str, month: int, year: int,
                 for k, v in result.items():
                     if not v or k.startswith("$"):
                         continue
-                    raw = v[0]
-                    if raw is None:
+                    # Sum all rows — YTD queries return one row per month;
+                    # taking only v[0] would give January's count, not the total.
+                    total = 0.0
+                    for item in v:
+                        try:
+                            total += float(item)
+                        except (TypeError, ValueError):
+                            pass
+                    if total == 0.0 and all(item is None for item in v):
                         continue
-                    candidates.append((k.lower(), k, raw))
+                    candidates.append((k.lower(), k, total))
 
                 count_val, value_val = 0, 0.0
                 # Pass 1: GFE-named fields with specific suffixes
