@@ -1050,7 +1050,6 @@ def api_debug_gfe():
             results[f"{qname}__raw"] = {k: v for k, v in r.items() if not k.startswith("$")}
         return jsonify({
             "all_dashboard_queries": sorted(queries.keys()),
-            "monthly_raw": {k: v for k, v in month_r.items() if not k.startswith("$")},
             "query_results": results,
         })
     except Exception as e:
