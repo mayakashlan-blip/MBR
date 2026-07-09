@@ -203,7 +203,9 @@ def load_from_omni(practice_name: str, month: int, year: int,
     try:
         import re as _re
         def _norm_name(s):
-            return _re.sub(r"[^a-z0-9]", "", (s or "").lower())
+            # Normalize & → and before stripping so "Glow & Go" == "Glow and Go"
+            s = (s or "").lower().replace("&", "and")
+            return _re.sub(r"[^a-z0-9]", "", s)
 
         tier_q = copy.deepcopy(queries.get("Medspa Name", {}))
         if tier_q:
@@ -227,6 +229,12 @@ def load_from_omni(practice_name: str, month: int, year: int,
             tier_idx = next((i for i, n in enumerate(tier_names)
                              if n and _norm_name(n) == target_norm), None)
             if tier_idx is not None:
+                # Use the canonical Omni name for all downstream EQUALS filters
+                # so "&" vs "and" or other spacing differences don't cause zeros.
+                canonical = tier_names[tier_idx]
+                if canonical and canonical != practice_name:
+                    print(f"  Name resolved: '{practice_name}' → '{canonical}'")
+                    practice_name = canonical
                 if tier_idx < len(tiers) and tiers[tier_idx]:
                     data.tier = str(tiers[tier_idx])
                     print(f"  Tier: {data.tier}")
