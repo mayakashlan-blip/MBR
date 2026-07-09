@@ -1026,29 +1026,37 @@ def load_from_omni(practice_name: str, month: int, year: int,
             def _gfe_extract(result, is_ytd=False):
                 """Pull count + dollar value from a GFE query result.
 
-                Two-pass match: first prefer GFE-specific field names, then
-                fall back to broader patterns. The first numeric column we
-                see is interpreted as 'larger == dollars, smaller integer
-                == count' to disambiguate if the field names are unclear.
-
-                Rows are grouped by practitioner; sum gives practice total.
-                Monthly: sum([41, 3]) = 44 ✓
-                YTD: sum all month×practitioner rows. May overcount — the debug
-                endpoint /api/debug-gfe shows the raw structure to verify.
+                The Omni GFE query returns each row twice: once with
+                medspa_id=null (unresolved join side) and once with the actual
+                medspa_id. We filter to non-null medspa rows only to avoid
+                the 2× duplication.
                 """
                 if not result:
                     return 0, 0.0
+                # Find which row indices have a non-null medspa dimension.
+                # Any column keyed to medspa_id or medspa_name works.
+                n_rows = max((len(v) for v in result.values()
+                              if isinstance(v, list)), default=0)
+                keep = None
+                for k, v in result.items():
+                    if ("medspa_id" in k.lower() or "medspa_name" in k.lower()) and isinstance(v, list):
+                        non_null = [i for i, x in enumerate(v) if x is not None]
+                        if non_null and len(non_null) < n_rows:
+                            keep = set(non_null)
+                            break
+
                 candidates = []  # [(key_lower, key, summed_total)]
                 for k, v in result.items():
                     if not v or k.startswith("$"):
                         continue
+                    items = [v[i] for i in sorted(keep)] if keep is not None else v
                     total = 0.0
-                    for item in v:
+                    for item in items:
                         try:
                             total += float(item)
                         except (TypeError, ValueError):
                             pass
-                    if total == 0.0 and all(item is None for item in v):
+                    if total == 0.0 and all(item is None for item in items):
                         continue
                     candidates.append((k.lower(), k, total))
 

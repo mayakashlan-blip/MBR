@@ -1053,9 +1053,11 @@ def api_debug_gfe():
                 "left_side": f"{year}-01-01", "right_side": f"{month} months", "is_negative": False,
             }
         ytd_r = _run_query(ytd_gq, OMNI_KEY)
+        all_query_names = sorted(queries.keys())
         return jsonify({
             "gfe_query_name": gfe_query_name,
             "date_field_used": date_field,
+            "all_dashboard_queries": all_query_names,
             "monthly_raw": {k: v for k, v in month_r.items() if not k.startswith("$")},
             "ytd_raw": {k: v for k, v in ytd_r.items() if not k.startswith("$")},
         })
