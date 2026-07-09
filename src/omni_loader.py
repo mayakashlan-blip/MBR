@@ -1014,126 +1014,108 @@ def load_from_omni(practice_name: str, month: int, year: int,
                 raise RuntimeError("No GFE query found")
             return _gfe_pull_named(name, start_date_val, duration_val)
 
-            def _gfe_extract(result, is_ytd=False):
-                """Pull count + dollar value from a GFE query result.
+        def _gfe_extract(result, is_ytd=False):
+            if not result:
+                return 0, 0.0
+            n_rows = max((len(v) for v in result.values()
+                          if isinstance(v, list)), default=0)
+            keep = None
+            for k, v in result.items():
+                if ("medspa_id" in k.lower() or "medspa_name" in k.lower()) and isinstance(v, list):
+                    non_null = [i for i, x in enumerate(v) if x is not None]
+                    if non_null and len(non_null) < n_rows:
+                        keep = set(non_null)
+                        break
 
-                The Omni GFE query returns each row twice: once with
-                medspa_id=null (unresolved join side) and once with the actual
-                medspa_id. We filter to non-null medspa rows only to avoid
-                the 2× duplication.
-                """
-                if not result:
-                    return 0, 0.0
-                # Find which row indices have a non-null medspa dimension.
-                # Any column keyed to medspa_id or medspa_name works.
-                n_rows = max((len(v) for v in result.values()
-                              if isinstance(v, list)), default=0)
-                keep = None
-                for k, v in result.items():
-                    if ("medspa_id" in k.lower() or "medspa_name" in k.lower()) and isinstance(v, list):
-                        non_null = [i for i, x in enumerate(v) if x is not None]
-                        if non_null and len(non_null) < n_rows:
-                            keep = set(non_null)
-                            break
+            candidates = []
+            for k, v in result.items():
+                if not v or k.startswith("$"):
+                    continue
+                items = [v[i] for i in sorted(keep)] if keep is not None else v
+                total = 0.0
+                for item in items:
+                    try:
+                        total += float(item)
+                    except (TypeError, ValueError):
+                        pass
+                if total == 0.0 and all(item is None for item in items):
+                    continue
+                candidates.append((k.lower(), k, total))
 
-                candidates = []  # [(key_lower, key, summed_total)]
-                for k, v in result.items():
-                    if not v or k.startswith("$"):
-                        continue
-                    items = [v[i] for i in sorted(keep)] if keep is not None else v
-                    total = 0.0
-                    for item in items:
-                        try:
-                            total += float(item)
-                        except (TypeError, ValueError):
-                            pass
-                    if total == 0.0 and all(item is None for item in items):
-                        continue
-                    candidates.append((k.lower(), k, total))
+            count_val, value_val = 0, 0.0
+            for kl, k, raw in candidates:
+                if "gfe" not in kl and "good_faith" not in kl:
+                    continue
+                try:
+                    n = float(raw)
+                except (TypeError, ValueError):
+                    continue
+                if count_val == 0 and ("count" in kl or "completed" in kl or "_sum" in kl) and "value" not in kl and "amount" not in kl and "savings" not in kl and "dollar" not in kl:
+                    count_val = int(n)
+                if value_val == 0.0 and ("value" in kl or "amount" in kl or "savings" in kl or "dollar" in kl or "total" in kl):
+                    value_val = n
 
-                count_val, value_val = 0, 0.0
-                # Pass 1: GFE-named fields with specific suffixes
+            if count_val == 0:
                 for kl, k, raw in candidates:
-                    if "gfe" not in kl and "good_faith" not in kl:
-                        continue
                     try:
                         n = float(raw)
                     except (TypeError, ValueError):
                         continue
-                    if count_val == 0 and ("count" in kl or "completed" in kl or "_sum" in kl) and "value" not in kl and "amount" not in kl and "savings" not in kl and "dollar" not in kl:
+                    if ("count" in kl or "completed" in kl) and "value" not in kl and "amount" not in kl and "savings" not in kl:
                         count_val = int(n)
-                    if value_val == 0.0 and ("value" in kl or "amount" in kl or "savings" in kl or "dollar" in kl or "total" in kl):
+                        break
+            if value_val == 0.0:
+                for kl, k, raw in candidates:
+                    try:
+                        n = float(raw)
+                    except (TypeError, ValueError):
+                        continue
+                    if "value" in kl or "amount" in kl or "savings" in kl or "dollar" in kl:
                         value_val = n
+                        break
 
-                # Pass 2: any field with the relevant keyword
-                if count_val == 0:
-                    for kl, k, raw in candidates:
-                        try:
-                            n = float(raw)
-                        except (TypeError, ValueError):
-                            continue
-                        if ("count" in kl or "completed" in kl) and "value" not in kl and "amount" not in kl and "savings" not in kl:
-                            count_val = int(n)
-                            break
-                if value_val == 0.0:
-                    for kl, k, raw in candidates:
-                        try:
-                            n = float(raw)
-                        except (TypeError, ValueError):
-                            continue
-                        if "value" in kl or "amount" in kl or "savings" in kl or "dollar" in kl:
-                            value_val = n
-                            break
+            if count_val == 0 and value_val == 0.0 and candidates:
+                nums = []
+                for kl, k, raw in candidates:
+                    try:
+                        n = float(raw)
+                        nums.append((kl, k, n))
+                    except (TypeError, ValueError):
+                        pass
+                if nums:
+                    nums.sort(key=lambda t: t[2])
+                    count_val = int(nums[0][2])
+                    value_val = nums[-1][2] if len(nums) > 1 else nums[0][2]
 
-                # Pass 3 fallback: heuristic on the two numeric columns —
-                # the smaller integer-like one is count, larger float-like
-                # is value. Only kicks in when nothing matched by name.
-                if count_val == 0 and value_val == 0.0 and candidates:
-                    nums = []
-                    for kl, k, raw in candidates:
-                        try:
-                            n = float(raw)
-                            nums.append((kl, k, n))
-                        except (TypeError, ValueError):
-                            pass
-                    if nums:
-                        nums.sort(key=lambda t: t[2])
-                        # smallest → count, largest → value (assuming value $$ >> count)
-                        count_val = int(nums[0][2])
-                        if len(nums) > 1:
-                            value_val = nums[-1][2]
-                        else:
-                            value_val = nums[0][2]
+            return count_val, value_val
 
-                return count_val, value_val
+        # Month — use dedicated "Monthly GFE Savings" query
+        try:
+            if month_gfe_query:
+                month_r = _gfe_pull_named(month_gfe_query, start_date, duration)
+                data.gfe_completed_month, data.gfe_value_month = _gfe_extract(month_r, is_ytd=False)
+                if data.gfe_completed_month > 0 and data.gfe_value_month == 0.0:
+                    data.gfe_value_month = data.gfe_completed_month * GFE_UNIT_PRICE
+                if month_r:
+                    sample = {k: (v[0] if v else None) for k, v in month_r.items() if not k.startswith("$")}
+                    print(f"  GFE month raw ({month_gfe_query}): {sample}")
+        except Exception as e:
+            print(f"  Warning: GFE monthly query failed: {e}")
 
-            # Month — use dedicated "Monthly GFE Savings" query
-            try:
-                if month_gfe_query:
-                    month_r = _gfe_pull_named(month_gfe_query, start_date, duration)
-                    data.gfe_completed_month, data.gfe_value_month = _gfe_extract(month_r, is_ytd=False)
-                    if data.gfe_completed_month > 0 and data.gfe_value_month == 0.0:
-                        data.gfe_value_month = data.gfe_completed_month * GFE_UNIT_PRICE
-                    if month_r:
-                        sample = {k: (v[0] if v else None) for k, v in month_r.items() if not k.startswith("$")}
-                        print(f"  GFE month raw ({month_gfe_query}): {sample}")
-            except Exception as e:
-                print(f"  Warning: GFE monthly query failed: {e}")
-
-            # YTD — use dedicated "YTD GFE Savings" query
-            try:
-                if ytd_gfe_query:
-                    ytd_start = f"{year}-01-01"
-                    ytd_months = month
-                    ytd_r = _gfe_pull_named(ytd_gfe_query, ytd_start, f"{ytd_months} months")
-                    data.gfe_completed_ytd, data.gfe_value_ytd = _gfe_extract(ytd_r, is_ytd=True)
-                    if data.gfe_completed_ytd > 0 and data.gfe_value_ytd == 0.0:
-                        data.gfe_value_ytd = data.gfe_completed_ytd * GFE_UNIT_PRICE
-                    if ytd_r:
-                        sample = {k: (v[0] if v else None) for k, v in ytd_r.items() if not k.startswith("$")}
-                        print(f"  GFE YTD raw ({ytd_gfe_query}): {sample}")
-            except Exception as e:
-                print(f"  Warning: GFE YTD query failed: {e}")
+        # YTD — use dedicated "YTD GFE Savings" query
+        try:
+            if ytd_gfe_query:
+                ytd_start = f"{year}-01-01"
+                ytd_months = month
+                ytd_r = _gfe_pull_named(ytd_gfe_query, ytd_start, f"{ytd_months} months")
+                data.gfe_completed_ytd, data.gfe_value_ytd = _gfe_extract(ytd_r, is_ytd=True)
+                if data.gfe_completed_ytd > 0 and data.gfe_value_ytd == 0.0:
+                    data.gfe_value_ytd = data.gfe_completed_ytd * GFE_UNIT_PRICE
+                if ytd_r:
+                    sample = {k: (v[0] if v else None) for k, v in ytd_r.items() if not k.startswith("$")}
+                    print(f"  GFE YTD raw ({ytd_gfe_query}): {sample}")
+        except Exception as e:
+            print(f"  Warning: GFE YTD query failed: {e}")
 
         print(f"  GFE: month {data.gfe_completed_month} @ ${data.gfe_value_month:,.0f}, "
               f"YTD {data.gfe_completed_ytd} @ ${data.gfe_value_ytd:,.0f}")
