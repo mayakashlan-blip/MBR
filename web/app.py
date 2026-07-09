@@ -1016,50 +1016,42 @@ def api_debug_gfe():
         from src.omni_loader import _run_query, _api_get, DASHBOARD_ID
         dashboard = _api_get(f"/v1/documents/{DASHBOARD_ID}/queries", OMNI_KEY)
         queries = {q["name"]: q["query"] for q in dashboard.get("queries", [])}
-        gfe_patterns = ("gfe", "good faith", "covered sync", "covered async", "moxie sync",
-                        "moxie async", "mco gfe", "completed gfe")
-        gfe_query_name = next(
-            (n for n in queries if any(s in n.lower() for s in gfe_patterns)), None
-        )
-        if not gfe_query_name:
-            return jsonify({"error": "No GFE query found", "available": list(queries.keys())})
         start_date = f"{year}-{month:02d}-01"
-        gq = copy.deepcopy(queries[gfe_query_name])
-        gq["filters"]["dbt__moxie_medspas_mart.medspa_name"] = {
-            "kind": "EQUALS", "type": "string", "values": [practice], "is_negative": False,
-        }
-        all_field_names = list(gq.get("fields", [])) + list(gq.get("filters", {}).keys())
-        unbracketed = [f for f in all_field_names
-                       if "[" not in f and ("date" in f.lower() or "_at" in f.lower() or "issued" in f.lower())]
-        date_field = unbracketed[0] if unbracketed else None
-        if not date_field:
-            bracketed = next((f for f in all_field_names
-                              if "[" in f and ("date" in f.lower() or "_at" in f.lower() or "issued" in f.lower())), None)
-            date_field = _re.sub(r"\[[^\]]+\](?:__raw)?$", "", bracketed) if bracketed else None
-        if date_field:
-            gq["filters"][date_field] = {
-                "kind": "TIME_FOR_INTERVAL_DURATION", "type": "date", "ui_type": "PAST",
-                "left_side": start_date, "right_side": "1 months", "is_negative": False,
+        results = {}
+        for qname in ["Monthly GFE Savings", "YTD GFE Savings"]:
+            if qname not in queries:
+                results[qname] = "NOT IN DASHBOARD"
+                continue
+            gq = copy.deepcopy(queries[qname])
+            # Show raw query fields/filters so we can find the date field
+            results[f"{qname}__fields"] = gq.get("fields", [])
+            results[f"{qname}__filter_keys"] = list(gq.get("filters", {}).keys())
+            gq["filters"]["dbt__moxie_medspas_mart.medspa_name"] = {
+                "kind": "EQUALS", "type": "string", "values": [practice], "is_negative": False,
             }
-        month_r = _run_query(gq, OMNI_KEY)
-        # YTD
-        ytd_gq = copy.deepcopy(queries[gfe_query_name])
-        ytd_gq["filters"]["dbt__moxie_medspas_mart.medspa_name"] = {
-            "kind": "EQUALS", "type": "string", "values": [practice], "is_negative": False,
-        }
-        if date_field:
-            ytd_gq["filters"][date_field] = {
-                "kind": "TIME_FOR_INTERVAL_DURATION", "type": "date", "ui_type": "PAST",
-                "left_side": f"{year}-01-01", "right_side": f"{month} months", "is_negative": False,
-            }
-        ytd_r = _run_query(ytd_gq, OMNI_KEY)
-        all_query_names = sorted(queries.keys())
+            # Try date detection
+            all_field_names = list(gq.get("fields", [])) + list(gq.get("filters", {}).keys())
+            unbracketed = [f for f in all_field_names
+                           if "[" not in f and ("date" in f.lower() or "_at" in f.lower() or "issued" in f.lower())]
+            date_field = unbracketed[0] if unbracketed else None
+            if not date_field:
+                bracketed = next((f for f in all_field_names
+                                  if "[" in f and ("date" in f.lower() or "_at" in f.lower() or "issued" in f.lower())), None)
+                date_field = _re.sub(r"\[[^\]]+\](?:__raw)?$", "", bracketed) if bracketed else None
+            results[f"{qname}__date_field_detected"] = date_field
+            duration = "1 months" if "Monthly" in qname else f"{month} months"
+            left = start_date if "Monthly" in qname else f"{year}-01-01"
+            if date_field:
+                gq["filters"][date_field] = {
+                    "kind": "TIME_FOR_INTERVAL_DURATION", "type": "date", "ui_type": "PAST",
+                    "left_side": left, "right_side": duration, "is_negative": False,
+                }
+            r = _run_query(gq, OMNI_KEY)
+            results[f"{qname}__raw"] = {k: v for k, v in r.items() if not k.startswith("$")}
         return jsonify({
-            "gfe_query_name": gfe_query_name,
-            "date_field_used": date_field,
-            "all_dashboard_queries": all_query_names,
+            "all_dashboard_queries": sorted(queries.keys()),
             "monthly_raw": {k: v for k, v in month_r.items() if not k.startswith("$")},
-            "ytd_raw": {k: v for k, v in ytd_r.items() if not k.startswith("$")},
+            "query_results": results,
         })
     except Exception as e:
         import traceback
