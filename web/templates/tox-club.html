@@ -1,42 +1,141 @@
 {% extends "layout.html" %}
-{% block title %}Tox Club Partners — MBR Generator{% endblock %}
+{% block title %}Tox Club — MBR Generator{% endblock %}
 
 {% block content %}
 <div style="max-width:1200px; margin:0 auto; padding:0 24px 60px;">
 
   <div class="hero" style="padding-bottom:12px;">
-    <h1 style="margin-bottom:4px;">Tox Club Partners</h1>
-    <p style="margin:0;">Active partner list with PSM assignments. Edit inline — changes save to the server.</p>
+    <h1 style="margin-bottom:4px;">Tox Club</h1>
+    <p style="margin:0;">Manage partners and generate monthly MBR email drafts.</p>
   </div>
 
-  <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px; flex-wrap:wrap;">
-    <button onclick="addRow()" class="btn btn-primary" style="padding:8px 18px; font-size:13px;">+ Add Partner</button>
-    <button onclick="saveAll()" id="save-btn" class="btn" style="padding:8px 18px; font-size:13px; background:#2E7D32; color:white; border:none; border-radius:8px; cursor:pointer;">Save All</button>
-    <span id="save-status" style="font-size:12px; color:#8C8580;"></span>
-    <span id="partner-count" style="font-size:12px; color:#8C8580; margin-left:auto;"></span>
+  <!-- Tabs -->
+  <div style="display:flex; gap:0; border-bottom:2px solid #e8e0d8; margin-bottom:24px;">
+    <button id="tab-partners" onclick="switchTab('partners')"
+            style="padding:10px 22px; font-size:13px; font-weight:600; border:none; background:none; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-2px; font-family:inherit; color:#8C8580;">
+      Partners
+    </button>
+    <button id="tab-generate" onclick="switchTab('generate')"
+            style="padding:10px 22px; font-size:13px; font-weight:600; border:none; background:none; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-2px; font-family:inherit; color:#8C8580;">
+      Generate MBR
+    </button>
   </div>
 
-  <div style="overflow-x:auto; border:1px solid #e8e0d8; border-radius:10px;">
-    <table id="partners-table" style="width:100%; border-collapse:collapse; font-size:12px; font-family:'Instrument Sans',sans-serif;">
-      <thead>
-        <tr style="background:#282623; color:white;">
-          <th style="padding:10px 8px; text-align:left; font-weight:600; white-space:nowrap;">#</th>
-          <th style="padding:10px 8px; text-align:left; font-weight:600; white-space:nowrap; min-width:200px;">Medspa Name</th>
-          <th style="padding:10px 8px; text-align:left; font-weight:600; white-space:nowrap;">ID</th>
-          <th style="padding:10px 8px; text-align:left; font-weight:600; white-space:nowrap; min-width:180px;">Contact Email</th>
-          <th style="padding:10px 8px; text-align:left; font-weight:600; white-space:nowrap;">State</th>
-          <th style="padding:10px 8px; text-align:left; font-weight:600; white-space:nowrap; min-width:140px;">PSM</th>
-          <th style="padding:10px 8px; text-align:left; font-weight:600; white-space:nowrap; min-width:180px;">PSM Email (BCC)</th>
-          <th style="padding:10px 8px; text-align:left; font-weight:600; white-space:nowrap; min-width:180px;">Notes</th>
-          <th style="padding:10px 8px; text-align:center; font-weight:600; white-space:nowrap;">Actions</th>
-        </tr>
-      </thead>
-      <tbody id="partners-body">
-        <tr><td colspan="9" style="padding:24px; text-align:center; color:#8C8580;">Loading…</td></tr>
-      </tbody>
-    </table>
+  <!-- ── PARTNERS TAB ──────────────────────────────────────────────────── -->
+  <div id="pane-partners" style="display:none;">
+    <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px; flex-wrap:wrap;">
+      <button onclick="addRow()" class="btn btn-primary" style="padding:8px 18px; font-size:13px;">+ Add Partner</button>
+      <button onclick="saveAll()" id="save-btn" class="btn" style="padding:8px 18px; font-size:13px; background:#2E7D32; color:white; border:none; border-radius:8px; cursor:pointer;">Save All</button>
+      <span id="save-status" style="font-size:12px; color:#8C8580;"></span>
+      <span id="partner-count" style="font-size:12px; color:#8C8580; margin-left:auto;"></span>
+    </div>
+    <div style="overflow-x:auto; border:1px solid #e8e0d8; border-radius:10px;">
+      <table id="partners-table" style="width:100%; border-collapse:collapse; font-size:12px; font-family:'Instrument Sans',sans-serif;">
+        <thead>
+          <tr style="background:#282623; color:white;">
+            <th style="padding:10px 8px; text-align:left; font-weight:600; white-space:nowrap;">#</th>
+            <th style="padding:10px 8px; text-align:left; font-weight:600; white-space:nowrap; min-width:200px;">Medspa Name</th>
+            <th style="padding:10px 8px; text-align:left; font-weight:600; white-space:nowrap;">ID</th>
+            <th style="padding:10px 8px; text-align:left; font-weight:600; white-space:nowrap; min-width:180px;">Contact Email</th>
+            <th style="padding:10px 8px; text-align:left; font-weight:600; white-space:nowrap;">State</th>
+            <th style="padding:10px 8px; text-align:left; font-weight:600; white-space:nowrap; min-width:140px;">PSM</th>
+            <th style="padding:10px 8px; text-align:left; font-weight:600; white-space:nowrap; min-width:180px;">PSM Email (BCC)</th>
+            <th style="padding:10px 8px; text-align:left; font-weight:600; white-space:nowrap; min-width:180px;">Notes</th>
+            <th style="padding:10px 8px; text-align:center; font-weight:600; white-space:nowrap;">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="partners-body">
+          <tr><td colspan="9" style="padding:24px; text-align:center; color:#8C8580;">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 
+  <!-- ── GENERATE TAB ──────────────────────────────────────────────────── -->
+  <div id="pane-generate" style="display:none;">
+
+    <!-- Config row -->
+    <div style="display:flex; gap:16px; align-items:flex-end; flex-wrap:wrap; margin-bottom:20px; background:white; border:1px solid #e8e0d8; border-radius:10px; padding:20px;">
+      <div>
+        <label style="display:block; font-size:11px; font-weight:600; color:#8C8580; text-transform:uppercase; letter-spacing:.05em; margin-bottom:4px;">Month</label>
+        <select id="gen-month" style="border:1px solid #d2cbc4; border-radius:8px; padding:8px 12px; font-size:13px; font-family:inherit;">
+          <option value="1">January</option><option value="2">February</option>
+          <option value="3">March</option><option value="4">April</option>
+          <option value="5">May</option><option value="6" selected>June</option>
+          <option value="7">July</option><option value="8">August</option>
+          <option value="9">September</option><option value="10">October</option>
+          <option value="11">November</option><option value="12">December</option>
+        </select>
+      </div>
+      <div>
+        <label style="display:block; font-size:11px; font-weight:600; color:#8C8580; text-transform:uppercase; letter-spacing:.05em; margin-bottom:4px;">Year</label>
+        <select id="gen-year" style="border:1px solid #d2cbc4; border-radius:8px; padding:8px 12px; font-size:13px; font-family:inherit;">
+          <option value="2026" selected>2026</option>
+          <option value="2025">2025</option>
+        </select>
+      </div>
+      <div style="flex:1; min-width:200px;">
+        <label style="display:block; font-size:11px; font-weight:600; color:#8C8580; text-transform:uppercase; letter-spacing:.05em; margin-bottom:4px;">Custom Win Text (optional)</label>
+        <input id="gen-win" type="text" placeholder="Leave blank to auto-generate from data…"
+               style="width:100%; border:1px solid #d2cbc4; border-radius:8px; padding:8px 12px; font-size:13px; font-family:inherit; box-sizing:border-box;">
+      </div>
+      <button onclick="generatePreview()" id="gen-btn"
+              style="padding:10px 24px; background:#282623; color:white; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; font-family:inherit; white-space:nowrap;">
+        Pull Data &amp; Preview
+      </button>
+    </div>
+
+    <!-- Gmail status + drafts button -->
+    <div id="gmail-bar" style="display:flex; align-items:center; gap:12px; margin-bottom:16px; flex-wrap:wrap;">
+      <span id="gmail-status" style="font-size:12px; color:#8C8580;">Checking Gmail…</span>
+      <a href="/tox-club/gmail-setup" style="font-size:12px; color:#BB8139;">Gmail Settings</a>
+      <button onclick="createDrafts()" id="drafts-btn" disabled
+              style="margin-left:auto; padding:9px 20px; background:#1E4E64; color:white; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; font-family:inherit; opacity:0.5;">
+        Create Gmail Drafts
+      </button>
+    </div>
+
+    <!-- Progress / status line -->
+    <div id="gen-status" style="display:none; padding:12px 16px; background:#FFF8EE; border:1px solid #e8e0d8; border-radius:8px; margin-bottom:16px; font-size:13px; color:#BB8139;"></div>
+    <div id="gen-error" style="display:none; padding:12px 16px; background:#FFF0F0; border:1px solid #FFCDD2; border-radius:8px; margin-bottom:16px; font-size:13px; color:#B53631;"></div>
+
+    <!-- Results table -->
+    <div id="results-wrap" style="display:none; border:1px solid #e8e0d8; border-radius:10px; overflow:hidden;">
+      <table style="width:100%; border-collapse:collapse; font-size:12px; font-family:'Instrument Sans',sans-serif;">
+        <thead>
+          <tr style="background:#282623; color:white;">
+            <th style="padding:10px 12px; text-align:left; font-weight:600;">#</th>
+            <th style="padding:10px 12px; text-align:left; font-weight:600;">Medspa</th>
+            <th style="padding:10px 8px; text-align:center; font-weight:600;">Total</th>
+            <th style="padding:10px 8px; text-align:center; font-weight:600;">New</th>
+            <th style="padding:10px 8px; text-align:center; font-weight:600;">Returning</th>
+            <th style="padding:10px 8px; text-align:center; font-weight:600;">Pre-book</th>
+            <th style="padding:10px 8px; text-align:right; font-weight:600;">Revenue</th>
+            <th style="padding:10px 8px; text-align:center; font-weight:600;">Status</th>
+            <th style="padding:10px 12px; text-align:center; font-weight:600;">Preview</th>
+          </tr>
+        </thead>
+        <tbody id="results-body"></tbody>
+      </table>
+    </div>
+
+    <!-- Email preview modal -->
+    <div id="preview-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:2000; overflow-y:auto; padding:40px 20px;">
+      <div style="max-width:680px; margin:0 auto; background:white; border-radius:12px; overflow:hidden;">
+        <div style="padding:16px 20px; background:#282623; color:white; display:flex; justify-content:space-between; align-items:center;">
+          <span id="preview-title" style="font-weight:600; font-size:14px;"></span>
+          <button onclick="closePreview()" style="background:none; border:none; color:white; font-size:20px; cursor:pointer; padding:0; line-height:1;">&times;</button>
+        </div>
+        <div style="padding:20px;">
+          <div id="preview-subject" style="font-size:12px; color:#8C8580; margin-bottom:12px;"></div>
+          <div id="preview-frame-wrap" style="border:1px solid #e8e0d8; border-radius:8px; overflow:auto; max-height:600px;">
+            <iframe id="preview-frame" style="width:100%; min-height:500px; border:none;" sandbox="allow-same-origin"></iframe>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
 </div>
 
 <style>
@@ -66,28 +165,52 @@
   .act-cancel{ background: #e8e0d8; color: #555; }
   .act-del   { background: #fff0f0; color: #B53631; }
   .act-btn:hover { filter: brightness(0.93); }
+  .res-row td { padding:8px 8px; border-bottom:1px solid #f0ebe6; vertical-align:middle; }
+  .res-row:last-child td { border-bottom:none; }
+  .tab-active { color: #282623 !important; border-bottom-color: #282623 !important; }
+  .draft-ok   { color:#2E7D32; font-weight:600; }
+  .draft-err  { color:#B53631; }
 </style>
 
 <script>
+// ── Tab switching ──────────────────────────────────────────────────────────
+function switchTab(name) {
+  ['partners','generate'].forEach(t => {
+    document.getElementById('tab-' + t).classList.remove('tab-active');
+    document.getElementById('pane-' + t).style.display = 'none';
+  });
+  document.getElementById('tab-' + name).classList.add('tab-active');
+  document.getElementById('pane-' + name).style.display = 'block';
+  history.replaceState(null, '', '?tab=' + name);
+}
+
+// Init tab from URL param
+(function() {
+  const p = new URLSearchParams(location.search);
+  const tab = p.get('tab') || 'partners';
+  switchTab(tab);
+  if (p.get('gmail') === 'connected') {
+    setTimeout(() => alert('Gmail connected successfully!'), 300);
+  }
+})();
+
+// ── Partners tab ──────────────────────────────────────────────────────────
 let partners = [];
 let dirty = false;
 
 fetch('/api/tox-club/partners')
   .then(r => r.json())
-  .then(data => {
-    partners = data;
-    render();
-  })
+  .then(data => { partners = data; renderPartners(); })
   .catch(() => {
     document.getElementById('partners-body').innerHTML =
       '<tr><td colspan="9" style="padding:24px;text-align:center;color:#B53631;">Failed to load partners.</td></tr>';
   });
 
-function render() {
+function renderPartners() {
   const tbody = document.getElementById('partners-body');
   document.getElementById('partner-count').textContent = partners.length + ' partners';
   if (!partners.length) {
-    tbody.innerHTML = '<tr><td colspan="9" style="padding:24px;text-align:center;color:#8C8580;">No partners yet — click "+ Add Partner" to start.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" style="padding:24px;text-align:center;color:#8C8580;">No partners yet.</td></tr>';
     return;
   }
   tbody.innerHTML = partners.map((p, i) => rowHtml(p, i)).join('');
@@ -128,7 +251,7 @@ function editRow(i) {
     <td style="padding:4px 6px;"><input class="tc-input" id="e-notes-${i}" value="${escAttr(p.notes)}" placeholder="e.g. Grandfathered pricing"></td>
     <td style="padding:4px 6px;text-align:center;white-space:nowrap;">
       <button class="act-btn act-save" onclick="saveRow(${i})">Save</button>
-      <button class="act-btn act-cancel" onclick="render()" style="margin-left:4px;">Cancel</button>
+      <button class="act-btn act-cancel" onclick="renderPartners()" style="margin-left:4px;">Cancel</button>
     </td>`;
 }
 
@@ -143,14 +266,14 @@ function saveRow(i) {
     notes:     document.getElementById('e-notes-' + i).value.trim(),
   };
   dirty = true;
-  render();
-  setStatus('Unsaved changes — click Save All', '#BB8139');
+  renderPartners();
+  setSaveStatus('Unsaved changes — click Save All', '#BB8139');
 }
 
 function addRow() {
   partners.push({ name: '', id: '', email: '', state: '', psm: '', psm_email: '', notes: '' });
   dirty = true;
-  render();
+  renderPartners();
   editRow(partners.length - 1);
   document.getElementById('row-' + (partners.length - 1)).scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
@@ -159,15 +282,15 @@ function deleteRow(i) {
   if (!confirm(`Remove "${partners[i].name || 'this row'}"?`)) return;
   partners.splice(i, 1);
   dirty = true;
-  render();
-  setStatus('Unsaved changes — click Save All', '#BB8139');
+  renderPartners();
+  setSaveStatus('Unsaved changes — click Save All', '#BB8139');
 }
 
 async function saveAll() {
   const btn = document.getElementById('save-btn');
   btn.disabled = true;
   btn.textContent = 'Saving…';
-  setStatus('', '');
+  setSaveStatus('', '');
   try {
     const r = await fetch('/api/tox-club/partners', {
       method: 'POST',
@@ -177,22 +300,181 @@ async function saveAll() {
     const d = await r.json();
     if (d.ok) {
       dirty = false;
-      setStatus('Saved ✓ (' + d.count + ' partners)', '#2E7D32');
+      setSaveStatus('Saved ✓ (' + d.count + ' partners)', '#2E7D32');
     } else {
-      setStatus('Save failed: ' + (d.error || 'unknown'), '#B53631');
+      setSaveStatus('Save failed: ' + (d.error || 'unknown'), '#B53631');
     }
   } catch (e) {
-    setStatus('Save failed: ' + e.message, '#B53631');
+    setSaveStatus('Save failed: ' + e.message, '#B53631');
   } finally {
     btn.disabled = false;
     btn.textContent = 'Save All';
   }
 }
 
-function setStatus(msg, color) {
+function setSaveStatus(msg, color) {
   const el = document.getElementById('save-status');
   el.textContent = msg;
   el.style.color = color;
+}
+
+window.addEventListener('beforeunload', e => {
+  if (dirty) { e.preventDefault(); e.returnValue = ''; }
+});
+
+// ── Generate tab ──────────────────────────────────────────────────────────
+let generatedEmails = [];
+
+// Check Gmail status on load
+fetch('/api/tox-club/gmail-status')
+  .then(r => r.json())
+  .then(d => {
+    const el = document.getElementById('gmail-status');
+    if (d.connected) {
+      el.textContent = '✓ Gmail connected';
+      el.style.color = '#2E7D32';
+    } else {
+      el.innerHTML = '⚠ Gmail not connected — <a href="/tox-club/gmail-setup" style="color:#BB8139;">connect now</a>';
+      el.style.color = '#BB8139';
+    }
+  })
+  .catch(() => {});
+
+async function generatePreview() {
+  const month = parseInt(document.getElementById('gen-month').value);
+  const year = parseInt(document.getElementById('gen-year').value);
+  const winText = document.getElementById('gen-win').value.trim();
+
+  const btn = document.getElementById('gen-btn');
+  btn.disabled = true;
+  btn.textContent = 'Pulling data…';
+  document.getElementById('gen-status').style.display = 'block';
+  document.getElementById('gen-status').textContent = 'Querying Omni for all partners… this may take 60–90s.';
+  document.getElementById('gen-error').style.display = 'none';
+  document.getElementById('results-wrap').style.display = 'none';
+  document.getElementById('drafts-btn').disabled = true;
+  document.getElementById('drafts-btn').style.opacity = '0.5';
+
+  try {
+    const r = await fetch('/api/tox-club/generate-preview', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ month, year, win_text: winText }),
+    });
+    const d = await r.json();
+    if (!d.ok) { showGenError(d.error || 'Generation failed'); return; }
+
+    generatedEmails = d.emails;
+    renderResults(d.emails, month, year);
+    document.getElementById('gen-status').style.display = 'none';
+    document.getElementById('results-wrap').style.display = 'block';
+    document.getElementById('drafts-btn').disabled = false;
+    document.getElementById('drafts-btn').style.opacity = '1';
+  } catch(e) {
+    showGenError('Network error: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Pull Data & Preview';
+  }
+}
+
+const MONTH_NAMES = ['','January','February','March','April','May','June',
+                     'July','August','September','October','November','December'];
+
+function renderResults(emails, month, year) {
+  const tbody = document.getElementById('results-body');
+  tbody.innerHTML = emails.map((e, i) => {
+    const s = e.stats || {};
+    const total = s.total != null ? s.total : '—';
+    const newM  = s.new_members != null ? s.new_members : '—';
+    const retM  = s.returning_members != null ? s.returning_members : '—';
+    const pb    = s.prebook_rate != null ? Math.round(s.prebook_rate * 100) + '%' : '—';
+    const rev   = s.revenue ? '$' + Number(s.revenue).toLocaleString('en-US', {maximumFractionDigits:0}) : '$0';
+    const statusBadge = e.status === 'error'
+      ? `<span style="color:#B53631;font-size:11px;">Error</span>`
+      : `<span style="color:#2E7D32;font-size:11px;">Ready</span>`;
+    const draftBadge = e.draft_status
+      ? (e.draft_status === 'drafted'
+         ? '<span class="draft-ok">✓ Drafted</span>'
+         : `<span class="draft-err">✗ ${escHtml(e.draft_error || 'Error')}</span>`)
+      : '';
+    return `<tr class="res-row">
+      <td style="padding:8px 12px;color:#8C8580;font-size:11px;">${i+1}</td>
+      <td style="padding:8px 12px;font-weight:500;">${escHtml(e.name)}
+        ${draftBadge ? '<br><span style="font-size:11px;">' + draftBadge + '</span>' : ''}
+      </td>
+      <td style="padding:8px 8px;text-align:center;">${total}</td>
+      <td style="padding:8px 8px;text-align:center;">${newM}</td>
+      <td style="padding:8px 8px;text-align:center;">${retM}</td>
+      <td style="padding:8px 8px;text-align:center;">${pb}</td>
+      <td style="padding:8px 8px;text-align:right;">${rev}</td>
+      <td style="padding:8px 8px;text-align:center;">${statusBadge}</td>
+      <td style="padding:8px 12px;text-align:center;">
+        ${e.html ? `<button class="act-btn act-edit" onclick="previewEmail(${i})">Preview</button>` : '—'}
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function previewEmail(i) {
+  const em = generatedEmails[i];
+  document.getElementById('preview-title').textContent = em.name;
+  document.getElementById('preview-subject').textContent = 'Subject: ' + (em.subject || '');
+  const frame = document.getElementById('preview-frame');
+  frame.srcdoc = em.html;
+  document.getElementById('preview-modal').style.display = 'block';
+  document.body.style.overflow = 'hidden';
+}
+
+function closePreview() {
+  document.getElementById('preview-modal').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+async function createDrafts() {
+  if (!generatedEmails.length) return;
+  const btn = document.getElementById('drafts-btn');
+  btn.disabled = true;
+  btn.textContent = 'Creating drafts…';
+  document.getElementById('gen-status').style.display = 'block';
+  document.getElementById('gen-status').textContent = 'Creating Gmail drafts…';
+  document.getElementById('gen-error').style.display = 'none';
+
+  try {
+    const r = await fetch('/api/tox-club/create-drafts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ emails: generatedEmails }),
+    });
+    const d = await r.json();
+    if (!d.ok && d.error) { showGenError(d.error); return; }
+
+    // Merge draft statuses into generatedEmails
+    (d.results || []).forEach((res, idx) => {
+      if (generatedEmails[idx]) {
+        generatedEmails[idx].draft_status = res.status;
+        generatedEmails[idx].draft_error = res.error || '';
+      }
+    });
+    const month = parseInt(document.getElementById('gen-month').value);
+    const year = parseInt(document.getElementById('gen-year').value);
+    renderResults(generatedEmails, month, year);
+
+    document.getElementById('gen-status').textContent =
+      `✓ ${d.drafted} draft${d.drafted !== 1 ? 's' : ''} created in Gmail.${d.errors ? ' ' + d.errors + ' failed.' : ''} Open Gmail, switch From to medspas@jointoxclub.com, then send.`;
+  } catch(e) {
+    showGenError('Network error: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Create Gmail Drafts';
+  }
+}
+
+function showGenError(msg) {
+  const el = document.getElementById('gen-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+  document.getElementById('gen-status').style.display = 'none';
 }
 
 function escHtml(s) {
@@ -201,9 +483,5 @@ function escHtml(s) {
 function escAttr(s) {
   return String(s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;');
 }
-
-window.addEventListener('beforeunload', e => {
-  if (dirty) { e.preventDefault(); e.returnValue = ''; }
-});
 </script>
 {% endblock %}

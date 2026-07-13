@@ -1,0 +1,60 @@
+{% extends "layout.html" %}
+{% block title %}Tox Club — Gmail Setup{% endblock %}
+{% block content %}
+<div style="max-width:600px; margin:40px auto; padding:0 24px;">
+  <a href="/tox-club?tab=generate" style="font-size:13px; color:#8C8580; text-decoration:none;">&larr; Back to Tox Club</a>
+  <div class="hero" style="padding-bottom:12px; margin-top:16px;">
+    <h1 style="margin-bottom:4px;">Gmail Connection</h1>
+    <p style="margin:0;">Connect Gmail so the app can create draft emails on Lisa's behalf.</p>
+  </div>
+
+  {% if connected %}
+  <div style="background:#E8F5E9; border:1px solid #A5D6A7; border-radius:10px; padding:20px; margin-bottom:24px;">
+    <p style="font-weight:600; color:#2E7D32; margin:0 0 4px;">&#10003; Gmail is connected</p>
+    <p style="font-size:13px; color:#2E7D32; margin:0;">Draft creation is enabled. You can re-connect below to refresh permissions.</p>
+  </div>
+  {% else %}
+  <div style="background:#FFF3E0; border:1px solid #FFB74D; border-radius:10px; padding:20px; margin-bottom:24px;">
+    <p style="font-weight:600; color:#E65100; margin:0 0 4px;">&#9888; Gmail not connected</p>
+    <p style="font-size:13px; color:#7A3700; margin:0;">You need to connect Gmail before creating drafts.</p>
+  </div>
+  {% endif %}
+
+  {% if not has_client_id %}
+  <div style="background:#FFF8F8; border:1px solid #FFCDD2; border-radius:10px; padding:20px; margin-bottom:24px;">
+    <p style="font-weight:600; color:#B71C1C; margin:0 0 8px;">GOOGLE_CLIENT_ID not set</p>
+    <p style="font-size:13px; color:#555; margin:0 0 12px;">Add these environment variables in Render before connecting:</p>
+    <code style="display:block; background:#f5f5f5; padding:12px; border-radius:6px; font-size:12px; line-height:1.8;">
+      GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com<br>
+      GOOGLE_CLIENT_SECRET=your-client-secret<br>
+      APP_BASE_URL=https://mbr-4hbe.onrender.com
+    </code>
+    <p style="font-size:12px; color:#888; margin:12px 0 0;">
+      Create credentials at <strong>console.cloud.google.com</strong> → APIs &amp; Services → Credentials → OAuth 2.0 Client ID (Web application).<br>
+      Add <code>https://mbr-4hbe.onrender.com/tox-club/gmail-callback</code> as an authorized redirect URI.
+    </p>
+  </div>
+  {% else %}
+  <div style="background:white; border:1px solid #e8e0d8; border-radius:10px; padding:24px; margin-bottom:24px;">
+    <h3 style="margin:0 0 8px; font-size:15px;">Connect Lisa's Gmail</h3>
+    <p style="font-size:13px; color:#555; margin:0 0 20px;">
+      This will open a Google sign-in page. Sign in as <strong>medspas@jointoxclub.com</strong> and grant access to create Gmail drafts.
+      The permission is stored securely — you only need to do this once.
+    </p>
+    <a href="/tox-club/gmail-auth"
+       style="display:inline-block; background:#282623; color:white; padding:12px 24px; border-radius:8px; text-decoration:none; font-weight:600; font-size:14px;">
+      Connect Gmail Account
+    </a>
+  </div>
+  {% endif %}
+
+  <div style="background:#FAFAF7; border:1px solid #e8e0d8; border-radius:10px; padding:20px;">
+    <h3 style="margin:0 0 8px; font-size:14px;">How it works</h3>
+    <ol style="font-size:13px; color:#555; margin:0; padding-left:20px; line-height:1.8;">
+      <li>You connect Gmail once using Google OAuth.</li>
+      <li>When you click "Create Drafts", the app creates all email drafts in Gmail under medspas@jointoxclub.com.</li>
+      <li>Open Gmail, review each draft, switch the From field if needed, and send.</li>
+    </ol>
+  </div>
+</div>
+{% endblock %}

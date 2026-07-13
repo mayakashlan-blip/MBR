@@ -2278,7 +2278,194 @@ def api_save_tox_partners():
         return jsonify({"error": "Expected a list"}), 400
     _save_tox_partners(partners)
     return jsonify({"ok": True, "count": len(partners)})
-    
+
+
+# Tox Club Gmail token storage
+TOX_GMAIL_TOKEN_FILE = Path(_persist_base) / "tox_gmail_tokens.json"
+
+def _load_gmail_tokens() -> dict:
+    if TOX_GMAIL_TOKEN_FILE.exists():
+        try:
+            with open(TOX_GMAIL_TOKEN_FILE) as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {}
+
+def _save_gmail_tokens(tokens: dict):
+    TOX_GMAIL_TOKEN_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with open(TOX_GMAIL_TOKEN_FILE, "w") as f:
+        json.dump(tokens, f)
+
+def _gmail_redirect_uri() -> str:
+    base = os.environ.get("APP_BASE_URL", "https://mbr-4hbe.onrender.com")
+    return base.rstrip("/") + "/tox-club/gmail-callback"
+
+
+@app.route("/tox-club/gmail-setup")
+def tox_gmail_setup():
+    """Show Gmail connection status + OAuth button."""
+    tokens = _load_gmail_tokens()
+    connected = bool(tokens.get("refresh_token") or os.environ.get("GOOGLE_REFRESH_TOKEN"))
+    client_id = os.environ.get("GOOGLE_CLIENT_ID", "")
+    return render_template("tox-club-gmail-setup.html",
+                           connected=connected,
+                           has_client_id=bool(client_id))
+
+
+@app.route("/tox-club/gmail-auth")
+def tox_gmail_auth():
+    """Redirect to Google OAuth."""
+    try:
+        from src.tox_club_email import build_gmail_auth_url
+    except ImportError:
+        return "Email module not available", 500
+    client_id = os.environ.get("GOOGLE_CLIENT_ID", "")
+    if not client_id:
+        return "GOOGLE_CLIENT_ID environment variable not set", 400
+    url = build_gmail_auth_url(client_id, _gmail_redirect_uri())
+    return redirect(url)
+
+
+@app.route("/tox-club/gmail-callback")
+def tox_gmail_callback():
+    """Handle OAuth callback and store refresh token."""
+    code = request.args.get("code")
+    error = request.args.get("error")
+    if error:
+        return f"OAuth error: {error}", 400
+    if not code:
+        return "No auth code received", 400
+    try:
+        from src.tox_club_email import exchange_code_for_tokens
+        client_id = os.environ.get("GOOGLE_CLIENT_ID", "")
+        client_secret = os.environ.get("GOOGLE_CLIENT_SECRET", "")
+        tokens = exchange_code_for_tokens(code, client_id, client_secret, _gmail_redirect_uri())
+        if "refresh_token" not in tokens:
+            return f"No refresh token in response: {tokens}", 400
+        _save_gmail_tokens({"refresh_token": tokens["refresh_token"]})
+        return redirect("/tox-club?tab=generate&gmail=connected")
+    except Exception as e:
+        return f"Token exchange failed: {e}", 500
+
+
+@app.route("/api/tox-club/gmail-status")
+def api_tox_gmail_status():
+    tokens = _load_gmail_tokens()
+    connected = bool(tokens.get("refresh_token") or os.environ.get("GOOGLE_REFRESH_TOKEN"))
+    return jsonify({"connected": connected})
+
+
+@app.route("/api/tox-club/generate-preview", methods=["POST"])
+def api_tox_generate_preview():
+    """Pull Omni data for all partners and return rendered email HTML + stats."""
+    body = request.json or {}
+    month = int(body.get("month", 1))
+    year = int(body.get("year", 2026))
+    win_text = body.get("win_text", "")  # optional custom win
+
+    if not OMNI_KEY:
+        return jsonify({"error": "OMNI_API_KEY not configured"}), 500
+
+    try:
+        from src.tox_club_loader import load_tox_club_stats
+        from src.tox_club_email import render_email_html, MONTH_NAMES
+    except ImportError as e:
+        return jsonify({"error": f"Module import failed: {e}"}), 500
+
+    partners = _load_tox_partners()
+    results = []
+
+    for p in partners:
+        name = p.get("name", "")
+        medspa_id_str = p.get("id", "")
+        if not name:
+            continue
+
+        item = {"name": name, "id": medspa_id_str, "email": p.get("email", ""),
+                "psm_email": p.get("psm_email", ""), "status": "ok", "html": "", "stats": {}}
+
+        try:
+            stats = load_tox_club_stats(name, month, year, OMNI_KEY)
+            item["stats"] = {k: v for k, v in stats.items() if k != "debug"}
+
+            subject = f"Tox Club: Your {MONTH_NAMES[month]} {year} Highlights ✨"
+            html = render_email_html(
+                p, stats, month, year,
+                win_text=win_text or None
+            )
+            item["html"] = html
+            item["subject"] = subject
+        except Exception as e:
+            item["status"] = "error"
+            item["error"] = str(e)
+
+        results.append(item)
+
+    return jsonify({"ok": True, "month": month, "year": year, "emails": results})
+
+
+@app.route("/api/tox-club/create-drafts", methods=["POST"])
+def api_tox_create_drafts():
+    """Create Gmail drafts for each email in the payload."""
+    body = request.json or {}
+    emails = body.get("emails", [])
+
+    if not emails:
+        return jsonify({"error": "No emails provided"}), 400
+
+    # Get Gmail credentials
+    tokens = _load_gmail_tokens()
+    refresh_token = tokens.get("refresh_token") or os.environ.get("GOOGLE_REFRESH_TOKEN", "")
+    client_id = os.environ.get("GOOGLE_CLIENT_ID", "")
+    client_secret = os.environ.get("GOOGLE_CLIENT_SECRET", "")
+
+    if not refresh_token:
+        return jsonify({"error": "Gmail not connected. Go to /tox-club/gmail-setup first."}), 400
+    if not client_id or not client_secret:
+        return jsonify({"error": "GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET not set."}), 400
+
+    try:
+        from src.tox_club_email import get_gmail_access_token, create_gmail_draft
+        access_token = get_gmail_access_token(refresh_token, client_id, client_secret)
+    except Exception as e:
+        return jsonify({"error": f"Failed to get Gmail access token: {e}"}), 500
+
+    results = []
+    for em in emails:
+        to = em.get("email", "")
+        bcc = em.get("psm_email", "")
+        subject = em.get("subject", "Tox Club MBR")
+        html = em.get("html", "")
+        name = em.get("name", "")
+
+        if not to or not html:
+            results.append({"name": name, "status": "skipped", "reason": "missing to/html"})
+            continue
+
+        try:
+            draft_id = create_gmail_draft(to, bcc, subject, html, access_token)
+            results.append({"name": name, "status": "drafted", "draft_id": draft_id})
+        except Exception as e:
+            results.append({"name": name, "status": "error", "error": str(e)})
+
+    drafted = sum(1 for r in results if r["status"] == "drafted")
+    errors = sum(1 for r in results if r["status"] == "error")
+    return jsonify({"ok": True, "drafted": drafted, "errors": errors, "results": results})
+
+
+@app.route("/api/tox-club/discover-fields")
+def api_tox_discover_fields():
+    """Debug endpoint: discover available Tox Club Omni fields."""
+    if not OMNI_KEY:
+        return jsonify({"error": "OMNI_API_KEY not configured"}), 500
+    try:
+        from src.tox_club_loader import discover_tox_club_fields
+        return jsonify(discover_tox_club_fields(OMNI_KEY))
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "--omni-key":
         OMNI_KEY = sys.argv[2]
