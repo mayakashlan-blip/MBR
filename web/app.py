@@ -2198,6 +2198,86 @@ def api_batch_download(job_id):
 @app.route('/supplies-savings')
 def supplies_savings():
     return redirect('/static/supplies-savings/app/dashboard.html')
+
+
+# ── Tox Club Partner List ─────────────────────────────────────────────────────
+
+TOX_CLUB_FILE = Path(_persist_base) / "tox_club_partners.json"
+
+_TOX_CLUB_DEFAULTS = [
+    {"name": "AM Aesthetics & Wellness", "id": "1551", "email": "amaestheticsandwellness@gmail.com", "state": "VA", "psm": "Ericka Olmos", "psm_email": "ericka@joinmoxie.com", "notes": ""},
+    {"name": "Adela Medical Spa", "id": "1349", "email": "adelamedspa7@gmail.com", "state": "OH", "psm": "Ericka Olmos", "psm_email": "ericka@joinmoxie.com", "notes": ""},
+    {"name": "Advanced Aesthetics + Wellness", "id": "1435", "email": "aawbyrenata@gmail.com", "state": "TX", "psm": "Michelle Garcia", "psm_email": "michellegarcia@joinmoxie.com", "notes": ""},
+    {"name": "Aesthetics Lab", "id": "800", "email": "hello@aestheticslabdetroit.com", "state": "MI", "psm": "Alisha Faber", "psm_email": "alisha@joinmoxie.com", "notes": ""},
+    {"name": "Alesca Aesthetics", "id": "1426", "email": "info@alescaaesthetics.com", "state": "PA", "psm": "Katie Sensing", "psm_email": "katie@joinmoxie.com", "notes": ""},
+    {"name": "Aloha Aesthetic", "id": "1450", "email": "hello@alohadetroit.com", "state": "MI", "psm": "Alisha Faber", "psm_email": "alisha@joinmoxie.com", "notes": ""},
+    {"name": "Aunt Boujee", "id": "171", "email": "auntboujee@gmail.com", "state": "OH", "psm": "Kendra Waller", "psm_email": "kendra@joinmoxie.com", "notes": ""},
+    {"name": "Bay Delta Aesthetics", "id": "1529", "email": "danied32@yahoo.com", "state": "TX", "psm": "Jaqlyn Dreas", "psm_email": "jaqlyn@joinmoxie.com", "notes": ""},
+    {"name": "BeautiLab Aesthetics", "id": "1480", "email": "hello@beautilab-aesthetics.com", "state": "VA", "psm": "Ericka Olmos", "psm_email": "ericka@joinmoxie.com", "notes": ""},
+    {"name": "Beauty Babes Clinique", "id": "1698", "email": "beautybabesclinique@gmail.com", "state": "OH", "psm": "Sarah Smith", "psm_email": "sarahsmith@joinmoxie.com", "notes": ""},
+    {"name": "Beauty Revival Barn", "id": "1908", "email": "cici@beautyrevivalbarn.com", "state": "TX", "psm": "Meredith DeSousa", "psm_email": "meredith.desousa@joinmoxie.com", "notes": ""},
+    {"name": "Blue Rose Aesthetics - Canton", "id": "2102", "email": "info@blueroseaesthetics.com", "state": "OH", "psm": "Sarah Smith", "psm_email": "sarahsmith@joinmoxie.com", "notes": ""},
+    {"name": "Blue Rose Aesthetics - Dublin", "id": "1530", "email": "info@blueroseaesthetics.com", "state": "OH", "psm": "Sarah Smith", "psm_email": "sarahsmith@joinmoxie.com", "notes": ""},
+    {"name": "Brilliant Aesthetics", "id": "95", "email": "kimberlyenochs@yahoo.com", "state": "OH", "psm": "Katie Sensing", "psm_email": "katie@joinmoxie.com", "notes": "Grandfathered: $363 new / $463 returning"},
+    {"name": "Centurion Injects + IV Drips", "id": "298", "email": "contact@centurioninjects.com", "state": "TX", "psm": "Kendra Waller", "psm_email": "kendra@joinmoxie.com", "notes": ""},
+    {"name": "Coastal Glo Med Spa", "id": "1195", "email": "sammi@coastalglo.com", "state": "TX", "psm": "Sarah Smith", "psm_email": "sarahsmith@joinmoxie.com", "notes": ""},
+    {"name": "Diverse Aesthetics", "id": "1224", "email": "info@diverseaesthetics.com", "state": "VA", "psm": "Sarah Smith", "psm_email": "sarahsmith@joinmoxie.com", "notes": ""},
+    {"name": "Eden Medspa", "id": "1271", "email": "info@edenmedispa.com", "state": "OH", "psm": "Michelle Garcia", "psm_email": "michellegarcia@joinmoxie.com", "notes": "Grandfathered: $363 new / $463 returning"},
+    {"name": "Elisa Grace Medspa & Boutique", "id": "1347", "email": "elisagracemedspa@gmail.com", "state": "TX", "psm": "Kendra Waller", "psm_email": "kendra@joinmoxie.com", "notes": ""},
+    {"name": "Ember Aesthetics", "id": "", "email": "emberaes814@gmail.com", "state": "PA", "psm": "", "psm_email": "", "notes": "No PSM — no BCC. Data from Notion tracker."},
+    {"name": "Ivy Hydration, Wellness & Aesthetics", "id": "1225", "email": "iloveivyhydration@yahoo.com", "state": "TX", "psm": "Michelle Garcia", "psm_email": "michellegarcia@joinmoxie.com", "notes": ""},
+    {"name": "MediFresh Medspa", "id": "1477", "email": "info@medifreshmedspa.com", "state": "PA", "psm": "Growth Success", "psm_email": "growthsuccess@joinmoxie.com", "notes": "BCC: growthsuccess@joinmoxie.com"},
+    {"name": "Metamorphosis Aesthetics & Wellness", "id": "1369", "email": "metamorph.aw@gmail.com", "state": "VA", "psm": "Sarah Smith", "psm_email": "sarahsmith@joinmoxie.com", "notes": ""},
+    {"name": "Mindful Aesthetics & Wellness", "id": "1312", "email": "mindfulsalem@gmail.com", "state": "OH", "psm": "Sarah Smith", "psm_email": "sarahsmith@joinmoxie.com", "notes": ""},
+    {"name": "Olamic Beauty", "id": "1123", "email": "olamicbeauty@olamicbeautyllc.com", "state": "PA", "psm": "Juliana Herrero", "psm_email": "juliana@joinmoxie.com", "notes": ""},
+    {"name": "One Nova Med Spa", "id": "1290", "email": "mail@onenovamedspa.com", "state": "OH", "psm": "Katie Sensing", "psm_email": "katie@joinmoxie.com", "notes": ""},
+    {"name": "Proyecto Belleza Aesthetics", "id": "1126", "email": "Proyectobelleza22@gmail.com", "state": "PA", "psm": "Chrissie Zimbleman", "psm_email": "chrissie.zimbleman@joinmoxie.com", "notes": ""},
+    {"name": "Remedy Aesthetics & Weight Loss", "id": "639", "email": "info@remedyivhydration.com", "state": "TX", "psm": "Michelle Garcia", "psm_email": "michellegarcia@joinmoxie.com", "notes": ""},
+    {"name": "Restore & Balance Medical Services", "id": "1156", "email": "restoreandbalance@yahoo.com", "state": "OH", "psm": "Megan Koncek", "psm_email": "megan@joinmoxie.com", "notes": "Grandfathered: $363 new / $463 returning"},
+    {"name": "Revive Wellness & Esthetics", "id": "1476", "email": "contact@revivewellnessandesthetics.com", "state": "PA", "psm": "Ericka Olmos", "psm_email": "ericka@joinmoxie.com", "notes": ""},
+    {"name": "Sage Aesthetics", "id": "1007", "email": "sageaestheticspa@gmail.com", "state": "MI", "psm": "Marcus Repp", "psm_email": "marcus.repp@joinmoxie.com", "notes": ""},
+    {"name": "Savvy Aesthetics", "id": "1308", "email": "savvyaestheticssa@gmail.com", "state": "TX", "psm": "Michelle Garcia", "psm_email": "michellegarcia@joinmoxie.com", "notes": ""},
+    {"name": "Sheer Complexions", "id": "1446", "email": "fitnesspep2024@gmail.com", "state": "OH", "psm": "Ericka Olmos", "psm_email": "ericka@joinmoxie.com", "notes": ""},
+    {"name": "Shes Got The Look", "id": "1145", "email": "sheila@shesgotthelook.net", "state": "PA", "psm": "Katie Sensing", "psm_email": "katie@joinmoxie.com", "notes": ""},
+    {"name": "Urban Chic Aesthetix", "id": "946", "email": "urbanchicaesthetix@gmail.com", "state": "TX", "psm": "Kendra Waller", "psm_email": "kendra@joinmoxie.com", "notes": ""},
+    {"name": "Youngblood Aesthetics", "id": "1843", "email": "youngbloodaesthetics@gmail.com", "state": "MI", "psm": "Sarah Smith", "psm_email": "sarahsmith@joinmoxie.com", "notes": ""},
+    {"name": "Zion Medspa", "id": "2021", "email": "info@zionmedspa.net", "state": "OH", "psm": "Michelle Garcia", "psm_email": "michellegarcia@joinmoxie.com", "notes": ""},
+]
+
+
+def _load_tox_partners():
+    if TOX_CLUB_FILE.exists():
+        try:
+            with open(TOX_CLUB_FILE) as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return list(_TOX_CLUB_DEFAULTS)
+
+
+def _save_tox_partners(partners):
+    TOX_CLUB_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with open(TOX_CLUB_FILE, "w") as f:
+        json.dump(partners, f, indent=2)
+
+
+@app.route("/tox-club")
+def tox_club_page():
+    return render_template("tox-club.html")
+
+
+@app.route("/api/tox-club/partners", methods=["GET"])
+def api_get_tox_partners():
+    return jsonify(_load_tox_partners())
+
+
+@app.route("/api/tox-club/partners", methods=["POST"])
+def api_save_tox_partners():
+    partners = request.json
+    if not isinstance(partners, list):
+        return jsonify({"error": "Expected a list"}), 400
+    _save_tox_partners(partners)
+    return jsonify({"ok": True, "count": len(partners)})
     
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "--omni-key":

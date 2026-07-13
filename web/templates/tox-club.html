@@ -1,0 +1,209 @@
+{% extends "layout.html" %}
+{% block title %}Tox Club Partners — MBR Generator{% endblock %}
+
+{% block content %}
+<div style="max-width:1200px; margin:0 auto; padding:0 24px 60px;">
+
+  <div class="hero" style="padding-bottom:12px;">
+    <h1 style="margin-bottom:4px;">Tox Club Partners</h1>
+    <p style="margin:0;">Active partner list with PSM assignments. Edit inline — changes save to the server.</p>
+  </div>
+
+  <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px; flex-wrap:wrap;">
+    <button onclick="addRow()" class="btn btn-primary" style="padding:8px 18px; font-size:13px;">+ Add Partner</button>
+    <button onclick="saveAll()" id="save-btn" class="btn" style="padding:8px 18px; font-size:13px; background:#2E7D32; color:white; border:none; border-radius:8px; cursor:pointer;">Save All</button>
+    <span id="save-status" style="font-size:12px; color:#8C8580;"></span>
+    <span id="partner-count" style="font-size:12px; color:#8C8580; margin-left:auto;"></span>
+  </div>
+
+  <div style="overflow-x:auto; border:1px solid #e8e0d8; border-radius:10px;">
+    <table id="partners-table" style="width:100%; border-collapse:collapse; font-size:12px; font-family:'Instrument Sans',sans-serif;">
+      <thead>
+        <tr style="background:#282623; color:white;">
+          <th style="padding:10px 8px; text-align:left; font-weight:600; white-space:nowrap;">#</th>
+          <th style="padding:10px 8px; text-align:left; font-weight:600; white-space:nowrap; min-width:200px;">Medspa Name</th>
+          <th style="padding:10px 8px; text-align:left; font-weight:600; white-space:nowrap;">ID</th>
+          <th style="padding:10px 8px; text-align:left; font-weight:600; white-space:nowrap; min-width:180px;">Contact Email</th>
+          <th style="padding:10px 8px; text-align:left; font-weight:600; white-space:nowrap;">State</th>
+          <th style="padding:10px 8px; text-align:left; font-weight:600; white-space:nowrap; min-width:140px;">PSM</th>
+          <th style="padding:10px 8px; text-align:left; font-weight:600; white-space:nowrap; min-width:180px;">PSM Email (BCC)</th>
+          <th style="padding:10px 8px; text-align:left; font-weight:600; white-space:nowrap; min-width:180px;">Notes</th>
+          <th style="padding:10px 8px; text-align:center; font-weight:600; white-space:nowrap;">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="partners-body">
+        <tr><td colspan="9" style="padding:24px; text-align:center; color:#8C8580;">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<style>
+  .tc-row td { padding: 6px 8px; border-bottom: 1px solid #f0ebe6; vertical-align:middle; }
+  .tc-row:last-child td { border-bottom: none; }
+  .tc-row:hover { background: #FAFAF7; }
+  .tc-row.editing { background: #FFF8EE; }
+  .tc-input {
+    width: 100%; border: 1px solid #c8bfb4; border-radius: 5px;
+    padding: 4px 7px; font-size: 12px; font-family: inherit;
+    background: white; box-sizing: border-box;
+  }
+  .tc-input:focus { outline: none; border-color: #BB8139; box-shadow: 0 0 0 2px rgba(187,129,57,.15); }
+  .tc-cell { color: #2D2A28; }
+  .tc-num { color: #8C8580; font-size: 11px; }
+  .note-pill {
+    display: inline-block; background: #FFF3E0; color: #B8711A;
+    border-radius: 4px; padding: 2px 7px; font-size: 10px; font-weight:600;
+  }
+  .note-pill.gf { background: #E3F2FD; color: #1565C0; }
+  .act-btn {
+    border: none; border-radius: 5px; padding: 4px 10px; font-size: 11px;
+    cursor: pointer; font-family: inherit; font-weight: 500;
+  }
+  .act-edit  { background: #f0ebe6; color: #282623; }
+  .act-save  { background: #2E7D32; color: white; }
+  .act-cancel{ background: #e8e0d8; color: #555; }
+  .act-del   { background: #fff0f0; color: #B53631; }
+  .act-btn:hover { filter: brightness(0.93); }
+</style>
+
+<script>
+let partners = [];
+let dirty = false;
+
+fetch('/api/tox-club/partners')
+  .then(r => r.json())
+  .then(data => {
+    partners = data;
+    render();
+  })
+  .catch(() => {
+    document.getElementById('partners-body').innerHTML =
+      '<tr><td colspan="9" style="padding:24px;text-align:center;color:#B53631;">Failed to load partners.</td></tr>';
+  });
+
+function render() {
+  const tbody = document.getElementById('partners-body');
+  document.getElementById('partner-count').textContent = partners.length + ' partners';
+  if (!partners.length) {
+    tbody.innerHTML = '<tr><td colspan="9" style="padding:24px;text-align:center;color:#8C8580;">No partners yet — click "+ Add Partner" to start.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = partners.map((p, i) => rowHtml(p, i)).join('');
+}
+
+function rowHtml(p, i) {
+  const noteHtml = p.notes
+    ? `<span class="note-pill${p.notes.includes('Grandfathered') ? ' gf' : ''}">${escHtml(p.notes)}</span>`
+    : '<span style="color:#c8bfb4;font-size:11px;">—</span>';
+  return `<tr class="tc-row" id="row-${i}" data-idx="${i}">
+    <td class="tc-num" style="padding:6px 8px;border-bottom:1px solid #f0ebe6;">${i + 1}</td>
+    <td class="tc-cell" style="padding:6px 8px;border-bottom:1px solid #f0ebe6;font-weight:500;">${escHtml(p.name)}</td>
+    <td class="tc-cell" style="padding:6px 8px;border-bottom:1px solid #f0ebe6;color:#8C8580;">${escHtml(p.id)}</td>
+    <td class="tc-cell" style="padding:6px 8px;border-bottom:1px solid #f0ebe6;">${escHtml(p.email)}</td>
+    <td class="tc-cell" style="padding:6px 8px;border-bottom:1px solid #f0ebe6;">${escHtml(p.state)}</td>
+    <td class="tc-cell" style="padding:6px 8px;border-bottom:1px solid #f0ebe6;">${escHtml(p.psm)}</td>
+    <td class="tc-cell" style="padding:6px 8px;border-bottom:1px solid #f0ebe6;">${escHtml(p.psm_email)}</td>
+    <td style="padding:6px 8px;border-bottom:1px solid #f0ebe6;">${noteHtml}</td>
+    <td style="padding:6px 8px;border-bottom:1px solid #f0ebe6;text-align:center;white-space:nowrap;">
+      <button class="act-btn act-edit" onclick="editRow(${i})">Edit</button>
+      <button class="act-btn act-del" onclick="deleteRow(${i})" style="margin-left:4px;">✕</button>
+    </td>
+  </tr>`;
+}
+
+function editRow(i) {
+  const p = partners[i];
+  const row = document.getElementById('row-' + i);
+  row.classList.add('editing');
+  row.innerHTML = `
+    <td class="tc-num" style="padding:6px 8px;">${i + 1}</td>
+    <td style="padding:4px 6px;"><input class="tc-input" id="e-name-${i}" value="${escAttr(p.name)}" placeholder="Medspa name"></td>
+    <td style="padding:4px 6px;"><input class="tc-input" id="e-id-${i}" value="${escAttr(p.id)}" placeholder="ID" style="width:70px;"></td>
+    <td style="padding:4px 6px;"><input class="tc-input" id="e-email-${i}" value="${escAttr(p.email)}" placeholder="contact@email.com"></td>
+    <td style="padding:4px 6px;"><input class="tc-input" id="e-state-${i}" value="${escAttr(p.state)}" placeholder="TX" style="width:50px;"></td>
+    <td style="padding:4px 6px;"><input class="tc-input" id="e-psm-${i}" value="${escAttr(p.psm)}" placeholder="PSM Name"></td>
+    <td style="padding:4px 6px;"><input class="tc-input" id="e-psm-email-${i}" value="${escAttr(p.psm_email)}" placeholder="psm@joinmoxie.com"></td>
+    <td style="padding:4px 6px;"><input class="tc-input" id="e-notes-${i}" value="${escAttr(p.notes)}" placeholder="e.g. Grandfathered pricing"></td>
+    <td style="padding:4px 6px;text-align:center;white-space:nowrap;">
+      <button class="act-btn act-save" onclick="saveRow(${i})">Save</button>
+      <button class="act-btn act-cancel" onclick="render()" style="margin-left:4px;">Cancel</button>
+    </td>`;
+}
+
+function saveRow(i) {
+  partners[i] = {
+    name:      document.getElementById('e-name-' + i).value.trim(),
+    id:        document.getElementById('e-id-' + i).value.trim(),
+    email:     document.getElementById('e-email-' + i).value.trim(),
+    state:     document.getElementById('e-state-' + i).value.trim(),
+    psm:       document.getElementById('e-psm-' + i).value.trim(),
+    psm_email: document.getElementById('e-psm-email-' + i).value.trim(),
+    notes:     document.getElementById('e-notes-' + i).value.trim(),
+  };
+  dirty = true;
+  render();
+  setStatus('Unsaved changes — click Save All', '#BB8139');
+}
+
+function addRow() {
+  partners.push({ name: '', id: '', email: '', state: '', psm: '', psm_email: '', notes: '' });
+  dirty = true;
+  render();
+  editRow(partners.length - 1);
+  document.getElementById('row-' + (partners.length - 1)).scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function deleteRow(i) {
+  if (!confirm(`Remove "${partners[i].name || 'this row'}"?`)) return;
+  partners.splice(i, 1);
+  dirty = true;
+  render();
+  setStatus('Unsaved changes — click Save All', '#BB8139');
+}
+
+async function saveAll() {
+  const btn = document.getElementById('save-btn');
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+  setStatus('', '');
+  try {
+    const r = await fetch('/api/tox-club/partners', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(partners),
+    });
+    const d = await r.json();
+    if (d.ok) {
+      dirty = false;
+      setStatus('Saved ✓ (' + d.count + ' partners)', '#2E7D32');
+    } else {
+      setStatus('Save failed: ' + (d.error || 'unknown'), '#B53631');
+    }
+  } catch (e) {
+    setStatus('Save failed: ' + e.message, '#B53631');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Save All';
+  }
+}
+
+function setStatus(msg, color) {
+  const el = document.getElementById('save-status');
+  el.textContent = msg;
+  el.style.color = color;
+}
+
+function escHtml(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function escAttr(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+}
+
+window.addEventListener('beforeunload', e => {
+  if (dirty) { e.preventDefault(); e.returnValue = ''; }
+});
+</script>
+{% endblock %}
