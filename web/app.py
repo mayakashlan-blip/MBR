@@ -2295,13 +2295,16 @@ def _load_gmail_tokens() -> dict:
 # Tox Club revenue CSV storage
 TOX_CSV_FILE = Path(_persist_base) / "tox_club_revenue.csv"
 
+_BUNDLED_CSV = PROJECT_ROOT / "data" / "tox_club_revenue.csv"
+
 def _load_tox_csv_data() -> dict:
-    """Load parsed CSV data from disk. Returns {} if not uploaded yet."""
-    if not TOX_CSV_FILE.exists():
+    """Load parsed CSV — prefers persistent disk, falls back to bundled repo copy."""
+    csv_path = TOX_CSV_FILE if TOX_CSV_FILE.exists() else _BUNDLED_CSV
+    if not csv_path.exists():
         return {}
     try:
         from src.tox_club_loader import parse_tox_club_revenue_csv
-        return parse_tox_club_revenue_csv(TOX_CSV_FILE.read_text(encoding="utf-8"))
+        return parse_tox_club_revenue_csv(csv_path.read_text(encoding="utf-8"))
     except Exception:
         return {}
 
@@ -2513,6 +2516,37 @@ def api_tox_create_drafts():
     drafted = sum(1 for r in results if r["status"] == "drafted")
     errors = sum(1 for r in results if r["status"] == "error")
     return jsonify({"ok": True, "drafted": drafted, "errors": errors, "results": results})
+
+
+@app.route("/api/tox-club/probe-embed-docs")
+def api_tox_probe_embed_docs():
+    """Probe the 4 document IDs found in the Tox Club Revenue embed URL.
+    Returns the query names from each so we know which doc has revenue data.
+    URL: https://moxie.omniapp.co/e/8:KZFydMq1,10:TRn8jDVs,2:pA0ZYeHg,11:Na2QJt1P/8
+    """
+    if not OMNI_KEY:
+        return jsonify({"error": "OMNI_API_KEY not configured"}), 500
+    from src.omni_loader import _api_get
+    candidates = {
+        "KZFydMq1": None,
+        "TRn8jDVs": None,
+        "pA0ZYeHg": None,
+        "Na2QJt1P": None,
+    }
+    for doc_id in candidates:
+        try:
+            resp = _api_get(f"/v1/documents/{doc_id}/queries", OMNI_KEY)
+            # Omni returns {"queries": [...]} where each query has a "name" field
+            queries = resp if isinstance(resp, list) else resp.get("queries", resp)
+            names = []
+            if isinstance(queries, list):
+                for q in queries:
+                    if isinstance(q, dict):
+                        names.append(q.get("name") or q.get("label") or str(list(q.keys())[:3]))
+            candidates[doc_id] = {"ok": True, "query_count": len(names), "query_names": names}
+        except Exception as e:
+            candidates[doc_id] = {"ok": False, "error": str(e)}
+    return jsonify(candidates)
 
 
 @app.route("/api/tox-club/discover-fields")
