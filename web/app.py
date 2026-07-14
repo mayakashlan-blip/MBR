@@ -2518,35 +2518,63 @@ def api_tox_create_drafts():
     return jsonify({"ok": True, "drafted": drafted, "errors": errors, "results": results})
 
 
-@app.route("/api/tox-club/probe-embed-docs")
-def api_tox_probe_embed_docs():
-    """Probe the 4 document IDs found in the Tox Club Revenue embed URL.
-    Returns the query names from each so we know which doc has revenue data.
-    URL: https://moxie.omniapp.co/e/8:KZFydMq1,10:TRn8jDVs,2:pA0ZYeHg,11:Na2QJt1P/8
-    """
+@app.route("/api/tox-club/probe-invoice-fields")
+def api_tox_probe_invoice_fields():
+    """Discover available credit/coverage field names in dbt__moxie_invoices_mart
+    for Tox Club invoices, so we can build a live Omni revenue query."""
     if not OMNI_KEY:
         return jsonify({"error": "OMNI_API_KEY not configured"}), 500
-    from src.omni_loader import _api_get
-    candidates = {
-        "KZFydMq1": None,
-        "TRn8jDVs": None,
-        "pA0ZYeHg": None,
-        "Na2QJt1P": None,
+    from src.omni_loader import _run_query
+
+    bool_filter = {"kind": "EQUALS", "type": "boolean", "values": [True], "is_negative": False}
+    date_filter = {"kind": "TIME_FOR_INTERVAL_DURATION", "type": "date", "ui_type": "PAST",
+                   "left_side": "2026-01-01", "right_side": "6 months", "is_negative": False}
+
+    # Try candidate field names for credits used
+    credit_candidates = [
+        "dbt__moxie_invoices_mart.tox_club_credits_used",
+        "dbt__moxie_invoices_mart.membership_credits_applied",
+        "dbt__moxie_invoices_mart.credits_amount",
+        "dbt__moxie_invoices_mart.total_credits_used",
+        "dbt__moxie_invoices_mart.credit_amount",
+        "dbt__moxie_invoices_mart.tox_credits_applied",
+        "dbt__moxie_invoices_mart.membership_credit_amount",
+        "dbt__moxie_invoices_mart.credits_applied",
+        "dbt__moxie_invoices_mart.tox_club_credit_amount",
+    ]
+
+    results = {}
+    base_filters = {
+        "dbt__moxie_invoices_mart.is_tox_club_appointment": bool_filter,
+        "dbt__moxie_invoices_mart.invoice_issued_date": date_filter,
     }
-    for doc_id in candidates:
+
+    # First confirm paid amount + medspa name work
+    try:
+        r = _run_query({
+            "fields": ["dbt__moxie_medspas_mart.medspa_name",
+                       "dbt__moxie_invoices_mart.total_paid_amount"],
+            "filters": base_filters,
+            "limit": 3,
+        }, OMNI_KEY)
+        results["_baseline"] = {"ok": True, "keys": list(r.keys())}
+    except Exception as e:
+        results["_baseline"] = {"ok": False, "error": str(e)}
+
+    # Try each credit candidate
+    for field in credit_candidates:
         try:
-            resp = _api_get(f"/v1/documents/{doc_id}/queries", OMNI_KEY)
-            # Omni returns {"queries": [...]} where each query has a "name" field
-            queries = resp if isinstance(resp, list) else resp.get("queries", resp)
-            names = []
-            if isinstance(queries, list):
-                for q in queries:
-                    if isinstance(q, dict):
-                        names.append(q.get("name") or q.get("label") or str(list(q.keys())[:3]))
-            candidates[doc_id] = {"ok": True, "query_count": len(names), "query_names": names}
+            r = _run_query({
+                "fields": ["dbt__moxie_invoices_mart.total_paid_amount", field],
+                "filters": base_filters,
+                "limit": 3,
+            }, OMNI_KEY)
+            vals = r.get(field, [])
+            results[field] = {"ok": True, "sample": vals[:3]}
         except Exception as e:
-            candidates[doc_id] = {"ok": False, "error": str(e)}
-    return jsonify(candidates)
+            results[field] = {"ok": False, "error": str(e)[:80]}
+
+    return jsonify(results)
 
 
 @app.route("/api/tox-club/discover-fields")
