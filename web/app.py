@@ -2531,6 +2531,29 @@ def api_tox_create_drafts():
     return jsonify({"ok": True, "drafted": drafted, "errors": errors, "results": results})
 
 
+@app.route("/api/tox-club/medspa-stats")
+def api_tox_medspa_stats():
+    """Return live Tox Club medspa stats (appointments + revenue) for a given month."""
+    month = int(request.args.get("month", 6))
+    year  = int(request.args.get("year",  2026))
+    if not OMNI_KEY:
+        return jsonify({"error": "OMNI_API_KEY not configured"}), 500
+    try:
+        from src.tox_club_loader import get_query_map, load_all_tox_club_revenue, load_all_tox_club_appt_counts
+        query_map = get_query_map(OMNI_KEY)
+        revenue = load_all_tox_club_revenue(month, year, OMNI_KEY, query_map=query_map)
+        counts  = load_all_tox_club_appt_counts(month, year, OMNI_KEY, query_map=query_map)
+        all_names = sorted(set(list(revenue.keys()) + list(counts.keys())))
+        rows = [
+            {"name": n, "appointments": counts.get(n, 0), "revenue": revenue.get(n, {}).get("paid", 0.0)}
+            for n in all_names
+        ]
+        rows.sort(key=lambda r: r["name"])
+        return jsonify({"ok": True, "rows": rows, "month": month, "year": year})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
 @app.route("/api/tox-club/test-revenue")
 def api_tox_test_revenue():
     """Test bulk Tox Club revenue + appointment queries for June 2026."""
