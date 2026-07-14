@@ -2415,13 +2415,23 @@ def api_tox_generate_preview():
         return jsonify({"error": "OMNI_API_KEY not configured"}), 500
 
     try:
-        from src.tox_club_loader import load_tox_club_stats, get_revenue_from_csv
+        from src.tox_club_loader import load_tox_club_stats, load_all_tox_club_revenue
         from src.tox_club_email import render_email_html, MONTH_NAMES
     except ImportError as e:
         return jsonify({"error": f"Module import failed: {e}"}), 500
 
-    # Load CSV revenue data if uploaded
-    csv_data = _load_tox_csv_data()
+    # Bulk-fetch revenue for all medspas at once; fall back to CSV on error
+    bulk_revenue = {}
+    revenue_source = "none"
+    try:
+        bulk_revenue = load_all_tox_club_revenue(month, year, OMNI_KEY)
+        revenue_source = "omni_bulk"
+        print(f"  Bulk revenue loaded: {len(bulk_revenue)} medspas")
+    except Exception as e:
+        print(f"  Bulk revenue failed ({e}), falling back to CSV")
+        csv_data = _load_tox_csv_data()
+        if csv_data:
+            revenue_source = "csv"
 
     partners = _load_tox_partners()
     results = []
@@ -2439,14 +2449,18 @@ def api_tox_generate_preview():
             # Pull appointment stats from Omni
             stats = load_tox_club_stats(name, month, year, OMNI_KEY)
 
-            # Override revenue from CSV if available (more reliable than raw Omni query)
-            if csv_data and medspa_id_str:
+            # Merge revenue from bulk Omni query or CSV fallback
+            if revenue_source == "omni_bulk":
+                rev = bulk_revenue.get(name.lower().strip())
+                if rev and rev.get("paid", 0) > 0:
+                    stats["revenue"] = rev["paid"]
+                    stats["revenue_source"] = "omni_bulk"
+            elif revenue_source == "csv" and medspa_id_str:
                 try:
+                    from src.tox_club_loader import get_revenue_from_csv
                     csv_rev = get_revenue_from_csv(csv_data, int(medspa_id_str), month, year)
                     if csv_rev and csv_rev.get("paid", 0) > 0:
                         stats["revenue"] = csv_rev["paid"]
-                        stats["tox_credits"] = csv_rev["credits"]
-                        stats["tox_pct"] = csv_rev["pct"]
                         stats["revenue_source"] = "csv"
                 except (ValueError, TypeError):
                     pass
@@ -2518,71 +2532,18 @@ def api_tox_create_drafts():
     return jsonify({"ok": True, "drafted": drafted, "errors": errors, "results": results})
 
 
-@app.route("/api/tox-club/probe-invoice-fields")
-def api_tox_probe_invoice_fields():
-    """Find the invoice query topic from the main dashboard, then probe credit fields."""
+@app.route("/api/tox-club/test-revenue")
+def api_tox_test_revenue():
+    """Test the bulk Tox Club revenue query for June 2026."""
     if not OMNI_KEY:
         return jsonify({"error": "OMNI_API_KEY not configured"}), 500
-    from src.omni_loader import _api_get, _run_query
-    import copy
-
-    DASHBOARD_ID = "bfd963dd"
-
-    # Step 1: grab the main dashboard queries and find an invoice-based one for its topic
     try:
-        dashboard = _api_get(f"/v1/documents/{DASHBOARD_ID}/queries", OMNI_KEY)
+        from src.tox_club_loader import load_all_tox_club_revenue
+        data = load_all_tox_club_revenue(6, 2026, OMNI_KEY)
+        return jsonify({"ok": True, "medspa_count": len(data),
+                        "sample": dict(list(data.items())[:5])})
     except Exception as e:
-        return jsonify({"error": f"Dashboard fetch failed: {e}"}), 500
-
-    queries = dashboard if isinstance(dashboard, list) else dashboard.get("queries", [])
-
-    # Build name→inner_query map (same as omni_loader.py line 193)
-    query_map = {q["name"]: q["query"] for q in queries}
-    invoice_inner = query_map.get("Total Membership Revenue")
-    if not invoice_inner:
-        return jsonify({"error": "Total Membership Revenue not found", "available": list(query_map.keys())})
-
-    # Correct boolean filter format (from raw query dump)
-    bool_true  = {"is_negative": False, "treat_nulls_as_false": False, "type": "boolean"}
-    date_filter = {"kind": "TIME_FOR_INTERVAL_DURATION", "type": "date", "ui_type": "PAST",
-                   "left_side": "2026-01-01", "right_side": "6 months", "is_negative": False}
-
-    results = {"_inner_keys": list(invoice_inner.keys()), "_model_id": invoice_inner.get("modelId")}
-
-    # Probe each candidate field + tox filter combinations
-    tox_filter_candidates = {
-        "no_tox": None,
-        "inv_is_tox_appt": "dbt__moxie_invoices_mart.is_tox_club_appointment",
-        "appt_is_tox_appt": "dbt__moxie_appointments_mart.is_tox_club_appointment",
-        "inv_is_tox": "dbt__moxie_invoices_mart.is_tox_club",
-    }
-    probe_fields = [
-        "dbt__moxie_invoices_mart.total_paid_amount",
-        "dbt__moxie_medspas_mart.medspa_name",
-        "dbt__moxie_invoices_mart.tox_club_credits_used",
-        "dbt__moxie_invoices_mart.membership_credits_applied",
-        "dbt__moxie_invoices_mart.credit_amount",
-        "dbt__moxie_invoices_mart.credits_applied",
-    ]
-
-    for tox_label, tox_field in tox_filter_candidates.items():
-        for field in probe_fields:
-            try:
-                q = copy.deepcopy(invoice_inner)
-                q["fields"] = [field]
-                q["filters"] = {"dbt__moxie_medspas_mart.is_demo_or_test_medspa":
-                                    {"is_negative": True, "treat_nulls_as_false": False, "type": "boolean"},
-                                "dbt__moxie_invoices_mart.invoice_issued_date": date_filter}
-                if tox_field:
-                    q["filters"][tox_field] = bool_true
-                q.pop("sorts", None)
-                r = _run_query(q, OMNI_KEY)
-                vals = r.get(field, [])
-                results[f"{tox_label}__{field}"] = {"ok": True, "rows": len(vals), "sample": [v for v in vals if v][:3]}
-            except Exception as e:
-                results[f"{tox_label}__{field}"] = {"ok": False, "error": str(e)[:100]}
-
-    return jsonify(results)
+        return jsonify({"ok": False, "error": str(e)})
 
     # Step 2: use the topic to probe credit field names
     bool_filter = {"kind": "EQUALS", "type": "boolean", "values": [True], "is_negative": False}
