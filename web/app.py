@@ -2415,23 +2415,31 @@ def api_tox_generate_preview():
         return jsonify({"error": "OMNI_API_KEY not configured"}), 500
 
     try:
-        from src.tox_club_loader import load_tox_club_stats, load_all_tox_club_revenue
+        from src.tox_club_loader import (get_query_map, load_all_tox_club_revenue,
+                                         load_all_tox_club_appt_counts)
         from src.tox_club_email import render_email_html, MONTH_NAMES
     except ImportError as e:
         return jsonify({"error": f"Module import failed: {e}"}), 500
 
-    # Bulk-fetch revenue for all medspas at once; fall back to CSV on error
-    bulk_revenue = {}
-    revenue_source = "none"
+    # Fetch dashboard once, then run two bulk queries
     try:
-        bulk_revenue = load_all_tox_club_revenue(month, year, OMNI_KEY)
-        revenue_source = "omni_bulk"
-        print(f"  Bulk revenue loaded: {len(bulk_revenue)} medspas")
+        query_map = get_query_map(OMNI_KEY)
     except Exception as e:
-        print(f"  Bulk revenue failed ({e}), falling back to CSV")
-        csv_data = _load_tox_csv_data()
-        if csv_data:
-            revenue_source = "csv"
+        return jsonify({"error": f"Dashboard fetch failed: {e}"}), 500
+
+    bulk_revenue = {}
+    try:
+        bulk_revenue = load_all_tox_club_revenue(month, year, OMNI_KEY, query_map=query_map)
+        print(f"  Bulk revenue: {len(bulk_revenue)} medspas")
+    except Exception as e:
+        print(f"  Bulk revenue failed: {e}")
+
+    bulk_counts = {}
+    try:
+        bulk_counts = load_all_tox_club_appt_counts(month, year, OMNI_KEY, query_map=query_map)
+        print(f"  Bulk counts: {len(bulk_counts)} medspas")
+    except Exception as e:
+        print(f"  Bulk counts failed: {e}")
 
     partners = _load_tox_partners()
     results = []
@@ -2446,24 +2454,15 @@ def api_tox_generate_preview():
                 "psm_email": p.get("psm_email", ""), "status": "ok", "html": "", "stats": {}}
 
         try:
-            # Pull appointment stats from Omni
-            stats = load_tox_club_stats(name, month, year, OMNI_KEY)
-
-            # Merge revenue from bulk Omni query or CSV fallback
-            if revenue_source == "omni_bulk":
-                rev = bulk_revenue.get(name.lower().strip())
-                if rev and rev.get("paid", 0) > 0:
-                    stats["revenue"] = rev["paid"]
-                    stats["revenue_source"] = "omni_bulk"
-            elif revenue_source == "csv" and medspa_id_str:
-                try:
-                    from src.tox_club_loader import get_revenue_from_csv
-                    csv_rev = get_revenue_from_csv(csv_data, int(medspa_id_str), month, year)
-                    if csv_rev and csv_rev.get("paid", 0) > 0:
-                        stats["revenue"] = csv_rev["paid"]
-                        stats["revenue_source"] = "csv"
-                except (ValueError, TypeError):
-                    pass
+            name_lower = name.lower().strip()
+            stats = {
+                "total":             bulk_counts.get(name_lower, 0),
+                "new_members":       None,
+                "returning_members": None,
+                "prebook_rate":      None,
+                "revenue":           bulk_revenue.get(name_lower, {}).get("paid", 0.0),
+                "debug":             {},
+            }
 
             item["stats"] = {k: v for k, v in stats.items() if k != "debug"}
 
@@ -2534,19 +2533,27 @@ def api_tox_create_drafts():
 
 @app.route("/api/tox-club/test-revenue")
 def api_tox_test_revenue():
-    """Dump fields from all invoice/revenue queries to find correct field names."""
+    """Test bulk Tox Club revenue + appointment queries for June 2026."""
     if not OMNI_KEY:
         return jsonify({"error": "OMNI_API_KEY not configured"}), 500
-    from src.omni_loader import _api_get
-    dashboard = _api_get(f"/v1/documents/bfd963dd/queries", OMNI_KEY)
-    query_map = {q["name"]: q["query"] for q in dashboard.get("queries", [])}
-    targets = ["Total Membership Revenue", "Gross Revenue Breakdown Summary",
-               "Gross Revenue By Official Service Type", "KPI: Net Revenue",
-               "Net Revenue, YTD", "Gross Sales By Category, Monthly"]
-    return jsonify({
-        name: query_map[name].get("fields", [])
-        for name in targets if name in query_map
-    })
+    try:
+        from src.tox_club_loader import (get_query_map, load_all_tox_club_revenue,
+                                         load_all_tox_club_appt_counts)
+        query_map = get_query_map(OMNI_KEY)
+        out = {}
+        try:
+            rev = load_all_tox_club_revenue(6, 2026, OMNI_KEY, query_map=query_map)
+            out["revenue"] = {"ok": True, "count": len(rev), "sample": dict(list(rev.items())[:5])}
+        except Exception as e:
+            out["revenue"] = {"ok": False, "error": str(e)}
+        try:
+            cnt = load_all_tox_club_appt_counts(6, 2026, OMNI_KEY, query_map=query_map)
+            out["appointments"] = {"ok": True, "count": len(cnt), "sample": dict(list(cnt.items())[:5])}
+        except Exception as e:
+            out["appointments"] = {"ok": False, "error": str(e)}
+        return jsonify(out)
+    except Exception as e:
+        return jsonify({"error": str(e)})
 
     # Step 2: use the topic to probe credit field names
     bool_filter = {"kind": "EQUALS", "type": "boolean", "values": [True], "is_negative": False}

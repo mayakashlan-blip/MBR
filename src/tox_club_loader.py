@@ -235,35 +235,37 @@ def get_revenue_from_csv(csv_data: dict, medspa_id: int, month: int, year: int) 
 
 
 _DASHBOARD_ID = "bfd963dd"
+_BOOL_TRUE  = {"is_negative": False, "treat_nulls_as_false": False, "type": "boolean"}
+_BOOL_FALSE = {"is_negative": True,  "treat_nulls_as_false": False, "type": "boolean"}
+_NO_DEMO    = {"dbt__moxie_medspas_mart.is_demo_or_test_medspa": _BOOL_FALSE}
 
 
-def load_all_tox_club_revenue(month: int, year: int, api_key: str) -> dict:
-    """Bulk Omni query: Tox Club revenue for ALL medspas for one month.
-
-    Returns {medspa_name_lower: {"paid": float, "credits": float}} or {} on failure.
-    Uses "Total Membership Revenue" inner query as the structural base so Omni gets
-    the correct modelId / join_paths_from_topic_name / version without guessing.
-    """
+def get_query_map(api_key: str) -> dict:
+    """Fetch the main dashboard once; returns name→inner_query map."""
     dashboard = _api_get(f"/v1/documents/{_DASHBOARD_ID}/queries", api_key)
-    query_map = {q["name"]: q["query"] for q in dashboard.get("queries", [])}
+    return {q["name"]: q["query"] for q in dashboard.get("queries", [])}
+
+
+def load_all_tox_club_revenue(month: int, year: int, api_key: str,
+                               query_map: dict = None) -> dict:
+    """Bulk Omni query: Tox Club revenue for ALL medspas for one month.
+    Returns {medspa_name_lower: {"paid": float}}.
+    """
+    if query_map is None:
+        query_map = get_query_map(api_key)
     base = query_map.get("Total Membership Revenue")
     if not base:
-        raise RuntimeError("Total Membership Revenue query not found in dashboard")
+        raise RuntimeError("'Total Membership Revenue' not found in dashboard")
 
     start_date = f"{year}-{month:02d}-01"
-
     q = copy.deepcopy(base)
     q["fields"] = [
         "dbt__moxie_medspas_mart.medspa_name",
-        "dbt__moxie_invoices_mart.total_paid_amount",
+        "dbt__moxie_invoices_mart.subtotal__membership_sum",
     ]
     q["filters"] = {
-        "dbt__moxie_medspas_mart.is_demo_or_test_medspa": {
-            "is_negative": True, "treat_nulls_as_false": False, "type": "boolean",
-        },
-        "dbt__moxie_invoices_mart.is_tox_club_appointment": {
-            "is_negative": False, "treat_nulls_as_false": False, "type": "boolean",
-        },
+        **_NO_DEMO,
+        "dbt__moxie_invoices_mart.is_tox_club_appointment": _BOOL_TRUE,
         "dbt__moxie_invoices_mart.invoice_issued_date": _date_filter(start_date, "1 months"),
     }
     q.pop("sorts", None)
@@ -271,16 +273,45 @@ def load_all_tox_club_revenue(month: int, year: int, api_key: str) -> dict:
 
     r = _run_query(q, api_key)
     names = r.get("dbt__moxie_medspas_mart.medspa_name", [])
-    revenues = r.get("dbt__moxie_invoices_mart.total_paid_amount", [])
+    revs  = r.get("dbt__moxie_invoices_mart.subtotal__membership_sum", [])
+    return {
+        (n or "").lower().strip(): {"paid": float(v) if v is not None else 0.0}
+        for n, v in zip(names, revs) if n
+    }
 
-    result = {}
-    for name, rev in zip(names, revenues):
-        if name:
-            result[name.lower().strip()] = {
-                "paid": float(rev) if rev is not None else 0.0,
-                "credits": 0.0,
-            }
-    return result
+
+def load_all_tox_club_appt_counts(month: int, year: int, api_key: str,
+                                   query_map: dict = None) -> dict:
+    """Bulk Omni query: Tox Club appointment counts for ALL medspas for one month.
+    Returns {medspa_name_lower: int}.
+    """
+    if query_map is None:
+        query_map = get_query_map(api_key)
+    base = query_map.get("KPI: Paid Appointments")
+    if not base:
+        raise RuntimeError("'KPI: Paid Appointments' not found in dashboard")
+
+    start_date = f"{year}-{month:02d}-01"
+    q = copy.deepcopy(base)
+    q["fields"] = [
+        "dbt__moxie_medspas_mart.medspa_name",
+        "dbt__moxie_appointments_mart.count",
+    ]
+    q["filters"] = {
+        **_NO_DEMO,
+        "dbt__moxie_appointments_mart.is_tox_club_appointment": _BOOL_TRUE,
+        "dbt__moxie_appointments_mart.start_time": _date_filter(start_date, "1 months"),
+    }
+    q.pop("sorts", None)
+    q["limit"] = 5000
+
+    r = _run_query(q, api_key)
+    names  = r.get("dbt__moxie_medspas_mart.medspa_name", [])
+    counts = r.get("dbt__moxie_appointments_mart.count", [])
+    return {
+        (n or "").lower().strip(): int(c) if c is not None else 0
+        for n, c in zip(names, counts) if n
+    }
 
 
 def discover_tox_club_fields(api_key: str) -> dict:
