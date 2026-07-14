@@ -2549,19 +2549,22 @@ def api_tox_probe_invoice_fields():
                 invoice_base = copy.deepcopy(q)
 
     if not invoice_base:
-        # Return info about what queries exist so we can debug
         return jsonify({
             "error": "No invoice query found in dashboard",
             "available_queries": [q.get("name", "?") for q in queries[:20]],
             "query_topics": list({q.get("topic", "?") for q in queries}),
         })
 
-    topic = invoice_base.get("topic", "")
-    results = {
-        "_invoice_query_names": invoice_query_names,
-        "_topic": topic,
-        "_base_query_keys": list(invoice_base.keys()),
-    }
+    # Return the raw structure so we know what we're working with
+    return jsonify({
+        "invoice_query_name": invoice_base.get("name"),
+        "topic": invoice_base.get("topic"),
+        "model": invoice_base.get("model"),
+        "fields": invoice_base.get("fields"),
+        "filter_keys": list((invoice_base.get("filters") or {}).keys()),
+        "top_level_keys": list(invoice_base.keys()),
+        "all_invoice_queries": invoice_query_names,
+    })
 
     # Step 2: use the topic to probe credit field names
     bool_filter = {"kind": "EQUALS", "type": "boolean", "values": [True], "is_negative": False}
