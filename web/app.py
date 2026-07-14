@@ -2533,7 +2533,7 @@ def api_tox_create_drafts():
 
 @app.route("/api/tox-club/medspa-stats")
 def api_tox_medspa_stats():
-    """Return live Tox Club medspa stats (appointments + revenue) for a given month."""
+    """Return live Tox Club medspa stats joined with partner list for a given month."""
     month = int(request.args.get("month", 6))
     year  = int(request.args.get("year",  2026))
     if not OMNI_KEY:
@@ -2543,12 +2543,23 @@ def api_tox_medspa_stats():
         query_map = get_query_map(OMNI_KEY)
         revenue = load_all_tox_club_revenue(month, year, OMNI_KEY, query_map=query_map)
         counts  = load_all_tox_club_appt_counts(month, year, OMNI_KEY, query_map=query_map)
-        all_names = sorted(set(list(revenue.keys()) + list(counts.keys())))
-        rows = [
-            {"name": n, "appointments": counts.get(n, 0), "revenue": revenue.get(n, {}).get("paid", 0.0)}
-            for n in all_names
-        ]
-        rows.sort(key=lambda r: r["name"])
+        # Join Omni data with stored partner list (use partner list as the source of truth)
+        partners = _load_tox_partners()
+        rows = []
+        for p in partners:
+            name = p.get("name", "")
+            key  = name.lower().strip()
+            rows.append({
+                "name":      name,
+                "state":     p.get("state", ""),
+                "psm":       p.get("psm", ""),
+                "email":     p.get("email", ""),
+                "psm_email": p.get("psm_email", ""),
+                "notes":     p.get("notes", ""),
+                "appointments": counts.get(key, 0),
+                "revenue":      revenue.get(key, {}).get("paid", 0.0),
+            })
+        rows.sort(key=lambda r: r["name"].lower())
         return jsonify({"ok": True, "rows": rows, "month": month, "year": year})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)})

@@ -47,13 +47,16 @@
         <thead>
           <tr style="background:#282623; color:white;">
             <th style="padding:10px 12px; text-align:left; font-weight:600;">#</th>
-            <th style="padding:10px 12px; text-align:left; font-weight:600; min-width:220px;">Medspa Name</th>
+            <th style="padding:10px 12px; text-align:left; font-weight:600; min-width:200px;">Medspa Name</th>
+            <th style="padding:10px 12px; text-align:left; font-weight:600; min-width:60px;">State</th>
+            <th style="padding:10px 12px; text-align:left; font-weight:600; min-width:120px;">PSM</th>
+            <th style="padding:10px 12px; text-align:left; font-weight:600; min-width:180px;">Contact Email</th>
             <th style="padding:10px 12px; text-align:center; font-weight:600;">Appointments</th>
             <th style="padding:10px 12px; text-align:right; font-weight:600;">Revenue</th>
           </tr>
         </thead>
         <tbody id="partners-body">
-          <tr><td colspan="4" style="padding:32px; text-align:center; color:#8C8580;">Select a month and click Load Data.</td></tr>
+          <tr><td colspan="7" style="padding:32px; text-align:center; color:#8C8580;">Select a month and click Load Data.</td></tr>
         </tbody>
       </table>
     </div>
@@ -215,7 +218,7 @@ async function loadPartnerStats() {
   btn.textContent = 'Loading…';
   status.textContent = 'Querying Omni…';
   status.style.color = '#BB8139';
-  tbody.innerHTML = '<tr><td colspan="4" style="padding:32px;text-align:center;color:#8C8580;">Loading…</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="7" style="padding:32px;text-align:center;color:#8C8580;">Loading…</td></tr>';
 
   try {
     const r = await fetch(`/api/tox-club/medspa-stats?month=${month}&year=${year}`);
@@ -223,11 +226,11 @@ async function loadPartnerStats() {
     if (!d.ok) { status.textContent = 'Error: ' + d.error; status.style.color = '#B53631'; return; }
 
     const rows = d.rows || [];
-    count.textContent = rows.length + ' medspas';
+    count.textContent = rows.length + ' partners';
     status.textContent = '';
 
     if (!rows.length) {
-      tbody.innerHTML = '<tr><td colspan="4" style="padding:32px;text-align:center;color:#8C8580;">No data found.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" style="padding:32px;text-align:center;color:#8C8580;">No data found.</td></tr>';
       return;
     }
 
@@ -236,9 +239,15 @@ async function loadPartnerStats() {
         ? '$' + Number(row.revenue).toLocaleString('en-US', {maximumFractionDigits: 0})
         : '<span style="color:#c8bfb4;">—</span>';
       const appt = row.appointments > 0 ? row.appointments : '<span style="color:#c8bfb4;">—</span>';
+      const email = row.email
+        ? `<a href="mailto:${escHtml(row.email)}" style="color:#BB8139;text-decoration:none;">${escHtml(row.email)}</a>`
+        : '<span style="color:#c8bfb4;">—</span>';
       return `<tr class="res-row">
         <td style="padding:8px 12px;color:#8C8580;font-size:11px;">${i+1}</td>
         <td style="padding:8px 12px;font-weight:500;">${escHtml(row.name)}</td>
+        <td style="padding:8px 12px;color:#555;">${escHtml(row.state || '—')}</td>
+        <td style="padding:8px 12px;color:#555;">${escHtml(row.psm || '—')}</td>
+        <td style="padding:8px 12px;font-size:11px;">${email}</td>
         <td style="padding:8px 12px;text-align:center;">${appt}</td>
         <td style="padding:8px 12px;text-align:right;">${rev}</td>
       </tr>`;
