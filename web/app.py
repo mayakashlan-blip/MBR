@@ -2536,34 +2536,20 @@ def api_tox_probe_invoice_fields():
 
     queries = dashboard if isinstance(dashboard, list) else dashboard.get("queries", [])
 
-    # Find a query that uses dbt__moxie_invoices_mart fields
-    invoice_base = None
-    invoice_query_names = []
-    for q in queries:
-        fields = q.get("fields") or []
-        filters = q.get("filters") or {}
-        all_keys = fields + list(filters.keys())
-        if any("invoices_mart" in k for k in all_keys):
-            invoice_query_names.append(q.get("name", "?"))
-            if invoice_base is None:
-                invoice_base = copy.deepcopy(q)
+    # Find "Total Membership Revenue" by name — known invoice query
+    TARGET = "Total Membership Revenue"
+    invoice_base = next((q for q in queries if q.get("name") == TARGET), None)
 
     if not invoice_base:
         return jsonify({
-            "error": "No invoice query found in dashboard",
-            "available_queries": [q.get("name", "?") for q in queries[:20]],
-            "query_topics": list({q.get("topic", "?") for q in queries}),
+            "error": f"'{TARGET}' not found",
+            "available": [q.get("name") for q in queries],
         })
 
-    # Return the raw structure so we know what we're working with
+    # Dump the full raw query object so we can see its exact structure
     return jsonify({
-        "invoice_query_name": invoice_base.get("name"),
-        "topic": invoice_base.get("topic"),
-        "model": invoice_base.get("model"),
-        "fields": invoice_base.get("fields"),
-        "filter_keys": list((invoice_base.get("filters") or {}).keys()),
+        "raw_query": invoice_base,
         "top_level_keys": list(invoice_base.keys()),
-        "all_invoice_queries": invoice_query_names,
     })
 
     # Step 2: use the topic to probe credit field names
