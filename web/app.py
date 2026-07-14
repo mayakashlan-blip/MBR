@@ -2520,17 +2520,55 @@ def api_tox_create_drafts():
 
 @app.route("/api/tox-club/probe-invoice-fields")
 def api_tox_probe_invoice_fields():
-    """Discover available credit/coverage field names in dbt__moxie_invoices_mart
-    for Tox Club invoices, so we can build a live Omni revenue query."""
+    """Find the invoice query topic from the main dashboard, then probe credit fields."""
     if not OMNI_KEY:
         return jsonify({"error": "OMNI_API_KEY not configured"}), 500
-    from src.omni_loader import _run_query
+    from src.omni_loader import _api_get, _run_query
+    import copy
 
+    DASHBOARD_ID = "bfd963dd"
+
+    # Step 1: grab the main dashboard queries and find an invoice-based one for its topic
+    try:
+        dashboard = _api_get(f"/v1/documents/{DASHBOARD_ID}/queries", OMNI_KEY)
+    except Exception as e:
+        return jsonify({"error": f"Dashboard fetch failed: {e}"}), 500
+
+    queries = dashboard if isinstance(dashboard, list) else dashboard.get("queries", [])
+
+    # Find a query that uses dbt__moxie_invoices_mart fields
+    invoice_base = None
+    invoice_query_names = []
+    for q in queries:
+        fields = q.get("fields") or []
+        filters = q.get("filters") or {}
+        all_keys = fields + list(filters.keys())
+        if any("invoices_mart" in k for k in all_keys):
+            invoice_query_names.append(q.get("name", "?"))
+            if invoice_base is None:
+                invoice_base = copy.deepcopy(q)
+
+    if not invoice_base:
+        # Return info about what queries exist so we can debug
+        return jsonify({
+            "error": "No invoice query found in dashboard",
+            "available_queries": [q.get("name", "?") for q in queries[:20]],
+            "query_topics": list({q.get("topic", "?") for q in queries}),
+        })
+
+    topic = invoice_base.get("topic", "")
+    results = {
+        "_invoice_query_names": invoice_query_names,
+        "_topic": topic,
+        "_base_query_keys": list(invoice_base.keys()),
+    }
+
+    # Step 2: use the topic to probe credit field names
     bool_filter = {"kind": "EQUALS", "type": "boolean", "values": [True], "is_negative": False}
     date_filter = {"kind": "TIME_FOR_INTERVAL_DURATION", "type": "date", "ui_type": "PAST",
                    "left_side": "2026-01-01", "right_side": "6 months", "is_negative": False}
+    tox_filter = {"kind": "EQUALS", "type": "boolean", "values": [True], "is_negative": False}
 
-    # Try candidate field names for credits used
     credit_candidates = [
         "dbt__moxie_invoices_mart.tox_club_credits_used",
         "dbt__moxie_invoices_mart.membership_credits_applied",
@@ -2543,40 +2581,21 @@ def api_tox_probe_invoice_fields():
         "dbt__moxie_invoices_mart.tox_club_credit_amount",
     ]
 
-    results = {}
-    base_filters = {
-        "dbt__moxie_invoices_mart.is_tox_club_appointment": bool_filter,
-        "dbt__moxie_invoices_mart.invoice_issued_date": date_filter,
-    }
-
-    # Confirm paid amount alone works, also try medspa_name within invoices mart
-    for baseline_field in [
-        "dbt__moxie_invoices_mart.total_paid_amount",
-        "dbt__moxie_invoices_mart.medspa_name",
-        "dbt__moxie_invoices_mart.invoice_issued_date",
-    ]:
+    for field in ["dbt__moxie_invoices_mart.total_paid_amount"] + credit_candidates:
         try:
-            r = _run_query({
-                "fields": [baseline_field],
-                "filters": base_filters,
-                "limit": 3,
-            }, OMNI_KEY)
-            results[baseline_field] = {"ok": True, "sample": r.get(baseline_field, [])[:3]}
-        except Exception as e:
-            results[baseline_field] = {"ok": False, "error": str(e)[:120]}
-
-    # Try each credit candidate (invoices-mart only)
-    for field in credit_candidates:
-        try:
-            r = _run_query({
-                "fields": [field],
-                "filters": base_filters,
-                "limit": 3,
-            }, OMNI_KEY)
+            q = copy.deepcopy(invoice_base)
+            q["fields"] = [field]
+            q["filters"] = {
+                "dbt__moxie_invoices_mart.is_tox_club_appointment": tox_filter,
+                "dbt__moxie_invoices_mart.invoice_issued_date": date_filter,
+            }
+            q.pop("sorts", None)
+            q.pop("limit", None)
+            r = _run_query(q, OMNI_KEY)
             vals = r.get(field, [])
-            results[field] = {"ok": True, "sample": vals[:3]}
+            results[field] = {"ok": True, "sample": [v for v in vals if v][:3]}
         except Exception as e:
-            results[field] = {"ok": False, "error": str(e)[:80]}
+            results[field] = {"ok": False, "error": str(e)[:120]}
 
     return jsonify(results)
 
