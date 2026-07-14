@@ -2581,21 +2581,54 @@ def api_tox_probe_invoice_fields():
         "dbt__moxie_invoices_mart.tox_club_credit_amount",
     ]
 
-    for field in ["dbt__moxie_invoices_mart.total_paid_amount"] + credit_candidates:
+    # Step 2a: confirm invoices query works WITHOUT tox filter
+    for field in ["dbt__moxie_invoices_mart.total_paid_amount",
+                  "dbt__moxie_invoices_mart.invoice_issued_date"]:
         try:
             q = copy.deepcopy(invoice_base)
             q["fields"] = [field]
+            q["filters"] = {"dbt__moxie_invoices_mart.invoice_issued_date": date_filter}
+            q.pop("sorts", None)
+            r = _run_query(q, OMNI_KEY)
+            vals = r.get(field, [])
+            results[f"no_tox_filter__{field}"] = {"ok": True, "sample": vals[:3]}
+        except Exception as e:
+            results[f"no_tox_filter__{field}"] = {"ok": False, "error": str(e)[:120]}
+
+    # Step 2b: try different tox-club filter paths
+    tox_filter_candidates = {
+        "appt_mart": "dbt__moxie_appointments_mart.is_tox_club_appointment",
+        "inv_mart":  "dbt__moxie_invoices_mart.is_tox_club_appointment",
+        "inv_is_tox": "dbt__moxie_invoices_mart.is_tox_club",
+        "inv_tox_flag": "dbt__moxie_invoices_mart.tox_club_flag",
+    }
+    for label, filter_field in tox_filter_candidates.items():
+        try:
+            q = copy.deepcopy(invoice_base)
+            q["fields"] = ["dbt__moxie_invoices_mart.total_paid_amount"]
             q["filters"] = {
-                "dbt__moxie_invoices_mart.is_tox_club_appointment": tox_filter,
+                filter_field: tox_filter,
                 "dbt__moxie_invoices_mart.invoice_issued_date": date_filter,
             }
             q.pop("sorts", None)
-            q.pop("limit", None)
+            r = _run_query(q, OMNI_KEY)
+            vals = r.get("dbt__moxie_invoices_mart.total_paid_amount", [])
+            results[f"tox_filter__{label}"] = {"ok": True, "sample": vals[:3]}
+        except Exception as e:
+            results[f"tox_filter__{label}"] = {"ok": False, "error": str(e)[:120]}
+
+    # Step 2c: credit field candidates (using whichever tox filter worked)
+    for field in credit_candidates:
+        try:
+            q = copy.deepcopy(invoice_base)
+            q["fields"] = [field]
+            q["filters"] = {"dbt__moxie_invoices_mart.invoice_issued_date": date_filter}
+            q.pop("sorts", None)
             r = _run_query(q, OMNI_KEY)
             vals = r.get(field, [])
-            results[field] = {"ok": True, "sample": [v for v in vals if v][:3]}
+            results[f"credit__{field}"] = {"ok": True, "sample": [v for v in vals if v][:3]}
         except Exception as e:
-            results[field] = {"ok": False, "error": str(e)[:120]}
+            results[f"credit__{field}"] = {"ok": False, "error": str(e)[:80]}
 
     return jsonify(results)
 
