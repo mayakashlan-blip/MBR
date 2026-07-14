@@ -2534,16 +2534,19 @@ def api_tox_create_drafts():
 
 @app.route("/api/tox-club/test-revenue")
 def api_tox_test_revenue():
-    """Test the bulk Tox Club revenue query for June 2026."""
+    """Dump fields from all invoice/revenue queries to find correct field names."""
     if not OMNI_KEY:
         return jsonify({"error": "OMNI_API_KEY not configured"}), 500
-    try:
-        from src.tox_club_loader import load_all_tox_club_revenue
-        data = load_all_tox_club_revenue(6, 2026, OMNI_KEY)
-        return jsonify({"ok": True, "medspa_count": len(data),
-                        "sample": dict(list(data.items())[:5])})
-    except Exception as e:
-        return jsonify({"ok": False, "error": str(e)})
+    from src.omni_loader import _api_get
+    dashboard = _api_get(f"/v1/documents/bfd963dd/queries", OMNI_KEY)
+    query_map = {q["name"]: q["query"] for q in dashboard.get("queries", [])}
+    targets = ["Total Membership Revenue", "Gross Revenue Breakdown Summary",
+               "Gross Revenue By Official Service Type", "KPI: Net Revenue",
+               "Net Revenue, YTD", "Gross Sales By Category, Monthly"]
+    return jsonify({
+        name: query_map[name].get("fields", [])
+        for name in targets if name in query_map
+    })
 
     # Step 2: use the topic to probe credit field names
     bool_filter = {"kind": "EQUALS", "type": "boolean", "values": [True], "is_negative": False}
