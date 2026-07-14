@@ -265,7 +265,6 @@ def load_all_tox_club_revenue(month: int, year: int, api_key: str,
     ]
     q["filters"] = {
         **_NO_DEMO,
-        "dbt__moxie_invoices_mart.is_tox_club_appointment": _BOOL_TRUE,
         "dbt__moxie_invoices_mart.invoice_issued_date": _date_filter(start_date, "1 months"),
     }
     q.pop("sorts", None)
