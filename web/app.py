@@ -2549,23 +2549,27 @@ def api_tox_probe_invoice_fields():
         "dbt__moxie_invoices_mart.invoice_issued_date": date_filter,
     }
 
-    # First confirm paid amount + medspa name work
-    try:
-        r = _run_query({
-            "fields": ["dbt__moxie_medspas_mart.medspa_name",
-                       "dbt__moxie_invoices_mart.total_paid_amount"],
-            "filters": base_filters,
-            "limit": 3,
-        }, OMNI_KEY)
-        results["_baseline"] = {"ok": True, "keys": list(r.keys())}
-    except Exception as e:
-        results["_baseline"] = {"ok": False, "error": str(e)}
+    # Confirm paid amount alone works, also try medspa_name within invoices mart
+    for baseline_field in [
+        "dbt__moxie_invoices_mart.total_paid_amount",
+        "dbt__moxie_invoices_mart.medspa_name",
+        "dbt__moxie_invoices_mart.invoice_issued_date",
+    ]:
+        try:
+            r = _run_query({
+                "fields": [baseline_field],
+                "filters": base_filters,
+                "limit": 3,
+            }, OMNI_KEY)
+            results[baseline_field] = {"ok": True, "sample": r.get(baseline_field, [])[:3]}
+        except Exception as e:
+            results[baseline_field] = {"ok": False, "error": str(e)[:120]}
 
-    # Try each credit candidate
+    # Try each credit candidate (invoices-mart only)
     for field in credit_candidates:
         try:
             r = _run_query({
-                "fields": ["dbt__moxie_invoices_mart.total_paid_amount", field],
+                "fields": [field],
                 "filters": base_filters,
                 "limit": 3,
             }, OMNI_KEY)
