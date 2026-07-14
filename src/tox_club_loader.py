@@ -1,4 +1,8 @@
-"""Omni data loader for Tox Club MBR generation."""
+"""Omni data loader and CSV parser for Tox Club MBR generation."""
+
+import csv
+import io
+import re
 
 import calendar
 import copy
@@ -167,6 +171,67 @@ def load_tox_club_stats(medspa_name: str, month: int, year: int, api_key: str) -
         result["debug"]["revenue_error"] = str(e)
 
     return result
+
+
+def _month_to_quarter_start(month: int, year: int) -> str:
+    """Return the YYYY-MM-DD string for the quarter containing this month."""
+    q_start_month = ((month - 1) // 3) * 3 + 1
+    return f"{year}-{q_start_month:02d}-01"
+
+
+def parse_tox_club_revenue_csv(csv_text: str) -> dict:
+    """Parse the Medspa Tox Club Revenue CSV exported from Omni.
+
+    Returns a dict keyed by medspa_id (int) → {quarter_date: {paid, credits, pct}, ...}
+    Rows with no date are the all-time totals — stored under key "total".
+    """
+    reader = csv.DictReader(io.StringIO(csv_text))
+    result = {}  # {medspa_id: {"name": str, "quarters": {date_str: {...}}}}
+
+    for row in reader:
+        raw_name = (row.get("Medspa") or "").strip()
+        if not raw_name:
+            continue
+        # Extract ID from "Name (ID)" pattern
+        m = re.search(r"\((\d+)\)\s*$", raw_name)
+        if not m:
+            continue
+        medspa_id = int(m.group(1))
+        clean_name = raw_name[:m.start()].strip()
+
+        date_str = (row.get("Visit Date (Local Time)") or "").strip()
+        try:
+            paid = float(row.get("Paid Amount") or 0)
+            credits = float(row.get("Tox Club Credits Used") or 0)
+            pct = float(row.get("% Tox Club Coverage") or 0)
+        except (ValueError, TypeError):
+            continue
+
+        if medspa_id not in result:
+            result[medspa_id] = {"name": clean_name, "quarters": {}}
+
+        key = date_str if date_str else "total"
+        result[medspa_id]["quarters"][key] = {"paid": paid, "credits": credits, "pct": pct}
+
+    return result
+
+
+def get_revenue_from_csv(csv_data: dict, medspa_id: int, month: int, year: int) -> dict | None:
+    """Look up revenue for a medspa for the quarter containing month/year.
+
+    Returns {paid, credits, pct, quarter} or None if not found.
+    """
+    if not csv_data or medspa_id not in csv_data:
+        return None
+    quarters = csv_data[medspa_id].get("quarters", {})
+    target = _month_to_quarter_start(month, year)
+    if target in quarters:
+        row = quarters[target]
+        return {**row, "quarter": target}
+    # Fall back to the all-time total row
+    if "total" in quarters:
+        return {**quarters["total"], "quarter": "total"}
+    return None
 
 
 def discover_tox_club_fields(api_key: str) -> dict:

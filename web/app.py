@@ -2292,6 +2292,20 @@ def _load_gmail_tokens() -> dict:
             pass
     return {}
 
+# Tox Club revenue CSV storage
+TOX_CSV_FILE = Path(_persist_base) / "tox_club_revenue.csv"
+
+def _load_tox_csv_data() -> dict:
+    """Load parsed CSV data from disk. Returns {} if not uploaded yet."""
+    if not TOX_CSV_FILE.exists():
+        return {}
+    try:
+        from src.tox_club_loader import parse_tox_club_revenue_csv
+        return parse_tox_club_revenue_csv(TOX_CSV_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
 def _save_gmail_tokens(tokens: dict):
     TOX_GMAIL_TOKEN_FILE.parent.mkdir(parents=True, exist_ok=True)
     with open(TOX_GMAIL_TOKEN_FILE, "w") as f:
@@ -2349,6 +2363,36 @@ def tox_gmail_callback():
         return f"Token exchange failed: {e}", 500
 
 
+@app.route("/api/tox-club/upload-csv", methods=["POST"])
+def api_tox_upload_csv():
+    """Upload the Medspa Tox Club Revenue CSV exported from Omni."""
+    f = request.files.get("file")
+    if not f:
+        return jsonify({"error": "No file provided"}), 400
+    text = f.read().decode("utf-8")
+    try:
+        from src.tox_club_loader import parse_tox_club_revenue_csv
+        data = parse_tox_club_revenue_csv(text)
+        TOX_CSV_FILE.parent.mkdir(parents=True, exist_ok=True)
+        TOX_CSV_FILE.write_text(text, encoding="utf-8")
+        return jsonify({"ok": True, "medspas_found": len(data),
+                        "names": [v["name"] for v in data.values()][:5]})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/tox-club/csv-status")
+def api_tox_csv_status():
+    if not TOX_CSV_FILE.exists():
+        return jsonify({"uploaded": False})
+    try:
+        from src.tox_club_loader import parse_tox_club_revenue_csv
+        data = parse_tox_club_revenue_csv(TOX_CSV_FILE.read_text(encoding="utf-8"))
+        return jsonify({"uploaded": True, "medspas": len(data)})
+    except Exception:
+        return jsonify({"uploaded": False})
+
+
 @app.route("/api/tox-club/gmail-status")
 def api_tox_gmail_status():
     tokens = _load_gmail_tokens()
@@ -2368,10 +2412,13 @@ def api_tox_generate_preview():
         return jsonify({"error": "OMNI_API_KEY not configured"}), 500
 
     try:
-        from src.tox_club_loader import load_tox_club_stats
+        from src.tox_club_loader import load_tox_club_stats, get_revenue_from_csv
         from src.tox_club_email import render_email_html, MONTH_NAMES
     except ImportError as e:
         return jsonify({"error": f"Module import failed: {e}"}), 500
+
+    # Load CSV revenue data if uploaded
+    csv_data = _load_tox_csv_data()
 
     partners = _load_tox_partners()
     results = []
@@ -2386,7 +2433,21 @@ def api_tox_generate_preview():
                 "psm_email": p.get("psm_email", ""), "status": "ok", "html": "", "stats": {}}
 
         try:
+            # Pull appointment stats from Omni
             stats = load_tox_club_stats(name, month, year, OMNI_KEY)
+
+            # Override revenue from CSV if available (more reliable than raw Omni query)
+            if csv_data and medspa_id_str:
+                try:
+                    csv_rev = get_revenue_from_csv(csv_data, int(medspa_id_str), month, year)
+                    if csv_rev and csv_rev.get("paid", 0) > 0:
+                        stats["revenue"] = csv_rev["paid"]
+                        stats["tox_credits"] = csv_rev["credits"]
+                        stats["tox_pct"] = csv_rev["pct"]
+                        stats["revenue_source"] = "csv"
+                except (ValueError, TypeError):
+                    pass
+
             item["stats"] = {k: v for k, v in stats.items() if k != "debug"}
 
             subject = f"Tox Club: Your {MONTH_NAMES[month]} {year} Highlights ✨"

@@ -85,6 +85,22 @@
       </button>
     </div>
 
+    <!-- CSV revenue upload -->
+    <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:16px; background:white; border:1px solid #e8e0d8; border-radius:10px; padding:14px 20px;">
+      <div style="flex:1; min-width:0;">
+        <span style="font-size:11px; font-weight:600; color:#8C8580; text-transform:uppercase; letter-spacing:.05em;">Revenue CSV</span>
+        <span id="csv-status-text" style="font-size:12px; color:#8C8580; margin-left:10px;">Checking…</span>
+      </div>
+      <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+        <input type="file" id="csv-file-input" accept=".csv" style="display:none;" onchange="uploadCSV(this)">
+        <button type="button" onclick="document.getElementById('csv-file-input').click()"
+                style="padding:7px 16px; background:#f0ebe6; color:#282623; border:none; border-radius:7px; font-size:12px; font-weight:600; cursor:pointer; font-family:inherit;">
+          Upload CSV
+        </button>
+      </label>
+      <span id="csv-upload-status" style="font-size:12px; color:#8C8580;"></span>
+    </div>
+
     <!-- Gmail status + drafts button -->
     <div id="gmail-bar" style="display:flex; align-items:center; gap:12px; margin-bottom:16px; flex-wrap:wrap;">
       <span id="gmail-status" style="font-size:12px; color:#8C8580;">Checking Gmail…</span>
@@ -324,6 +340,54 @@ window.addEventListener('beforeunload', e => {
 
 // ── Generate tab ──────────────────────────────────────────────────────────
 let generatedEmails = [];
+
+// Check CSV status on load
+function refreshCsvStatus() {
+  fetch('/api/tox-club/csv-status')
+    .then(r => r.json())
+    .then(d => {
+      const el = document.getElementById('csv-status-text');
+      if (d.uploaded) {
+        el.textContent = `✓ ${d.medspa_count} medspas loaded (uploaded ${d.uploaded_at || ''})`;
+        el.style.color = '#2E7D32';
+      } else {
+        el.textContent = 'No CSV uploaded — revenue will be pulled from Omni';
+        el.style.color = '#8C8580';
+      }
+    })
+    .catch(() => {});
+}
+refreshCsvStatus();
+
+async function uploadCSV(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const statusEl = document.getElementById('csv-upload-status');
+  statusEl.textContent = 'Uploading…';
+  statusEl.style.color = '#BB8139';
+
+  const text = await file.text();
+  try {
+    const r = await fetch('/api/tox-club/upload-csv', {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/csv' },
+      body: text,
+    });
+    const d = await r.json();
+    if (d.ok) {
+      statusEl.textContent = `✓ Uploaded (${d.medspa_count} medspas)`;
+      statusEl.style.color = '#2E7D32';
+      refreshCsvStatus();
+    } else {
+      statusEl.textContent = 'Upload failed: ' + (d.error || 'unknown');
+      statusEl.style.color = '#B53631';
+    }
+  } catch(e) {
+    statusEl.textContent = 'Upload error: ' + e.message;
+    statusEl.style.color = '#B53631';
+  }
+  input.value = '';
+}
 
 // Check Gmail status on load
 fetch('/api/tox-club/gmail-status')
