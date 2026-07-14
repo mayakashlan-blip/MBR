@@ -2536,21 +2536,53 @@ def api_tox_probe_invoice_fields():
 
     queries = dashboard if isinstance(dashboard, list) else dashboard.get("queries", [])
 
-    # Find "Total Membership Revenue" by name — known invoice query
-    TARGET = "Total Membership Revenue"
-    invoice_base = next((q for q in queries if q.get("name") == TARGET), None)
+    # Build name→inner_query map (same as omni_loader.py line 193)
+    query_map = {q["name"]: q["query"] for q in queries}
+    invoice_inner = query_map.get("Total Membership Revenue")
+    if not invoice_inner:
+        return jsonify({"error": "Total Membership Revenue not found", "available": list(query_map.keys())})
 
-    if not invoice_base:
-        return jsonify({
-            "error": f"'{TARGET}' not found",
-            "available": [q.get("name") for q in queries],
-        })
+    # Correct boolean filter format (from raw query dump)
+    bool_true  = {"is_negative": False, "treat_nulls_as_false": False, "type": "boolean"}
+    date_filter = {"kind": "TIME_FOR_INTERVAL_DURATION", "type": "date", "ui_type": "PAST",
+                   "left_side": "2026-01-01", "right_side": "6 months", "is_negative": False}
 
-    # Dump the full raw query object so we can see its exact structure
-    return jsonify({
-        "raw_query": invoice_base,
-        "top_level_keys": list(invoice_base.keys()),
-    })
+    results = {"_inner_keys": list(invoice_inner.keys()), "_model_id": invoice_inner.get("modelId")}
+
+    # Probe each candidate field + tox filter combinations
+    tox_filter_candidates = {
+        "no_tox": None,
+        "inv_is_tox_appt": "dbt__moxie_invoices_mart.is_tox_club_appointment",
+        "appt_is_tox_appt": "dbt__moxie_appointments_mart.is_tox_club_appointment",
+        "inv_is_tox": "dbt__moxie_invoices_mart.is_tox_club",
+    }
+    probe_fields = [
+        "dbt__moxie_invoices_mart.total_paid_amount",
+        "dbt__moxie_medspas_mart.medspa_name",
+        "dbt__moxie_invoices_mart.tox_club_credits_used",
+        "dbt__moxie_invoices_mart.membership_credits_applied",
+        "dbt__moxie_invoices_mart.credit_amount",
+        "dbt__moxie_invoices_mart.credits_applied",
+    ]
+
+    for tox_label, tox_field in tox_filter_candidates.items():
+        for field in probe_fields:
+            try:
+                q = copy.deepcopy(invoice_inner)
+                q["fields"] = [field]
+                q["filters"] = {"dbt__moxie_medspas_mart.is_demo_or_test_medspa":
+                                    {"is_negative": True, "treat_nulls_as_false": False, "type": "boolean"},
+                                "dbt__moxie_invoices_mart.invoice_issued_date": date_filter}
+                if tox_field:
+                    q["filters"][tox_field] = bool_true
+                q.pop("sorts", None)
+                r = _run_query(q, OMNI_KEY)
+                vals = r.get(field, [])
+                results[f"{tox_label}__{field}"] = {"ok": True, "rows": len(vals), "sample": [v for v in vals if v][:3]}
+            except Exception as e:
+                results[f"{tox_label}__{field}"] = {"ok": False, "error": str(e)[:100]}
+
+    return jsonify(results)
 
     # Step 2: use the topic to probe credit field names
     bool_filter = {"kind": "EQUALS", "type": "boolean", "values": [True], "is_negative": False}
