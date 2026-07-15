@@ -181,6 +181,10 @@ class MBRData:
     # Tile 2 - Gauges
     pct_net_revenue_goal: float = 0.0
     pct_aov_goal: float = 0.0
+    # Raw goal values (for "Goal: $X" display)
+    revenue_goal: float = 0.0
+    aov_goal: float = 0.0
+    appt_goal: float = 0.0
     utilization_rate: float = 0.0
     rebooking_rate: float = 0.0
     retention_180d: float = 0.0

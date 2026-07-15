@@ -44,6 +44,9 @@
     <div class="metric-card">
       <div class="metric-label">Monthly Net Revenue</div>
       <div class="metric-value">{{ data.monthly_net_revenue | dollar }}</div>
+      {% if data.revenue_goal > 0 %}
+      <div style="font-size: 7pt; color: #8C8580; margin-top: 0.02in;">Goal: {{ data.revenue_goal | dollar }}</div>
+      {% endif %}
       <div class="mom-change{% if data.revenue_mom_pct is not none and data.revenue_mom_pct >= 0 %} positive{% elif data.revenue_mom_pct is not none %} negative{% endif %}">
         {% if data.revenue_mom_pct is not none %}
           {{ "▲" if data.revenue_mom_pct >= 0 else "▼" }} {{ "%.1f"|format((data.revenue_mom_pct * 100)|abs) }}% MoM
@@ -55,6 +58,9 @@
     <div class="metric-card">
       <div class="metric-label">Total Appointments</div>
       <div class="metric-value">{{ "{:,}".format(data.total_appointments) }}</div>
+      {% if data.appt_goal > 0 %}
+      <div style="font-size: 7pt; color: #8C8580; margin-top: 0.02in;">Goal: {{ "{:,.0f}".format(data.appt_goal) }}</div>
+      {% endif %}
       <div class="mom-change{% if data.appointments_mom_pct is not none and data.appointments_mom_pct >= 0 %} positive{% elif data.appointments_mom_pct is not none %} negative{% endif %}">
         {% if data.appointments_mom_pct is not none %}
           {{ "▲" if data.appointments_mom_pct >= 0 else "▼" }} {{ "%.1f"|format((data.appointments_mom_pct * 100)|abs) }}% MoM
@@ -66,6 +72,9 @@
     <div class="metric-card">
       <div class="metric-label">AOV</div>
       <div class="metric-value">{{ data.aov | dollar }}</div>
+      {% if data.aov_goal > 0 %}
+      <div style="font-size: 7pt; color: #8C8580; margin-top: 0.02in;">Goal: {{ data.aov_goal | dollar }}</div>
+      {% endif %}
       <div class="mom-change{% if data.aov_mom_pct is not none and data.aov_mom_pct >= 0 %} positive{% elif data.aov_mom_pct is not none %} negative{% endif %}">
         {% if data.aov_mom_pct is not none %}
           {{ "▲" if data.aov_mom_pct >= 0 else "▼" }} {{ "%.1f"|format((data.aov_mom_pct * 100)|abs) }}% MoM
@@ -103,6 +112,9 @@
         <div class="gauge-text">{{ g.display }}<span class="pct-symbol">%</span></div>
       </div>
       <div class="gauge-label">{{ g.label }}</div>
+      {% if g.goal_display %}
+      <div style="font-size: 6.5pt; color: #8C8580; margin-top: 0.02in;">Goal: {{ g.goal_display }}</div>
+      {% endif %}
       {% if g.mom_pct is not none %}
       <div class="mom-change{% if g.mom_pct >= 0 %} positive{% else %} negative{% endif %}" style="font-size: 6.5pt; margin-top: 0.02in;">
         {{ "▲" if g.mom_pct >= 0 else "▼" }} {{ "%.1f"|format((g.mom_pct * 100)|abs) }}% MoM

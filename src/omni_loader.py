@@ -317,15 +317,21 @@ def load_from_omni(practice_name: str, month: int, year: int,
     r = batch1.get("KPI: Net Revenue", {})
     data.monthly_net_revenue = _val(r, "net_revenue_sum")
     revenue_goal = _val(r, "revenue_goal_sum")
+    data.revenue_goal = revenue_goal
     data.pct_net_revenue_goal = (data.monthly_net_revenue / revenue_goal
                                   if revenue_goal > 0 else 0)
 
     r = batch1.get("KPI: Paid Appointments", {})
     data.total_appointments = int(_val(r, "paid_appointments"))
+    appt_goal = _val(r, "appt_goal")
+    if appt_goal == 0:
+        appt_goal = _val(r, "paid_appointments_goal")
+    data.appt_goal = appt_goal
 
     r = batch1.get("KPI: AOV", {})
     data.aov = _val(r, "aov")
     aov_goal = _val(r, "aov_goal")
+    data.aov_goal = aov_goal
     data.pct_aov_goal = data.aov / aov_goal if aov_goal > 0 else 0
 
     # ── Previous Month MoM + QTD (parallel batch 2) ──

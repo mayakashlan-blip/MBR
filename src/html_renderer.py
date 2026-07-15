@@ -38,7 +38,8 @@ def _render_bold(text):
     return re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', text)
 
 
-def _gauge_params(pct: float, label: str, mom_pct: float = None) -> dict:
+def _gauge_params(pct: float, label: str, mom_pct: float = None,
+                  goal_value: float = 0.0, goal_fmt: str = "") -> dict:
     """Compute SVG gauge parameters."""
     circumference = 2 * math.pi * 40  # r=40
     capped = min(max(pct, 0), 1.0)
@@ -77,6 +78,16 @@ def _gauge_params(pct: float, label: str, mom_pct: float = None) -> dict:
     else:
         css_class = "gauge-neutral"
 
+    # Format goal display string
+    goal_display = ""
+    if goal_value and goal_value > 0:
+        if goal_fmt == "dollar":
+            goal_display = f"${goal_value:,.0f}"
+        elif goal_fmt == "int":
+            goal_display = f"{int(goal_value):,}"
+        else:
+            goal_display = f"{goal_value:,.0f}"
+
     return {
         "label": label,
         "display": display,
@@ -84,6 +95,7 @@ def _gauge_params(pct: float, label: str, mom_pct: float = None) -> dict:
         "offset": f"{offset:.2f}",
         "css_class": css_class,
         "mom_pct": mom_pct,
+        "goal_display": goal_display,
     }
 
 
@@ -155,8 +167,10 @@ def render_html(data: MBRData, brand_bank_path: str = None,
 
     # Build gauge data
     gauges = [
-        _gauge_params(data.pct_net_revenue_goal, "% of Net Revenue Goal"),
-        _gauge_params(data.pct_aov_goal, "% of AOV Goal"),
+        _gauge_params(data.pct_net_revenue_goal, "% of Net Revenue Goal",
+                      goal_value=data.revenue_goal, goal_fmt="dollar"),
+        _gauge_params(data.pct_aov_goal, "% of AOV Goal",
+                      goal_value=data.aov_goal, goal_fmt="dollar"),
         _gauge_params(data.utilization_rate, "Utilization", data.utilization_mom_pct),
         _gauge_params(data.rebooking_rate, "Rebooking Rate", data.rebooking_mom_pct),
         _gauge_params(data.retention_180d, "Retention (180D)", data.retention_mom_pct),
