@@ -179,7 +179,7 @@ def render_html(data: MBRData, brand_bank_path: str = None,
     # Build revenue items
     revenue_items = [
         {"label": "Service Revenue", "value": data.service_revenue},
-        {"label": "Prepayment Revenue", "value": data.prepayment_revenue},
+        {"label": "Package Revenue", "value": data.prepayment_revenue},
         {"label": "Membership Sales", "value": data.membership_sales},
         {"label": "Custom Items", "value": data.custom_items},
         {"label": "Retail Revenue", "value": data.retail_revenue,

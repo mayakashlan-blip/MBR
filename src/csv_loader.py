@@ -120,8 +120,9 @@ def load_csv(path: str, practice_name: str, month: int, year: int) -> MBRData:
         # Tile 7 - Adjustments
         elif label == "Discounts":
             data.discounts = parse_dollar(value)
-        elif label == "Redemptions":
-            data.redemptions = parse_dollar(value)
+        elif label in ("Redemptions", "Refunds"):
+            data.refunds = parse_dollar(value)
+            data.redemptions = data.refunds
         elif label == "Client Fees":
             data.client_fees = parse_dollar(value)
 

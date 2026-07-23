@@ -224,7 +224,10 @@ class MBRData:
 
     # Tile 7 - Adjustments
     discounts: float = 0.0
-    redemptions: float = 0.0
+    refunds: float = 0.0          # renamed from redemptions (refund_amount_sum = actual refunds)
+    redemptions: float = 0.0      # kept for CSV backward-compat; prefer refunds
+    wallet_dollar_redemptions: float = 0.0
+    wallet_item_redemptions: float = 0.0
     client_fees: float = 0.0
 
     # Tile 9 - Staff

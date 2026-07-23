@@ -220,7 +220,7 @@
 
   {# Revenue Bars #}
   <div class="card" style="margin-bottom: 0.15in;">
-    <div class="section-subtitle">Gross Revenue Sources</div>
+    <div class="section-subtitle">Total Sales Breakdown</div>
     <div class="revenue-bars">
       {% set bar_total = data.service_revenue + data.prepayment_revenue + data.membership_sales + data.custom_items + data.retail_revenue %}
       {% set max_rev = [data.service_revenue, data.prepayment_revenue, data.membership_sales, data.custom_items, data.retail_revenue] | max %}
@@ -244,7 +244,7 @@
       </div>
       {% endfor %}
       <div class="revenue-total">
-        <div class="revenue-bar-label">Total Gross</div>
+        <div class="revenue-bar-label">Total Sales</div>
         <div></div>
         <div class="revenue-bar-value">{{ bar_total | dollar(False) }}</div>
       </div>
@@ -257,11 +257,23 @@
       </div>
       <div class="adjustment-card">
         <div class="adj-label">Discount % of Gross</div>
-        <div class="adj-value">{% if data.total_gross > 0 %}{{ "%.1f" | format(data.discounts / data.total_gross * 100) }}%{% else %}—{% endif %}</div>
+        <div class="adj-value">{% if bar_total > 0 %}{{ "%.1f" | format(data.discounts / bar_total * 100) }}%{% else %}—{% endif %}</div>
       </div>
+      {% if data.wallet_dollar_redemptions > 0 %}
       <div class="adjustment-card">
-        <div class="adj-label">Redemptions</div>
-        <div class="adj-value neutral">{{ data.redemptions | dollar(False) }}</div>
+        <div class="adj-label">Wallet Dollar Redemptions</div>
+        <div class="adj-value neutral">{{ data.wallet_dollar_redemptions | dollar(False) }}</div>
+      </div>
+      {% endif %}
+      {% if data.wallet_item_redemptions > 0 %}
+      <div class="adjustment-card">
+        <div class="adj-label">Wallet Item Redemptions</div>
+        <div class="adj-value neutral">{{ data.wallet_item_redemptions | dollar(False) }}</div>
+      </div>
+      {% endif %}
+      <div class="adjustment-card">
+        <div class="adj-label">Refunds</div>
+        <div class="adj-value neutral">{{ data.refunds | dollar(False) }}</div>
       </div>
       <div class="adjustment-card">
         <div class="adj-label">Client Fees</div>
