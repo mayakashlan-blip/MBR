@@ -1147,6 +1147,107 @@ def api_generate():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/v1/mbr", methods=["POST"])
+def api_v1_mbr():
+    """Practice 360 API — one-shot endpoint that returns full MBR HTML + structured JSON.
+
+    Request body (JSON):
+        medspa_name  str   required
+        month        int   1–12
+        year         int   e.g. 2026
+        force_refresh bool  skip cached session (default false)
+
+    Auth: X-Api-Key header  OR  Authorization: Bearer <key>  OR  body field api_key
+    Key is set via MBR_API_KEY environment variable on Render.
+
+    Response:
+        ok           bool
+        medspa_name  str
+        month        int
+        year         int
+        html         str   full rendered MBR HTML (ready to load in an iframe / browser tab)
+        data         obj   structured MBR metrics (revenue, goals, gauges, staff, memberships…)
+    """
+    import dataclasses, math
+
+    # ── Auth ──────────────────────────────────────────────────────────────────
+    expected_key = os.environ.get("MBR_API_KEY", "")
+    if expected_key:
+        incoming = (
+            request.headers.get("X-Api-Key", "") or
+            request.headers.get("Authorization", "").removeprefix("Bearer ").strip() or
+            (request.json or {}).get("api_key", "")
+        )
+        if incoming != expected_key:
+            return jsonify({"ok": False, "error": "Unauthorized"}), 401
+
+    body = request.json or {}
+    medspa_name   = body.get("medspa_name", "").strip()
+    month         = int(body.get("month", datetime.now().month))
+    year          = int(body.get("year",  datetime.now().year))
+    force_refresh = bool(body.get("force_refresh", False))
+
+    if not medspa_name:
+        return jsonify({"ok": False, "error": "medspa_name is required"}), 400
+
+    try:
+        omni_key = _get_omni_key()
+        if not omni_key:
+            return jsonify({"ok": False, "error": "OMNI_API_KEY not configured on server"}), 500
+
+        from src.omni_loader import load_from_omni
+        from src.narrative import generate_narratives
+        from src.html_renderer import render_html
+        from src.data_schema import LaunchFeature, BrandBankItem
+
+        # Check for a cached session first (unless force_refresh)
+        session_id = _practice_key(medspa_name, month, year)
+        cached = None if force_refresh else _get_session(session_id)
+
+        if cached:
+            data = cached["data"]
+            html = cached["html"]
+        else:
+            data = load_from_omni(medspa_name, month, year, api_key=omni_key)
+            assets = _load_monthly_assets(month, year)
+            if assets.get("launches"):
+                data.launches = [LaunchFeature(**l) for l in assets["launches"]]
+            if assets.get("brand_bank_items"):
+                data.brand_bank_items = [BrandBankItem(**b) for b in assets["brand_bank_items"]]
+            generate_narratives(data)
+            html = render_html(data)
+            sessions[session_id] = {
+                "data": data, "html": html,
+                "brand_bank_path": None, "marketing_image_path": None,
+                "launches_image_path": None, "created": datetime.now(),
+            }
+            _save_session(session_id, sessions[session_id])
+
+        # ── Serialize MBRData → JSON-safe dict ────────────────────────────────
+        def _to_json(obj):
+            if dataclasses.is_dataclass(obj) and not isinstance(obj, type):
+                return {k: _to_json(v) for k, v in dataclasses.asdict(obj).items()}
+            elif isinstance(obj, list):
+                return [_to_json(i) for i in obj]
+            elif isinstance(obj, dict):
+                return {k: _to_json(v) for k, v in obj.items()}
+            elif isinstance(obj, float):
+                return None if (math.isnan(obj) or math.isinf(obj)) else round(obj, 4)
+            return obj
+
+        return jsonify({
+            "ok":          True,
+            "medspa_name": medspa_name,
+            "month":       month,
+            "year":        year,
+            "html":        html,
+            "data":        _to_json(data),
+        })
+
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
 @app.route("/api/generate-beta", methods=["POST"])
 def api_generate_beta():
     """Generate an extended-period report (QBR, annual, custom range)."""
