@@ -230,6 +230,13 @@ class MBRData:
     wallet_item_redemptions: float = 0.0
     client_fees: float = 0.0
 
+    # Payout reconciliation (card + terminal → Stripe payout)
+    card_revenue: float = 0.0
+    terminal_revenue: float = 0.0
+    transaction_fees: float = 0.0   # Stripe processing fees
+    performance_fees: float = 0.0   # Moxie performance fee
+    payout_amount: float = 0.0      # actual Stripe payout received
+
     # Tile 9 - Staff
     staff: list[StaffMember] = field(default_factory=list)
 

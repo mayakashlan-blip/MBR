@@ -620,7 +620,7 @@ def load_from_omni(practice_name: str, month: int, year: int,
     pr = batch1.get("Payments & Refunds", {})
     data.refunds = _val(pr, "refund_amount_sum")
     data.redemptions = data.refunds  # backward compat for CSV path
-    # Try to pull wallet redemption amounts (field names vary by dashboard config)
+    # Wallet redemption amounts
     data.wallet_dollar_redemptions = (
         _val(pr, "wallet_dollar_redemption") or
         _val(pr, "wallet_dollar_amount") or
@@ -630,6 +630,23 @@ def load_from_omni(practice_name: str, month: int, year: int,
         _val(pr, "wallet_item_redemption") or
         _val(pr, "wallet_item_amount") or
         _val(pr, "wallet_prepayment_amount")
+    )
+    # Payout reconciliation fields
+    data.card_revenue = _val(pr, "card_amount")
+    data.terminal_revenue = _val(pr, "terminal_amount")
+    data.transaction_fees = (
+        _val(pr, "transaction_fee_sum") or
+        _val(pr, "stripe_fee") or
+        _val(pr, "processing_fee")
+    )
+    data.performance_fees = (
+        _val(pr, "performance_fee") or
+        _val(pr, "moxie_fee") or
+        _val(pr, "moxie_performance_fee")
+    )
+    data.payout_amount = (
+        _val(pr, "payout_amount") or
+        _val(pr, "stripe_payout")
     )
 
     # Retail to Service Ratio (from batch1)
