@@ -279,6 +279,12 @@
         <div class="adj-label">Client Fees</div>
         <div class="adj-value neutral">{{ data.client_fees | dollar(False) }}</div>
       </div>
+      {% if data.tax_collected > 0 %}
+      <div class="adjustment-card">
+        <div class="adj-label">Taxes Collected</div>
+        <div class="adj-value neutral">{{ data.tax_collected | dollar(False) }}</div>
+      </div>
+      {% endif %}
     </div>
     {% if data.retail_to_service_ratio > 0 %}
     <div style="margin-top: 0.08in; padding-top: 0.08in; border-top: 1px solid #e8e3de; display: flex; align-items: center; gap: 0.15in;">
@@ -292,7 +298,7 @@
   {# ── Stripe Payout Reconciliation ── #}
   {% set card_terminal = data.card_revenue + data.terminal_revenue %}
   {% if card_terminal > 0 or data.payout_amount > 0 %}
-  {% set expected_payout = card_terminal - data.transaction_fees - data.performance_fees %}
+  {% set expected_payout = card_terminal - data.transaction_fees - data.performance_fees - data.tax_collected %}
   {% set payout_diff = data.payout_amount - expected_payout if data.payout_amount > 0 else 0 %}
   <div class="card" style="margin-top: 0.15in;">
     <div class="section-subtitle">Stripe Payout Reconciliation</div>
@@ -323,6 +329,12 @@
           <span style="color: #B53631;">−{{ data.performance_fees | dollar(False) }}</span>
         </div>
         {% endif %}
+        {% if data.tax_collected > 0 %}
+        <div style="display: flex; justify-content: space-between; padding: 4pt 0; border-bottom: 0.5pt solid #e8e3de;">
+          <span style="color: var(--muted-text);">Less: taxes collected (remitted separately)</span>
+          <span style="color: #B53631;">−{{ data.tax_collected | dollar(False) }}</span>
+        </div>
+        {% endif %}
         <div style="display: flex; justify-content: space-between; padding: 4pt 0; border-bottom: 0.5pt solid #e8e3de; font-weight: 600;">
           <span>Expected payout</span>
           <span>{{ expected_payout | dollar(False) }}</span>
@@ -336,14 +348,14 @@
           <span style="color: var(--muted-text);">Difference</span>
           <span style="color: {% if payout_diff|abs < 50 %}#2E7D32{% else %}#B53631{% endif %};">
             {{ "${:,.2f}".format(payout_diff|abs) }}
-            {% if payout_diff|abs < 50 %} (timing — typically settles next month){% endif %}
+            {% if payout_diff|abs < 10 %} (fully reconciled){% elif payout_diff|abs < 50 %} (timing — typically settles next month){% endif %}
           </span>
         </div>
         {% endif %}
       </div>
       <div style="background: #FAFAF7; border-radius: 6pt; padding: 0.08in; font-size: 7.5pt; color: var(--muted-text); align-self: start;">
         <strong style="color: var(--body-text); display: block; margin-bottom: 4pt;">Why this differs from net revenue</strong>
-        Net revenue (${{ "{:,.0f}".format(data.monthly_net_revenue) }}) includes all payment types — card, cash, and wallet credits. Payouts only reflect card and terminal transactions after Stripe and Moxie fees. A small timing difference (~$30) is normal when end-of-month transactions settle in the following payout cycle.
+        Net revenue (${{ "{:,.0f}".format(data.monthly_net_revenue) }}) includes all payment types — card, cash, and wallet credits. Payouts only reflect card and terminal transactions after Stripe and Moxie fees{% if data.tax_collected > 0 %} and taxes collected (${{ "{:,.2f}".format(data.tax_collected) }}) which are remitted separately to the government{% endif %}. Any remaining small difference is timing — end-of-month transactions that settle in the next payout cycle.
       </div>
     </div>
   </div>

@@ -648,6 +648,12 @@ def load_from_omni(practice_name: str, month: int, year: int,
         _val(pr, "payout_amount") or
         _val(pr, "stripe_payout")
     )
+    data.tax_collected = (
+        _val(pr, "tax_amount_sum") or
+        _val(pr, "tax_collected") or
+        _val(pr, "sales_tax_sum") or
+        _val(pr, "tax_sum")
+    )
 
     # Retail to Service Ratio (from batch1)
     r = batch1.get("Retail to Service Revenue", {})

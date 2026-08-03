@@ -235,6 +235,7 @@ class MBRData:
     terminal_revenue: float = 0.0
     transaction_fees: float = 0.0   # Stripe processing fees
     performance_fees: float = 0.0   # Moxie performance fee
+    tax_collected: float = 0.0      # sales tax collected and remitted separately
     payout_amount: float = 0.0      # actual Stripe payout received
 
     # Tile 9 - Staff
