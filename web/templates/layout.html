@@ -54,6 +54,10 @@
 <script>
 (function() {
   var KEY = 'mbr_auth';
+  var urlPw = new URLSearchParams(window.location.search).get('pw');
+  if (urlPw === 'moxie2026') {
+    sessionStorage.setItem(KEY, '1');
+  }
   if (sessionStorage.getItem(KEY) === '1') {
     document.getElementById('site-lock').style.display = 'none';
     document.getElementById('site-content').style.display = 'block';
