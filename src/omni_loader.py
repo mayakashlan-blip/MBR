@@ -10,34 +10,58 @@ from .data_schema import MBRData, StaffMember, ServiceItem, MembershipType
 
 
 BASE_URL = "https://moxie.omniapp.co/api"
-DASHBOARD_ID = "bfd963dd"
-STAFF_DASHBOARD_ID = "955002e5"
-SUPPLIES_DASHBOARD_ID = "54d5da36"
+
+# ── Standard Report dashboard IDs (moxie.omniapp.co/f/embedded-poc/standard-reports) ──
+SALES_REPORT_ID     = "b8baa4c2"  # Medspa Sales Report
+APPOINTMENTS_ID     = "d6776514"  # Medspa Appointments
+STAFF_REPORT_ID     = "fed9785d"  # Medspa Staff Performance Report
+TRANSACTIONS_ID     = "76abf294"  # Medspa Transactions Report
+MEMBERSHIPS_ID      = "475dc8d8"  # Medspa Memberships
+
+# ── Legacy dashboards (data not yet in Standard Reports) ──
+DASHBOARD_ID           = "bfd963dd"  # tier / medspa-id lookup + GFE queries
+SUPPLIES_DASHBOARD_ID  = "54d5da36"
 RETENTION_DASHBOARD_ID = "59ca3051"
 MARKETING_DASHBOARD_ID = "0ef3afa3"
 
-# Query names → their date filter fields (per-topic)
-# Omni requires TIME_FOR_INTERVAL_DURATION kind for date filtering.
-# The field must belong to the same topic as the query.
+# Query names → date filter fields used by _add_filters()
 QUERY_DATE_FIELDS = {
-    # transaction-based queries — use transaction_date_et to match Omni dashboard
-    "KPI: Net Revenue": "dbt__moxie_invoice_transactions_mart.transaction_date_et",
-    "Payments & Refunds": "dbt__moxie_invoice_transactions_mart.transaction_date_et",
-    # appointment-based queries — use start_time
-    "KPI: Paid Appointments": "dbt__moxie_appointments_mart.start_time",
-    "KPI: AOV": "dbt__moxie_appointments_mart.start_time",
-    "Client Counts": "dbt__moxie_appointments_mart.start_time",
-    # invoice-based queries — use invoice_issued_date
-    "Total Membership Revenue": "dbt__moxie_invoices_mart.invoice_issued_date",
+    # ── Standard Reports ──
+    # Sales Report (b8baa4c2)
+    "Sales Summary":              "dbt__moxie_invoice_transactions_mart.transaction_date_et",
+    "Service Revenue Summary":    "dbt__moxie_invoices_mart.invoice_issued_date",
+    "Prepayment Revenue Summary": "dbt__moxie_invoices_mart.invoice_issued_date",
+    "Product Revenue Summary":    "dbt__moxie_invoices_mart.invoice_issued_date",
+    "Fee Revenue Summary":        "dbt__moxie_invoices_mart.invoice_issued_date",
+    # Appointments (d6776514)
+    "Appointment Overview":       "dbt__moxie_appointments_mart.start_time",
+    "Appointment Stats":          "dbt__moxie_appointments_mart.start_time",
+    # Staff Performance (fed9785d)
+    "Staff Appointment Summary":  "dbt__moxie_embedded_staff_report_mart.report_date",
+    "Staff Sales Summary":        "dbt__moxie_invoices_mart.first_payment_date",
+    # Transactions (76abf294)
+    "Payment Method Breakdown":   "dbt__moxie_transactions_mart.transaction_time",
+    "Payment History":            "dbt__moxie_transactions_mart.transaction_time",
+    "Refund History":             "dbt__moxie_transactions_mart.transaction_time",
+    # Memberships (475dc8d8)
+    "New Membership Enrollments": "dbt__moxie_client_memberships_mart.started_at",
+    "Cancellations":              "dbt__moxie_client_memberships_mart.canceled_at",
+    "Average Monthly Members":    "dbt__moxie_membership_churn_monthly_mart.month_start",
+    "Monthly Recurring Revenue (MRR)": "dbt__moxie_membership_churn_monthly_mart.month_start",
+    # ── Legacy (kept for GFE + backward compat) ──
+    "KPI: Net Revenue":           "dbt__moxie_invoice_transactions_mart.transaction_date_et",
+    "Payments & Refunds":         "dbt__moxie_invoice_transactions_mart.transaction_date_et",
+    "KPI: Paid Appointments":     "dbt__moxie_appointments_mart.start_time",
+    "KPI: AOV":                   "dbt__moxie_appointments_mart.start_time",
+    "Client Counts":              "dbt__moxie_appointments_mart.start_time",
+    "Total Membership Revenue":   "dbt__moxie_invoices_mart.invoice_issued_date",
     "Gross Revenue Breakdown Summary": "dbt__moxie_invoices_mart.invoice_issued_date",
-    "Retail to Service Revenue": "dbt__moxie_invoices_mart.invoice_issued_date",
+    "Retail to Service Revenue":  "dbt__moxie_invoices_mart.invoice_issued_date",
     "Gross Revenue By Official Service Type": "dbt__moxie_invoices_mart.invoice_issued_date",
-    # utilization topic — use series_date
-    "Utilization": "dbt__moxie_utilization_daily_mart.series_date",
-    # memberships topic — started_at for new, ended_at for churned
-    "Active Members": None,  # active = point-in-time, no date filter needed
-    "New Memberships": "dbt__moxie_client_memberships_mart.started_at",
-    "Churned Memberships": "dbt__moxie_client_memberships_mart.ended_at",
+    "Utilization":                "dbt__moxie_utilization_daily_mart.series_date",
+    "Active Members":             None,
+    "New Memberships":            "dbt__moxie_client_memberships_mart.started_at",
+    "Churned Memberships":        "dbt__moxie_client_memberships_mart.ended_at",
 }
 
 
@@ -113,6 +137,7 @@ def _add_filters(query: dict, practice_name: str, start_date: str,
     branch was taken. duration can be "1 months", "3 months", etc.
     """
     q = copy.deepcopy(query)
+    q.setdefault("filters", {})
     q["filters"]["dbt__moxie_medspas_mart.medspa_name"] = {
         "kind": "EQUALS",
         "type": "string",
@@ -143,6 +168,29 @@ def _val(result: dict, key_substring: str, default=0):
                 except (TypeError, ValueError):
                     return val
     return default
+
+
+def _sum_all(result: dict, key_substring: str) -> float:
+    """Sum all rows in a multi-row Omni result column by partial key match."""
+    for k, v in result.items():
+        if key_substring in k and v:
+            total = 0.0
+            for x in v:
+                if x is not None:
+                    try:
+                        total += float(x)
+                    except (TypeError, ValueError):
+                        pass
+            return total
+    return 0.0
+
+
+def _extract_col(result: dict, key_substring: str) -> list:
+    """Return the full column values list by partial key match."""
+    for k, v in result.items():
+        if key_substring in k and v:
+            return v
+    return []
 
 
 def _safe_mom(current, previous, min_prev=0):
@@ -187,11 +235,27 @@ def load_from_omni(practice_name: str, month: int, year: int,
     start_date = f"{year}-{month:02d}-01"
     duration = f"{duration_months} months"
 
-    # Fetch all query definitions from the dashboard
+    # Load queries from Standard Report dashboards + legacy dashboard (for tier/GFE)
     print(f"  Connecting to Omni API...")
-    dashboard = _api_get(f"/v1/documents/{DASHBOARD_ID}/queries", api_key)
-    queries = {q["name"]: q["query"] for q in dashboard.get("queries", [])}
-    print(f"  Found {len(queries)} queries in dashboard")
+    queries = {}
+    for dash_id in [SALES_REPORT_ID, APPOINTMENTS_ID, STAFF_REPORT_ID,
+                    TRANSACTIONS_ID, MEMBERSHIPS_ID]:
+        try:
+            dash = _api_get(f"/v1/documents/{dash_id}/queries", api_key)
+            for q in dash.get("queries", []):
+                if q.get("name") and q.get("query"):
+                    queries[q["name"]] = q["query"]
+        except Exception as e:
+            print(f"  Warning: could not load dashboard {dash_id}: {e}")
+    # Legacy dashboard kept for tier/medspa-id lookup, GFE, and membership active-by-type
+    try:
+        legacy = _api_get(f"/v1/documents/{DASHBOARD_ID}/queries", api_key)
+        for q in legacy.get("queries", []):
+            if q.get("name") and q.get("query") and q["name"] not in queries:
+                queries[q["name"]] = q["query"]
+    except Exception as e:
+        print(f"  Warning: could not load legacy dashboard: {e}")
+    print(f"  Found {len(queries)} queries across all dashboards")
 
     data = MBRData(practice_name=practice_name, month=month, year=year)
 
@@ -287,13 +351,22 @@ def load_from_omni(practice_name: str, month: int, year: int,
     # ── Execute queries in parallel ──
     print(f"  Querying Omni for {practice_name}, {calendar.month_name[month]} {year}...")
 
-    # Batch 1: all independent current-month queries
+    # Batch 1: all independent current-month queries (Standard Reports)
     batch1_names = [
-        "KPI: Net Revenue", "KPI: Paid Appointments", "KPI: AOV",
-        "Client Counts", "New Memberships", "Churned Memberships",
-        "Total Membership Revenue", "Gross Revenue Breakdown Summary",
-        "Retail to Service Revenue", "Gross Revenue By Official Service Type",
-        "Utilization", "Payments & Refunds",
+        "Sales Summary",                     # net revenue, gross, discounts, wallet, taxes
+        "Service Revenue Summary",           # service revenue + service mix
+        "Prepayment Revenue Summary",        # package/prepayment revenue
+        "Product Revenue Summary",           # retail revenue
+        "Fee Revenue Summary",               # client fees
+        "Appointment Overview",              # paid (completed) appointments
+        "Appointment Stats",                 # rebooking rate, new/existing %
+        "New Membership Enrollments",        # memberships new + new revenue
+        "Cancellations",                     # memberships cancelled
+        "Monthly Recurring Revenue (MRR)",   # active mrr
+        "Average Monthly Members",           # active membership count
+        "Payment Method Breakdown",          # card / terminal split
+        "Payment History",                   # transaction fees + performance fees
+        "Refund History",                    # refunds
     ]
     batch1 = {}
     with ThreadPoolExecutor(max_workers=2) as pool:
@@ -301,38 +374,83 @@ def load_from_omni(practice_name: str, month: int, year: int,
         for future in as_completed(futures):
             batch1[futures[future]] = future.result()
 
-    # Active Members needs mrr_sum field added — run separately
-    try:
-        active_q = _find_query(queries, "Active Members")
-        active_q = _add_filters(active_q, practice_name, start_date, QUERY_DATE_FIELDS.get("Active Members"), medspa_id=medspa_id)
-        mrr_field = "dbt__moxie_client_memberships_mart.mrr_sum"
-        if mrr_field not in active_q.get("fields", []):
-            active_q.setdefault("fields", []).append(mrr_field)
-        batch1["Active Members"] = _run_query(active_q, api_key)
-    except Exception as e:
-        print(f"  Warning: Active Members query failed: {e}")
-        batch1["Active Members"] = {}
+    # ── Process batch 1 results (Standard Reports field names) ──
 
-    # ── Process batch 1 results ──
-    r = batch1.get("KPI: Net Revenue", {})
+    # Revenue — from Sales Summary
+    r = batch1.get("Sales Summary", {})
     data.monthly_net_revenue = _val(r, "net_revenue_sum")
-    revenue_goal = _val(r, "revenue_goal_sum")
-    data.revenue_goal = revenue_goal
-    data.pct_net_revenue_goal = (data.monthly_net_revenue / revenue_goal
-                                  if revenue_goal > 0 else 0)
+    data.total_gross = _val(r, "gross_revenue_sum")
+    data.discounts = abs(_val(r, "discount_amount_sum"))
+    data.wallet_dollar_redemptions = abs(_val(r, "total_wallet_dollars_redeemed"))
+    data.wallet_item_redemptions = abs(_val(r, "total_wallet_item_discounts"))
+    data.tax_collected = _val(r, "total_tax_amount_sum")
+    # Goals not available in Standard Reports — remain 0
 
-    r = batch1.get("KPI: Paid Appointments", {})
-    data.total_appointments = int(_val(r, "paid_appointments"))
-    appt_goal = _val(r, "appt_goal")
-    if appt_goal == 0:
-        appt_goal = _val(r, "paid_appointments_goal")
-    data.appt_goal = appt_goal
+    # Revenue breakdown by type
+    data.service_revenue = _sum_all(batch1.get("Service Revenue Summary", {}), "sum_line_net_revenue")
+    data.prepayment_revenue = _sum_all(batch1.get("Prepayment Revenue Summary", {}), "sum_line_net_revenue")
+    data.retail_revenue = _sum_all(batch1.get("Product Revenue Summary", {}), "sum_line_net_revenue")
+    data.client_fees = _sum_all(batch1.get("Fee Revenue Summary", {}), "sum_line_net_revenue")
 
-    r = batch1.get("KPI: AOV", {})
-    data.aov = _val(r, "aov")
-    aov_goal = _val(r, "aov_goal")
-    data.aov_goal = aov_goal
-    data.pct_aov_goal = data.aov / aov_goal if aov_goal > 0 else 0
+    # Appointments — from Appointment Overview
+    r = batch1.get("Appointment Overview", {})
+    data.total_appointments = int(_val(r, "completed_appointments"))
+
+    # AOV = calculated (not a separate query)
+    data.aov = (data.monthly_net_revenue / data.total_appointments
+                if data.total_appointments > 0 else 0)
+
+    # Rebooking + new/existing client split — from Appointment Stats
+    r = batch1.get("Appointment Stats", {})
+    rebooking = _val(r, "rebooking_rate", default=None)
+    if rebooking is not None:
+        data.rebooking_rate = rebooking if rebooking <= 1.0 else rebooking / 100
+    pct_new = _val(r, "pct_completed_appointments__new_client", default=None)
+    if pct_new is not None:
+        if pct_new > 1:
+            pct_new /= 100
+        data.new_clients = round(data.total_appointments * pct_new)
+        data.existing_clients = data.total_appointments - data.new_clients
+
+    # Memberships
+    r = batch1.get("Average Monthly Members", {})
+    data.memberships_active = int(_val(r, "active_memberships_sum"))
+
+    r = batch1.get("Monthly Recurring Revenue (MRR)", {})
+    data.mrr = _val(r, "active_mrr")
+
+    r = batch1.get("New Membership Enrollments", {})
+    data.memberships_new = int(_val(r, "count"))
+    data.membership_sales = _val(r, "membership_revenue_sum")
+
+    r = batch1.get("Cancellations", {})
+    data.memberships_cancelled = int(_val(r, "count_cancellations"))
+
+    # Payout reconciliation — from Transaction Reports
+    # Payment Method Breakdown: rows by transaction_method_category
+    r = batch1.get("Payment Method Breakdown", {})
+    categories = _extract_col(r, "transaction_method_category")
+    amounts = _extract_col(r, "amount_sum")
+    for i, cat in enumerate(categories):
+        amt = float(amounts[i]) if i < len(amounts) and amounts[i] else 0
+        cat_lower = (cat or "").lower()
+        if "card" in cat_lower and "terminal" not in cat_lower:
+            data.card_revenue += amt
+        elif "terminal" in cat_lower or "reader" in cat_lower:
+            data.terminal_revenue += amt
+
+    r = batch1.get("Payment History", {})
+    data.transaction_fees = _sum_all(r, "fee_sum")
+    data.performance_fees = _sum_all(r, "moxie_transaction_fee_sum")
+
+    r = batch1.get("Refund History", {})
+    data.refunds = _sum_all(r, "amount_sum")
+    data.redemptions = data.refunds  # backward compat
+
+    # Retail MoM placeholder (will be updated after MoM queries)
+    # Retail to service ratio
+    if data.service_revenue > 0:
+        data.retail_to_service_ratio = data.retail_revenue / data.service_revenue
 
     # ── Previous Month MoM + QTD (parallel batch 2) ──
     prev_month = month - 1 if month > 1 else 12
@@ -348,29 +466,6 @@ def load_from_omni(practice_name: str, month: int, year: int,
             return _run_query(q, api_key)
         except Exception:
             return None
-
-    def run_qtd():
-        quarter_start_month = ((month - 1) // 3) * 3 + 1
-        months_in_quarter = month - quarter_start_month + 1
-        if months_in_quarter <= 1:
-            return data.monthly_net_revenue
-        qtd_start = f"{year}-{quarter_start_month:02d}-01"
-        qtd_q = _find_query(queries, "KPI: Net Revenue")
-        qtd_date_field = QUERY_DATE_FIELDS.get("KPI: Net Revenue")
-        qtd_q = copy.deepcopy(qtd_q)
-        qtd_q["filters"]["dbt__moxie_medspas_mart.medspa_name"] = {
-            "kind": "EQUALS", "type": "string",
-            "values": [practice_name], "is_negative": False,
-        }
-        qtd_q["filters"][qtd_date_field] = {
-            "kind": "TIME_FOR_INTERVAL_DURATION", "type": "date",
-            "ui_type": "PAST", "left_side": qtd_start,
-            "right_side": f"{months_in_quarter} months", "is_negative": False,
-        }
-        try:
-            return _val(_run_query(qtd_q, api_key), "net_revenue_sum")
-        except Exception:
-            return data.monthly_net_revenue
 
     # Pull KPI values for the two months prior to "prev" so we can render a
     # 4-bar comparison chart (m-3, m-2, m-1, current) for revenue and AOV.
@@ -391,18 +486,41 @@ def load_from_omni(practice_name: str, month: int, year: int,
         except Exception:
             return None
 
+    def run_qtd():
+        quarter_start_month = ((month - 1) // 3) * 3 + 1
+        months_in_quarter = month - quarter_start_month + 1
+        if months_in_quarter <= 1:
+            return data.monthly_net_revenue
+        qtd_start = f"{year}-{quarter_start_month:02d}-01"
+        qtd_q = _find_query(queries, "Sales Summary")
+        qtd_date_field = QUERY_DATE_FIELDS.get("Sales Summary")
+        qtd_q = copy.deepcopy(qtd_q)
+        qtd_q.setdefault("filters", {})
+        qtd_q["filters"]["dbt__moxie_medspas_mart.medspa_name"] = {
+            "kind": "EQUALS", "type": "string",
+            "values": [practice_name], "is_negative": False,
+        }
+        qtd_q["filters"][qtd_date_field] = {
+            "kind": "TIME_FOR_INTERVAL_DURATION", "type": "date",
+            "ui_type": "PAST", "left_side": qtd_start,
+            "right_side": f"{months_in_quarter} months", "is_negative": False,
+        }
+        try:
+            return _val(_run_query(qtd_q, api_key), "net_revenue_sum")
+        except Exception:
+            return data.monthly_net_revenue
+
     mom_results = {}
     with ThreadPoolExecutor(max_workers=2) as pool:
         mom_futures = {
-            pool.submit(run_prev, "KPI: Net Revenue"): "prev_rev",
-            pool.submit(run_prev, "KPI: Paid Appointments"): "prev_appt",
-            pool.submit(run_prev, "KPI: AOV"): "prev_aov",
+            pool.submit(run_prev, "Sales Summary"): "prev_rev",
+            pool.submit(run_prev, "Appointment Overview"): "prev_appt",
             pool.submit(run_prev, "Utilization"): "prev_util",
-            pool.submit(run_prev, "Gross Revenue Breakdown Summary"): "prev_breakdown",
-            pool.submit(run_at, "KPI: Net Revenue", pm2_start): "rev_m2",
-            pool.submit(run_at, "KPI: Net Revenue", pm3_start): "rev_m3",
-            pool.submit(run_at, "KPI: AOV", pm2_start): "aov_m2",
-            pool.submit(run_at, "KPI: AOV", pm3_start): "aov_m3",
+            pool.submit(run_prev, "Product Revenue Summary"): "prev_retail",
+            pool.submit(run_at, "Sales Summary", pm2_start): "rev_m2",
+            pool.submit(run_at, "Sales Summary", pm3_start): "rev_m3",
+            pool.submit(run_at, "Appointment Overview", pm2_start): "appt_m2",
+            pool.submit(run_at, "Appointment Overview", pm3_start): "appt_m3",
             pool.submit(run_qtd): "qtd",
         }
         for future in as_completed(mom_futures):
@@ -411,21 +529,23 @@ def load_from_omni(practice_name: str, month: int, year: int,
     data.quarter_to_date = mom_results.get("qtd", data.monthly_net_revenue)
 
     prev_rev_r = mom_results.get("prev_rev")
+    prev_revenue = 0
     if prev_rev_r:
         prev_revenue = _val(prev_rev_r, "net_revenue_sum")
         data.revenue_mom_pct = _safe_mom(data.monthly_net_revenue, prev_revenue, 100)
 
     prev_appt_r = mom_results.get("prev_appt")
+    prev_appointments = 0
     if prev_appt_r:
-        prev_appointments = int(_val(prev_appt_r, "paid_appointments"))
+        prev_appointments = int(_val(prev_appt_r, "completed_appointments"))
         data.appointments_mom_pct = _safe_mom(data.total_appointments, prev_appointments, 5)
 
-    prev_aov_r = mom_results.get("prev_aov")
-    if prev_aov_r:
-        prev_aov = _val(prev_aov_r, "aov")
+    # AOV MoM — calculated from prev revenue / prev appointments
+    if prev_revenue > 0 and prev_appointments > 0:
+        prev_aov = prev_revenue / prev_appointments
         data.aov_mom_pct = _safe_mom(data.aov, prev_aov, 20)
 
-    # MoM for utilization
+    # Utilization MoM (from legacy Utilization query — no Standard Report equivalent)
     prev_util_r = mom_results.get("prev_util")
     prev_util = None
     if prev_util_r:
@@ -437,6 +557,12 @@ def load_from_omni(practice_name: str, month: int, year: int,
             pt = _val(prev_util_r, "total_appointment_hours")
             prev_util = pt / pa if pa and pa > 0 else None
 
+    # Retail MoM
+    prev_retail_r = mom_results.get("prev_retail")
+    if prev_retail_r:
+        prev_retail = _sum_all(prev_retail_r, "sum_line_net_revenue")
+        data.retail_revenue_mom_pct = _safe_mom(data.retail_revenue, prev_retail, 100)
+
     # Build 4-bar comparison history (m-3, m-2, m-1, current) for revenue & AOV.
     import calendar as _cal
     def _hist(label_month, label_year, value):
@@ -447,7 +573,10 @@ def load_from_omni(practice_name: str, month: int, year: int,
         }
     rev_m2_val = _val(mom_results.get("rev_m2") or {}, "net_revenue_sum")
     rev_m3_val = _val(mom_results.get("rev_m3") or {}, "net_revenue_sum")
+    appt_m2 = int(_val(mom_results.get("appt_m2") or {}, "completed_appointments"))
+    appt_m3 = int(_val(mom_results.get("appt_m3") or {}, "completed_appointments"))
     prev_rev_val = _val(prev_rev_r or {}, "net_revenue_sum") if prev_rev_r else 0
+    prev_aov_val = prev_revenue / prev_appointments if prev_appointments > 0 else 0
     data.revenue_history = [
         _hist(pm3_month, pm3_year, rev_m3_val),
         _hist(pm2_month, pm2_year, rev_m2_val),
@@ -455,9 +584,8 @@ def load_from_omni(practice_name: str, month: int, year: int,
         _hist(month, year, data.monthly_net_revenue),
     ]
 
-    aov_m2_val = _val(mom_results.get("aov_m2") or {}, "aov")
-    aov_m3_val = _val(mom_results.get("aov_m3") or {}, "aov")
-    prev_aov_val = _val(prev_aov_r or {}, "aov") if prev_aov_r else 0
+    aov_m2_val = rev_m2_val / appt_m2 if appt_m2 > 0 else 0
+    aov_m3_val = rev_m3_val / appt_m3 if appt_m3 > 0 else 0
     data.aov_history = [
         _hist(pm3_month, pm3_year, aov_m3_val),
         _hist(pm2_month, pm2_year, aov_m2_val),
@@ -469,122 +597,106 @@ def load_from_omni(practice_name: str, month: int, year: int,
           f"Appts {'N/A' if data.appointments_mom_pct is None else f'{data.appointments_mom_pct:+.1%}'}, "
           f"AOV {'N/A' if data.aov_mom_pct is None else f'{data.aov_mom_pct:+.1%}'}")
 
-    # Utilization (from batch1)
-    r = batch1.get("Utilization", {})
+    # Practice utilization — will be set from staff data; fall back to legacy Utilization query
+    r = batch1.get("Utilization", {})  # may be absent from Standard Reports
     util_pct = _val(r, "column_b_divided_by_column_a", default=None)
     if util_pct is not None:
         data.utilization_rate = util_pct if util_pct <= 1.0 else util_pct / 100
     else:
         total_avail = _val(r, "total_available_hours")
         total_appt = _val(r, "total_appointment_hours")
-        data.utilization_rate = total_appt / total_avail if total_avail > 0 else 0
+        if total_avail > 0:
+            data.utilization_rate = total_appt / total_avail
 
     # Utilization MoM
-    if prev_util_r and prev_util:
+    if prev_util is not None:
         data.utilization_mom_pct = _safe_mom(data.utilization_rate, prev_util, 0.05)
 
-    # Client Counts (from batch1)
-    r = batch1.get("Client Counts", {})
-    new_client_appts = int(_val(r, "count_new_client_appointments"))
-    existing_client_appts = int(_val(r, "count_existing_client_appointments"))
-    total_unique_clients = int(_val(r, "paid_appointment_clients"))
-    total_appts_for_split = new_client_appts + existing_client_appts
-    if total_appts_for_split > 0 and total_unique_clients > 0:
-        new_pct = new_client_appts / total_appts_for_split
-        data.new_clients = round(total_unique_clients * new_pct)
-        data.existing_clients = total_unique_clients - data.new_clients
-    else:
-        data.new_clients = new_client_appts
-        data.existing_clients = existing_client_appts
-
-    # Memberships (Active Members from batch1 with mrr_sum)
-    r = batch1.get("Active Members", {})
-    data.memberships_active = int(_val(r, "count"))
-    data.mrr = _val(r, "mrr_sum")
-
-    r = batch1.get("New Memberships", {})
-    data.memberships_new = int(_val(r, "count"))
-
-    r = batch1.get("Churned Memberships", {})
-    data.memberships_cancelled = int(_val(r, "count"))
-
-    # Total Membership Revenue
-    data.membership_sales = _val(batch1.get("Total Membership Revenue", {}), "subtotal__membership_sum")
+    # Service Mix — from Service Revenue Summary (grouped by service_type)
+    r = batch1.get("Service Revenue Summary", {})
+    svc_types = _extract_col(r, "service_type")
+    svc_order_items = _extract_col(r, "order_item")
+    svc_revs = _extract_col(r, "sum_line_net_revenue")
+    # Group by service_type (high-level category)
+    svc_by_type: dict = {}
+    for i, cat in enumerate(svc_types):
+        if not cat:
+            cat = svc_order_items[i] if i < len(svc_order_items) else "Other"
+        rev = float(svc_revs[i]) if i < len(svc_revs) and svc_revs[i] else 0
+        svc_by_type[cat] = svc_by_type.get(cat, 0) + rev
+    for cat, rev in sorted(svc_by_type.items(), key=lambda x: -x[1]):
+        if rev > 0:
+            data.services.append(ServiceItem(name=cat, revenue=rev))
+    data.services.sort(key=lambda s: s.revenue, reverse=True)
+    data.compute_service_percentages()
 
     # Membership breakdown by type
     try:
-        mem_name_field = "dbt__moxie_client_memberships_mart.membership_name"
         pf = {"kind": "EQUALS", "type": "string", "values": [practice_name], "is_negative": False}
-        def _date_f(field):
+        def _date_f(field_name):
             return {"kind": "TIME_FOR_INTERVAL_DURATION", "type": "date",
                     "ui_type": "PAST", "left_side": start_date,
                     "right_side": duration, "is_negative": False}
 
-        # Active by type — also pull mrr_sum so the per-type MRR column adds
-        # up to the practice's total Active MRR.
+        # Active by type — keep using legacy Active Members (no per-type field in Standard Reports)
         aq = copy.deepcopy(queries["Active Members"])
-        aq["fields"].append(mem_name_field)
+        aq.setdefault("fields", [])
+        mem_name_field = "dbt__moxie_client_memberships_mart.membership_name"
+        if mem_name_field not in aq["fields"]:
+            aq["fields"].append(mem_name_field)
         active_mrr_field = "dbt__moxie_client_memberships_mart.mrr_sum"
-        if active_mrr_field not in aq.get("fields", []):
-            aq.setdefault("fields", []).append(active_mrr_field)
-        aq["filters"]["dbt__moxie_medspas_mart.medspa_name"] = pf
+        if active_mrr_field not in aq["fields"]:
+            aq["fields"].append(active_mrr_field)
+        aq.setdefault("filters", {})["dbt__moxie_medspas_mart.medspa_name"] = pf
         active_r = _run_query(aq, api_key)
-        active_names, active_counts, active_mrrs = [], [], []
-        for k, v in active_r.items():
-            if "membership_name" in k:
-                active_names = v
-            elif "mrr_sum" in k:
-                active_mrrs = v
-            elif "count" in k:
-                active_counts = v
+        active_names = _extract_col(active_r, "membership_name")
+        active_counts = _extract_col(active_r, "count")
+        active_mrrs = _extract_col(active_r, "mrr_sum")
 
-        # New by type — only need the count for the "New" column
-        nq = copy.deepcopy(queries["New Memberships"])
-        nq["fields"].append(mem_name_field)
-        nq["filters"]["dbt__moxie_medspas_mart.medspa_name"] = pf
+        # New by type — Standard Reports New Membership Enrollments + line_name dimension
+        nq = copy.deepcopy(queries["New Membership Enrollments"])
+        nq.setdefault("fields", [])
+        line_name_field = "dbt__moxie_client_memberships_mart.line_name"
+        if line_name_field not in nq["fields"]:
+            nq["fields"].append(line_name_field)
+        nq.setdefault("filters", {})["dbt__moxie_medspas_mart.medspa_name"] = pf
         nq["filters"]["dbt__moxie_client_memberships_mart.started_at"] = _date_f("started_at")
         new_r = _run_query(nq, api_key)
-        new_names, new_counts = [], []
-        for k, v in new_r.items():
-            if "membership_name" in k:
-                new_names = v
-            elif "count" in k:
-                new_counts = v
+        # line_name or membership_name — try both
+        new_names = _extract_col(new_r, "line_name") or _extract_col(new_r, "membership_name")
+        new_counts = _extract_col(new_r, "count")
 
-        # Churned by type
-        cq = copy.deepcopy(queries["Churned Memberships"])
-        cq["fields"].append(mem_name_field)
-        cq["filters"]["dbt__moxie_medspas_mart.medspa_name"] = pf
-        cq["filters"]["dbt__moxie_client_memberships_mart.ended_at"] = _date_f("ended_at")
+        # Churned by type — Standard Reports Cancellations + membership_name dimension
+        cq = copy.deepcopy(queries["Cancellations"])
+        cq.setdefault("fields", [])
+        if mem_name_field not in cq["fields"]:
+            cq["fields"].append(mem_name_field)
+        cq.setdefault("filters", {})["dbt__moxie_medspas_mart.medspa_name"] = pf
+        cq["filters"]["dbt__moxie_client_memberships_mart.canceled_at"] = _date_f("canceled_at")
         churned_r = _run_query(cq, api_key)
-        churned_names, churned_counts = [], []
-        for k, v in churned_r.items():
-            if "membership_name" in k:
-                churned_names = v
-            elif "count" in k:
-                churned_counts = v
+        churned_names = _extract_col(churned_r, "membership_name")
+        churned_counts = _extract_col(churned_r, "count_cancellations") or _extract_col(churned_r, "count")
 
-        # Merge into MembershipType objects. mrr_lookup is keyed off the
-        # Active Members query so per-type MRR sums to the practice total.
-        all_names = set()
+        # Merge into MembershipType objects
+        all_mem_names: set = set()
         active_lookup, mrr_lookup = {}, {}
         for i, name in enumerate(active_names):
             if name:
-                all_names.add(name)
+                all_mem_names.add(name)
                 active_lookup[name] = int(active_counts[i]) if i < len(active_counts) and active_counts[i] else 0
                 mrr_lookup[name] = float(active_mrrs[i]) if i < len(active_mrrs) and active_mrrs[i] else 0
         new_lookup = {}
         for i, name in enumerate(new_names):
             if name:
-                all_names.add(name)
+                all_mem_names.add(name)
                 new_lookup[name] = int(new_counts[i]) if i < len(new_counts) and new_counts[i] else 0
         churned_lookup = {}
         for i, name in enumerate(churned_names):
             if name:
-                all_names.add(name)
+                all_mem_names.add(name)
                 churned_lookup[name] = int(churned_counts[i]) if i < len(churned_counts) and churned_counts[i] else 0
 
-        for name in sorted(all_names):
+        for name in sorted(all_mem_names):
             data.membership_types.append(MembershipType(
                 name=name,
                 active=active_lookup.get(name, 0),
@@ -592,349 +704,129 @@ def load_from_omni(practice_name: str, month: int, year: int,
                 churned=churned_lookup.get(name, 0),
                 mrr=mrr_lookup.get(name, 0),
             ))
-        # Sort by active count descending
         data.membership_types.sort(key=lambda m: m.active, reverse=True)
         print(f"  Membership types: {len(data.membership_types)} loaded")
     except Exception as e:
         print(f"  Warning: Could not load membership breakdown: {e}")
 
-    # Gross Revenue Breakdown (from batch1)
-    r = batch1.get("Gross Revenue Breakdown Summary", {})
-    data.service_revenue = _val(r, "subtotal__service_sum")
-    data.retail_revenue = _val(r, "subtotal__retail_product_sum")
-    data.prepayment_revenue = _val(r, "subtotal__package_sum")
-    data.custom_items = _val(r, "subtotal__custom_item_sum")
-    data.total_gross = (data.service_revenue + data.retail_revenue +
-                        data.prepayment_revenue + data.custom_items +
-                        data.membership_sales)
-    data.discounts = _val(r, "discounts_sum")
-    data.client_fees = _val(r, "fees_sum")
-
-    # Retail MoM% — uses prior-month breakdown summary fetched in parallel above.
-    prev_breakdown_r = mom_results.get("prev_breakdown")
-    if prev_breakdown_r:
-        prev_retail = _val(prev_breakdown_r, "subtotal__retail_product_sum")
-        data.retail_revenue_mom_pct = _safe_mom(data.retail_revenue, prev_retail, 100)
-
-    # Payments & Refunds (from batch1)
-    pr = batch1.get("Payments & Refunds", {})
-    data.refunds = _val(pr, "refund_amount_sum")
-    data.redemptions = data.refunds  # backward compat for CSV path
-    # Wallet redemption amounts
-    data.wallet_dollar_redemptions = (
-        _val(pr, "wallet_dollar_redemption") or
-        _val(pr, "wallet_dollar_amount") or
-        _val(pr, "wallet_credit_amount")
-    )
-    data.wallet_item_redemptions = (
-        _val(pr, "wallet_item_redemption") or
-        _val(pr, "wallet_item_amount") or
-        _val(pr, "wallet_prepayment_amount")
-    )
-    # Payout reconciliation fields
-    data.card_revenue = _val(pr, "card_amount")
-    data.terminal_revenue = _val(pr, "terminal_amount")
-    data.transaction_fees = (
-        _val(pr, "transaction_fee_sum") or
-        _val(pr, "stripe_fee") or
-        _val(pr, "processing_fee")
-    )
-    data.performance_fees = (
-        _val(pr, "performance_fee") or
-        _val(pr, "moxie_fee") or
-        _val(pr, "moxie_performance_fee")
-    )
-    data.payout_amount = (
-        _val(pr, "payout_amount") or
-        _val(pr, "stripe_payout")
-    )
-    data.tax_collected = (
-        _val(pr, "tax_amount_sum") or
-        _val(pr, "tax_collected") or
-        _val(pr, "sales_tax_sum") or
-        _val(pr, "tax_sum")
-    )
-
-    # Retail to Service Ratio (from batch1)
-    r = batch1.get("Retail to Service Revenue", {})
-    ratio = _val(r, "calc_1", default=None)
-    if ratio is not None:
-        data.retail_to_service_ratio = ratio if ratio <= 1.0 else ratio / 100
-    elif data.service_revenue > 0:
-        data.retail_to_service_ratio = data.retail_revenue / data.service_revenue
-
-    # Service Mix (from batch1)
-    r = batch1.get("Gross Revenue By Official Service Type", {})
-    svc_names = []
-    svc_revs = []
-    svc_pcts = []
-    for k, v in r.items():
-        if "service_category" in k:
-            svc_names = v
-        elif "gross_revenue_sum" in k:
-            svc_revs = v
-        elif "calc_1" in k:
-            svc_pcts = v
-
-    for i in range(len(svc_names)):
-        if svc_names[i]:
-            rev = float(svc_revs[i]) if i < len(svc_revs) and svc_revs[i] else 0
-            pct = float(svc_pcts[i]) if i < len(svc_pcts) and svc_pcts[i] else 0
-            if pct and pct > 1:
-                pct = pct  # already percentage
-            elif pct:
-                pct = pct * 100
-            data.services.append(ServiceItem(
-                name=svc_names[i],
-                revenue=rev,
-                pct_of_total=pct,
-            ))
-    data.services.sort(key=lambda s: s.revenue, reverse=True)
-
-    # ── Staff Performance (separate dashboard) ──
+    # ── Staff Performance (Standard Reports: fed9785d) ──
     print("  Loading staff performance...")
     try:
-        staff_dash = _api_get(f"/v1/documents/{STAFF_DASHBOARD_ID}/queries", api_key)
-        staff_queries = {q["name"]: q["query"] for q in staff_dash.get("queries", [])}
+        def _staff_filter(q, start, dur=""):
+            q = copy.deepcopy(q)
+            q.setdefault("filters", {})
+            q["filters"]["dbt__moxie_medspas_mart.medspa_name"] = {
+                "kind": "EQUALS", "type": "string",
+                "values": [practice_name], "is_negative": False,
+            }
+            return q
 
-        # Employee Sales Metrics
-        sq = copy.deepcopy(staff_queries["Employee Sales Metrics"])
-        sq["filters"]["dbt__moxie_medspas_mart.medspa_name"] = {
-            "kind": "EQUALS", "type": "string",
-            "values": [practice_name], "is_negative": False,
-        }
-        sq["filters"]["dbt__moxie_invoices_mart.invoice_issued_date"] = {
+        # Staff Appointment Summary — utilization, rebooking, aov, hours per provider
+        appt_q = _staff_filter(queries["Staff Appointment Summary"])
+        appt_q["filters"]["dbt__moxie_embedded_staff_report_mart.report_date"] = {
             "kind": "TIME_FOR_INTERVAL_DURATION", "type": "date",
-            "ui_type": "PAST", "left_side": start_date,
-            "right_side": duration, "is_negative": False,
+            "ui_type": "PAST", "left_side": start_date, "right_side": duration,
+            "is_negative": False,
         }
-        # Add gross revenue field if not already present
+        appt_r = _run_query(appt_q, api_key)
+
+        # Staff Sales Summary — per-provider revenue by item type
+        sales_q = _staff_filter(queries["Staff Sales Summary"])
+        sales_q["filters"]["dbt__moxie_invoices_mart.first_payment_date"] = {
+            "kind": "TIME_FOR_INTERVAL_DURATION", "type": "date",
+            "ui_type": "PAST", "left_side": start_date, "right_side": duration,
+            "is_negative": False,
+        }
         gross_field = "dbt__moxie_invoice_line_items_mart.gross_revenue_sum"
-        if gross_field not in sq.get("fields", []):
-            sq.setdefault("fields", []).append(gross_field)
-        staff_r = _run_query(sq, api_key)
+        if gross_field not in sales_q.get("fields", []):
+            sales_q.setdefault("fields", []).append(gross_field)
+        sales_r = _run_query(sales_q, api_key)
 
-        # Rebooking Rate (per provider)
-        rq = copy.deepcopy(staff_queries["Rebooking Rate"])
-        rq["filters"]["dbt__moxie_medspas_mart.medspa_name"] = {
-            "kind": "EQUALS", "type": "string",
-            "values": [practice_name], "is_negative": False,
-        }
-        rq["filters"]["dbt__moxie_appointments_mart.start_time"] = {
-            "kind": "TIME_FOR_INTERVAL_DURATION", "type": "date",
-            "ui_type": "PAST", "left_side": start_date,
-            "right_side": duration, "is_negative": False,
-        }
-        rebook_r = _run_query(rq, api_key)
+        # Build per-provider lookup from Staff Appointment Summary
+        appt_names   = _extract_col(appt_r, "provider_name")
+        appt_util    = _extract_col(appt_r, "utilization_pct")
+        appt_rebook  = _extract_col(appt_r, "rebooking_rate")
+        appt_hours_b = _extract_col(appt_r, "hours_booked_sum")
+        appt_hours_s = _extract_col(appt_r, "hours_scheduled_sum")
+        appt_aov     = _extract_col(appt_r, ".aov")  # staff-level aov
 
-        # Per-provider utilization (from main dashboard Utilization query + provider dimension)
-        util_q = copy.deepcopy(queries["Utilization"])
-        util_q["filters"]["dbt__moxie_medspas_mart.medspa_name"] = {
-            "kind": "EQUALS", "type": "string",
-            "values": [practice_name], "is_negative": False,
-        }
-        util_q["filters"]["dbt__moxie_utilization_daily_mart.series_date"] = {
-            "kind": "TIME_FOR_INTERVAL_DURATION", "type": "date",
-            "ui_type": "PAST", "left_side": start_date,
-            "right_side": duration, "is_negative": False,
-        }
-        util_q["fields"].append("dbt__moxie_utilization_daily_mart.provider_name")
-        util_r = _run_query(util_q, api_key)
-
-        util_names = []
-        util_rates = []
-        util_appt_hours = []
-        for k, v in util_r.items():
-            if "provider_name" in k:
-                util_names = v
-            elif "column_b_divided_by_column_a" in k:
-                util_rates = v
-            elif "total_appointment_hours" in k:
-                util_appt_hours = v
-        util_lookup = {}
-        hours_lookup = {}
-        for i in range(len(util_names)):
-            if util_names[i]:
-                if util_rates[i] is not None:
-                    rate = float(util_rates[i])
-                    util_lookup[util_names[i]] = min(rate, 1.0)
-                if i < len(util_appt_hours) and util_appt_hours[i] is not None:
-                    hours_lookup[util_names[i]] = float(util_appt_hours[i])
-
-        # Build rebooking lookup: provider_name → rate
-        rebook_names = []
-        rebook_rates = []
-        for k, v in rebook_r.items():
-            if "provider_name" in k:
-                rebook_names = v
-            elif "rebooking_rate" in k:
-                rebook_rates = v
-        rebook_lookup = {}
-        for i in range(len(rebook_names)):
-            if rebook_names[i]:
-                rebook_lookup[rebook_names[i]] = float(rebook_rates[i]) if rebook_rates[i] else 0
-
-        # Parse staff data
-        names = []
-        net_revs = []
-        gross_revs = []
-        aovs = []
-        retail_revs = []
-        svc_revs_staff = []
-        for k, v in staff_r.items():
-            if "attributed_provider_name" in k:
-                names = v
-            elif "sum_line_net_revenue" in k and "retail" not in k:
-                net_revs = v
-            elif "gross_revenue_sum" in k and "retail" not in k:
-                gross_revs = v
-            elif "avg_net_revenue_per_attributed_invoice" in k:
-                aovs = v
-            elif "sum_line_net_revenue_retail" in k:
-                retail_revs = v
-            elif "gross_revenue_retail_sum" in k:
-                # Use gross retail as fallback if net retail not available
-                if not retail_revs:
-                    retail_revs = v
-
-        for i in range(len(names)):
-            name = names[i]
-            if not name:  # skip unattributed row
+        appt_lookup: dict = {}
+        for i, name in enumerate(appt_names):
+            if not name:
                 continue
-            net_rev = float(net_revs[i]) if i < len(net_revs) and net_revs[i] else 0
-            gross_rev = float(gross_revs[i]) if i < len(gross_revs) and gross_revs[i] else net_rev
-            aov_val = float(aovs[i]) if i < len(aovs) and aovs[i] else 0
-            retail = float(retail_revs[i]) if i < len(retail_revs) and retail_revs[i] else 0
-            svc_rev = net_rev - retail  # service rev = total net - retail net
-            rebook = rebook_lookup.get(name, 0)
+            util = float(appt_util[i]) if i < len(appt_util) and appt_util[i] is not None else None
+            if util is not None and util > 1.0:
+                util = util / 100
+            appt_lookup[name] = {
+                "util": util,
+                "rebook": float(appt_rebook[i]) if i < len(appt_rebook) and appt_rebook[i] is not None else 0,
+                "hours_booked": float(appt_hours_b[i]) if i < len(appt_hours_b) and appt_hours_b[i] else None,
+                "hours_sched": float(appt_hours_s[i]) if i < len(appt_hours_s) and appt_hours_s[i] else None,
+                "aov": float(appt_aov[i]) if i < len(appt_aov) and appt_aov[i] else None,
+            }
 
+        # Aggregate per-provider revenue from Staff Sales Summary
+        sales_names  = _extract_col(sales_r, "attributed_provider_name")
+        sales_net    = _extract_col(sales_r, "sum_line_net_revenue")
+        sales_gross  = _extract_col(sales_r, "gross_revenue_sum")
+        sales_type   = _extract_col(sales_r, "invoice_item_type")
+
+        sales_lookup: dict = {}
+        for i, name in enumerate(sales_names):
+            if not name:
+                continue
+            net = float(sales_net[i]) if i < len(sales_net) and sales_net[i] else 0
+            gross = float(sales_gross[i]) if i < len(sales_gross) and sales_gross[i] else net
+            item_type = (sales_type[i] or "").lower() if i < len(sales_type) else ""
+            if name not in sales_lookup:
+                sales_lookup[name] = {"net": 0, "gross": 0, "retail": 0, "service": 0}
+            sales_lookup[name]["net"] += net
+            sales_lookup[name]["gross"] += gross
+            if "retail" in item_type or "product" in item_type:
+                sales_lookup[name]["retail"] += net
+            else:
+                sales_lookup[name]["service"] += net
+
+        # Build StaffMember list (union of both queries)
+        all_staff_names = set(appt_lookup) | set(sales_lookup)
+        for name in sorted(all_staff_names):
+            appt = appt_lookup.get(name, {})
+            sales = sales_lookup.get(name, {"net": 0, "gross": 0, "retail": 0, "service": 0})
+            net_rev = sales["net"]
+            gross_rev = sales["gross"] if sales["gross"] > 0 else net_rev
+            aov_val = appt.get("aov") or (net_rev / max(1, 1))  # per-appt aov from staff query
+            rebook = appt.get("rebook", 0)
+            if rebook and rebook > 1.0:
+                rebook = rebook / 100
             data.staff.append(StaffMember(
                 name=name,
                 net_revenue=net_rev,
                 gross_revenue=gross_rev,
-                aov=aov_val,
-                utilization=util_lookup.get(name),
-                rebooking_rate=rebook,
-                service_revenue=max(svc_rev, 0),
-                retail_revenue=retail,
-                hours_worked=hours_lookup.get(name),
+                aov=aov_val or 0,
+                utilization=appt.get("util"),
+                rebooking_rate=rebook or 0,
+                service_revenue=max(sales["service"], 0),
+                retail_revenue=sales["retail"],
+                hours_worked=appt.get("hours_booked"),
             ))
 
         data.staff.sort(key=lambda s: s.gross_revenue, reverse=True)
 
-        # ── Per-provider MoM: run prior-month staff queries ──
-        try:
-            # Prior-month Employee Sales Metrics
-            prev_sq = copy.deepcopy(staff_queries["Employee Sales Metrics"])
-            prev_sq["filters"]["dbt__moxie_medspas_mart.medspa_name"] = {
-                "kind": "EQUALS", "type": "string",
-                "values": [practice_name], "is_negative": False,
-            }
-            prev_sq["filters"]["dbt__moxie_invoices_mart.invoice_issued_date"] = {
-                "kind": "TIME_FOR_INTERVAL_DURATION", "type": "date",
-                "ui_type": "PAST", "left_side": prev_start,
-                "right_side": "1 months", "is_negative": False,
-            }
-            if gross_field not in prev_sq.get("fields", []):
-                prev_sq.setdefault("fields", []).append(gross_field)
-            prev_staff_r = _run_query(prev_sq, api_key)
+        # Practice-level utilization — weighted by hours booked
+        total_hours = sum(
+            appt_lookup[n]["hours_booked"] or 0
+            for n in all_staff_names if n in appt_lookup and appt_lookup[n].get("hours_booked")
+        )
+        if total_hours > 0:
+            weighted_util = sum(
+                (appt_lookup[n].get("util") or 0) * (appt_lookup[n]["hours_booked"] or 0)
+                for n in all_staff_names
+                if n in appt_lookup and appt_lookup[n].get("util") is not None and appt_lookup[n].get("hours_booked")
+            ) / total_hours
+            if weighted_util > 0:
+                data.utilization_rate = weighted_util
 
-            # Parse prior-month staff data into lookups
-            prev_names, prev_net_revs, prev_gross_revs, prev_aovs = [], [], [], []
-            for k, v in prev_staff_r.items():
-                if "attributed_provider_name" in k:
-                    prev_names = v
-                elif "sum_line_net_revenue" in k and "retail" not in k:
-                    prev_net_revs = v
-                elif "gross_revenue_sum" in k and "retail" not in k:
-                    prev_gross_revs = v
-                elif "avg_net_revenue_per_attributed_invoice" in k:
-                    prev_aovs = v
-
-            prev_rev_lookup = {}
-            prev_net_rev_lookup = {}
-            prev_aov_lookup = {}
-            for i in range(len(prev_names)):
-                if prev_names[i]:
-                    prev_rev_lookup[prev_names[i]] = float(prev_gross_revs[i]) if i < len(prev_gross_revs) and prev_gross_revs[i] else 0
-                    prev_net_rev_lookup[prev_names[i]] = float(prev_net_revs[i]) if i < len(prev_net_revs) and prev_net_revs[i] else 0
-                    prev_aov_lookup[prev_names[i]] = float(prev_aovs[i]) if i < len(prev_aovs) and prev_aovs[i] else 0
-
-            # Prior-month utilization per provider
-            prev_util_q = copy.deepcopy(queries["Utilization"])
-            prev_util_q["filters"]["dbt__moxie_medspas_mart.medspa_name"] = {
-                "kind": "EQUALS", "type": "string",
-                "values": [practice_name], "is_negative": False,
-            }
-            prev_util_q["filters"]["dbt__moxie_utilization_daily_mart.series_date"] = {
-                "kind": "TIME_FOR_INTERVAL_DURATION", "type": "date",
-                "ui_type": "PAST", "left_side": prev_start,
-                "right_side": "1 months", "is_negative": False,
-            }
-            prev_util_q["fields"].append("dbt__moxie_utilization_daily_mart.provider_name")
-            prev_util_r = _run_query(prev_util_q, api_key)
-
-            prev_util_names, prev_util_rates, prev_util_hours = [], [], []
-            for k, v in prev_util_r.items():
-                if "provider_name" in k:
-                    prev_util_names = v
-                elif "column_b_divided_by_column_a" in k:
-                    prev_util_rates = v
-                elif "total_appointment_hours" in k:
-                    prev_util_hours = v
-            prev_util_lookup = {}
-            prev_hours_lookup = {}
-            for i in range(len(prev_util_names)):
-                if prev_util_names[i]:
-                    if i < len(prev_util_rates) and prev_util_rates[i] is not None:
-                        val = float(prev_util_rates[i])
-                        prev_util_lookup[prev_util_names[i]] = val if val <= 1.0 else val / 100
-                    if i < len(prev_util_hours) and prev_util_hours[i] is not None:
-                        prev_hours_lookup[prev_util_names[i]] = float(prev_util_hours[i])
-
-            # Prior-month rebooking per provider
-            prev_rebook_lookup = {}
-            try:
-                prev_rq = copy.deepcopy(staff_queries["Rebooking Rate"])
-                prev_rq["filters"]["dbt__moxie_medspas_mart.medspa_name"] = {
-                    "kind": "EQUALS", "type": "string",
-                    "values": [practice_name], "is_negative": False,
-                }
-                prev_rq["filters"]["dbt__moxie_appointments_mart.start_time"] = {
-                    "kind": "TIME_FOR_INTERVAL_DURATION", "type": "date",
-                    "ui_type": "PAST", "left_side": prev_start,
-                    "right_side": "1 months", "is_negative": False,
-                }
-                prev_rebook_r = _run_query(prev_rq, api_key)
-                prev_rebook_names_m, prev_rebook_vals_m = [], []
-                for k, v in prev_rebook_r.items():
-                    if "provider_name" in k:
-                        prev_rebook_names_m = v
-                    elif "rebooking_rate" in k:
-                        prev_rebook_vals_m = v
-                for i in range(len(prev_rebook_names_m)):
-                    if prev_rebook_names_m[i] and i < len(prev_rebook_vals_m) and prev_rebook_vals_m[i] is not None:
-                        prev_rebook_lookup[prev_rebook_names_m[i]] = float(prev_rebook_vals_m[i])
-            except Exception as e:
-                print(f"  Warning: Could not load prior-month rebooking: {e}")
-
-            # Apply MoM to each staff member
-            for s in data.staff:
-                s.revenue_mom_pct = _safe_mom(s.gross_revenue, prev_rev_lookup.get(s.name), 500)
-                s.net_revenue_mom_pct = _safe_mom(s.net_revenue, prev_net_rev_lookup.get(s.name), 500)
-                s.aov_mom_pct = _safe_mom(s.aov, prev_aov_lookup.get(s.name), 50)
-                s.utilization_mom_pct = _safe_mom(s.utilization, prev_util_lookup.get(s.name), 0.05)
-                s.rebooking_mom_pct = _safe_mom(s.rebooking_rate, prev_rebook_lookup.get(s.name), 0.05)
-                prev_hrs = prev_hours_lookup.get(s.name)
-                prev_gr = prev_rev_lookup.get(s.name)
-                if prev_hrs and prev_hrs > 0 and prev_gr and prev_gr > 500 and s.rev_per_hour:
-                    s.rev_per_hour_mom_pct = _safe_mom(s.rev_per_hour, prev_gr / prev_hrs, 10)
-
-            print(f"  Staff MoM: loaded for {sum(1 for s in data.staff if s.revenue_mom_pct is not None)} providers")
-        except Exception as e:
-            print(f"  Warning: Could not load staff MoM: {e}")
-
-        # Practice-level rebooking rate: weighted average from provider data
+        # Practice-level rebooking — weighted by net revenue
         total_rebook_weight = sum(s.net_revenue for s in data.staff if s.rebooking_rate)
         if total_rebook_weight > 0:
             data.rebooking_rate = sum(
@@ -942,21 +834,108 @@ def load_from_omni(practice_name: str, month: int, year: int,
                 for s in data.staff if s.rebooking_rate
             ) / total_rebook_weight
 
-        # Rebooking MoM: use prev_rebook_lookup from staff MoM block above
+        # ── Per-provider MoM (prior month staff queries) ──
         try:
-            if prev_rebook_lookup:
-                prev_weight = sum(s.net_revenue for s in data.staff if s.name in prev_rebook_lookup and prev_rebook_lookup[s.name] > 0)
-                if prev_weight > 0:
-                    prev_rebook_weighted = sum(
-                        prev_rebook_lookup[s.name] * s.net_revenue
-                        for s in data.staff if s.name in prev_rebook_lookup and prev_rebook_lookup[s.name] > 0
-                    ) / prev_weight
-                    if prev_rebook_weighted > 0.05 and data.rebooking_rate > 0:
-                        data.rebooking_mom_pct = _safe_mom(data.rebooking_rate, prev_rebook_weighted, 0.05)
-                        if data.rebooking_mom_pct is not None:
-                            print(f"  Rebooking MoM: {data.rebooking_rate:.3f} vs {prev_rebook_weighted:.3f} = {data.rebooking_mom_pct:+.1%}")
+            prev_appt_q = _staff_filter(queries["Staff Appointment Summary"])
+            prev_appt_q["filters"]["dbt__moxie_embedded_staff_report_mart.report_date"] = {
+                "kind": "TIME_FOR_INTERVAL_DURATION", "type": "date",
+                "ui_type": "PAST", "left_side": prev_start, "right_side": "1 months",
+                "is_negative": False,
+            }
+            prev_appt_r = _run_query(prev_appt_q, api_key)
+
+            prev_sales_q = _staff_filter(queries["Staff Sales Summary"])
+            prev_sales_q["filters"]["dbt__moxie_invoices_mart.first_payment_date"] = {
+                "kind": "TIME_FOR_INTERVAL_DURATION", "type": "date",
+                "ui_type": "PAST", "left_side": prev_start, "right_side": "1 months",
+                "is_negative": False,
+            }
+            if gross_field not in prev_sales_q.get("fields", []):
+                prev_sales_q.setdefault("fields", []).append(gross_field)
+            prev_sales_r = _run_query(prev_sales_q, api_key)
+
+            # Build prior-month lookups
+            p_appt_names   = _extract_col(prev_appt_r, "provider_name")
+            p_appt_util    = _extract_col(prev_appt_r, "utilization_pct")
+            p_appt_rebook  = _extract_col(prev_appt_r, "rebooking_rate")
+            p_appt_hours   = _extract_col(prev_appt_r, "hours_booked_sum")
+            p_appt_aov     = _extract_col(prev_appt_r, ".aov")
+
+            prev_appt_lookup: dict = {}
+            for i, name in enumerate(p_appt_names):
+                if not name:
+                    continue
+                util = float(p_appt_util[i]) if i < len(p_appt_util) and p_appt_util[i] is not None else None
+                if util is not None and util > 1.0:
+                    util = util / 100
+                rebook = float(p_appt_rebook[i]) if i < len(p_appt_rebook) and p_appt_rebook[i] is not None else 0
+                if rebook > 1.0:
+                    rebook = rebook / 100
+                prev_appt_lookup[name] = {
+                    "util": util,
+                    "rebook": rebook,
+                    "hours": float(p_appt_hours[i]) if i < len(p_appt_hours) and p_appt_hours[i] else None,
+                    "aov": float(p_appt_aov[i]) if i < len(p_appt_aov) and p_appt_aov[i] else None,
+                }
+
+            p_sales_names = _extract_col(prev_sales_r, "attributed_provider_name")
+            p_sales_net   = _extract_col(prev_sales_r, "sum_line_net_revenue")
+            p_sales_gross = _extract_col(prev_sales_r, "gross_revenue_sum")
+
+            prev_sales_lookup: dict = {}
+            for i, name in enumerate(p_sales_names):
+                if not name:
+                    continue
+                net = float(p_sales_net[i]) if i < len(p_sales_net) and p_sales_net[i] else 0
+                gross = float(p_sales_gross[i]) if i < len(p_sales_gross) and p_sales_gross[i] else net
+                if name not in prev_sales_lookup:
+                    prev_sales_lookup[name] = {"net": 0, "gross": 0}
+                prev_sales_lookup[name]["net"] += net
+                prev_sales_lookup[name]["gross"] += gross
+
+            # Apply MoM to each StaffMember
+            for s in data.staff:
+                pa = prev_appt_lookup.get(s.name, {})
+                ps = prev_sales_lookup.get(s.name, {})
+                prev_gr = ps.get("gross", 0)
+                prev_net = ps.get("net", 0)
+                prev_aov = pa.get("aov") or (prev_net / max(1, 1))
+                s.revenue_mom_pct = _safe_mom(s.gross_revenue, prev_gr, 500)
+                s.net_revenue_mom_pct = _safe_mom(s.net_revenue, prev_net, 500)
+                s.aov_mom_pct = _safe_mom(s.aov, prev_aov, 50) if prev_aov else None
+                s.utilization_mom_pct = _safe_mom(s.utilization, pa.get("util"), 0.05)
+                s.rebooking_mom_pct = _safe_mom(s.rebooking_rate, pa.get("rebook"), 0.05)
+                prev_hrs = pa.get("hours")
+                if prev_hrs and prev_hrs > 0 and prev_gr > 500 and s.rev_per_hour:
+                    s.rev_per_hour_mom_pct = _safe_mom(s.rev_per_hour, prev_gr / prev_hrs, 10)
+
+            # Practice-level rebooking MoM
+            prev_rebook_lookup = {n: d["rebook"] for n, d in prev_appt_lookup.items() if d.get("rebook")}
+            prev_weight = sum(s.net_revenue for s in data.staff if s.name in prev_rebook_lookup and prev_rebook_lookup[s.name] > 0)
+            if prev_weight > 0:
+                prev_rebook_weighted = sum(
+                    prev_rebook_lookup[s.name] * s.net_revenue
+                    for s in data.staff if s.name in prev_rebook_lookup and prev_rebook_lookup[s.name] > 0
+                ) / prev_weight
+                if prev_rebook_weighted > 0.05 and data.rebooking_rate > 0:
+                    data.rebooking_mom_pct = _safe_mom(data.rebooking_rate, prev_rebook_weighted, 0.05)
+
+            # Practice-level utilization MoM
+            p_total_hours = sum(
+                d["hours"] or 0 for d in prev_appt_lookup.values() if d.get("hours")
+            )
+            if p_total_hours > 0:
+                p_weighted_util = sum(
+                    (d.get("util") or 0) * (d.get("hours") or 0)
+                    for d in prev_appt_lookup.values()
+                    if d.get("util") is not None and d.get("hours")
+                ) / p_total_hours
+                if p_weighted_util > 0 and data.utilization_rate > 0:
+                    data.utilization_mom_pct = _safe_mom(data.utilization_rate, p_weighted_util, 0.05)
+
+            print(f"  Staff MoM: loaded for {sum(1 for s in data.staff if s.revenue_mom_pct is not None)} providers")
         except Exception as e:
-            print(f"  Warning: Could not compute rebooking MoM: {e}")
+            print(f"  Warning: Could not load staff MoM: {e}")
 
         print(f"  Staff: {len(data.staff)} providers loaded")
     except Exception as e:
