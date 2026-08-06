@@ -1140,7 +1140,10 @@ def api_generate():
         try:
             html = render_html(data)
         except Exception as e:
-            return jsonify({"error": f"[render_html] {e}", "traceback": _tb.format_exc()}), 500
+            tb = _tb.format_exc()
+            import sys
+            print(f"RENDER_HTML ERROR: {e}\n{tb}", file=sys.stderr, flush=True)
+            return jsonify({"error": f"[render_html] {e}", "traceback": tb}), 500
 
         sessions[session_id] = {
             "data": data,
