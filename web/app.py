@@ -1115,8 +1115,13 @@ def api_generate():
         from src.html_renderer import render_html
         from src.data_schema import LaunchFeature, BrandBankItem
 
+        import traceback as _tb
+
         # Load data
-        data = load_from_omni(practice, month, year, api_key=key)
+        try:
+            data = load_from_omni(practice, month, year, api_key=key)
+        except Exception as e:
+            return jsonify({"error": f"[load_from_omni] {e}", "traceback": _tb.format_exc()}), 500
 
         # Inject monthly assets (launches & brand bank)
         assets = _load_monthly_assets(month, year)
@@ -1126,10 +1131,16 @@ def api_generate():
             data.brand_bank_items = [BrandBankItem(**b) for b in assets["brand_bank_items"]]
 
         # Generate narratives
-        generate_narratives(data)
+        try:
+            generate_narratives(data)
+        except Exception as e:
+            return jsonify({"error": f"[generate_narratives] {e}", "traceback": _tb.format_exc()}), 500
 
         # Render HTML
-        html = render_html(data)
+        try:
+            html = render_html(data)
+        except Exception as e:
+            return jsonify({"error": f"[render_html] {e}", "traceback": _tb.format_exc()}), 500
 
         sessions[session_id] = {
             "data": data,

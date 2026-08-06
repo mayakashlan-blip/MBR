@@ -691,18 +691,14 @@ def load_from_omni(practice_name: str, month: int, year: int,
         active_counts = _extract_col(active_r, "count")
         active_mrrs = _extract_col(active_r, "mrr_sum")
 
-        # New by type — Standard Reports New Membership Enrollments + line_name dimension
+        # New by type — Standard Reports New Membership Enrollments
         nq = copy.deepcopy(queries["New Membership Enrollments"])
         if not isinstance(nq.get("fields"), list):
             nq["fields"] = []
-        line_name_field = "dbt__moxie_client_memberships_mart.line_name"
-        if line_name_field not in nq["fields"]:
-            nq["fields"].append(line_name_field)
         _ensure_filters(nq)["dbt__moxie_medspas_mart.medspa_name"] = pf
         nq["filters"]["dbt__moxie_client_memberships_mart.started_at"] = _date_f("started_at")
         new_r = _run_query(nq, api_key)
-        # line_name or membership_name — try both
-        new_names = _extract_col(new_r, "line_name") or _extract_col(new_r, "membership_name")
+        new_names = _extract_col(new_r, "membership_name")
         new_counts = _extract_col(new_r, "count")
 
         # Churned by type — Standard Reports Cancellations + membership_name dimension
