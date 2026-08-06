@@ -122,6 +122,13 @@ def _run_query(query_body: dict, api_key: str, retries: int = 7) -> dict:
     raise RuntimeError("No result returned from Omni query")
 
 
+def _ensure_filters(q: dict) -> dict:
+    """Ensure q['filters'] is a mutable dict (handles null/list from Omni). Returns q['filters']."""
+    if not isinstance(q.get("filters"), dict):
+        q["filters"] = {}
+    return q["filters"]
+
+
 def _add_filters(query: dict, practice_name: str, start_date: str,
                  date_field: str = None, duration: str = "1 months",
                  medspa_id: int = None) -> dict:
@@ -135,7 +142,7 @@ def _add_filters(query: dict, practice_name: str, start_date: str,
     branch was taken. duration can be "1 months", "3 months", etc.
     """
     q = copy.deepcopy(query)
-    q.setdefault("filters", {})
+    _ensure_filters(q)
     q["filters"]["dbt__moxie_medspas_mart.medspa_name"] = {
         "kind": "EQUALS",
         "type": "string",
@@ -271,7 +278,7 @@ def load_from_omni(practice_name: str, month: int, year: int,
 
         tier_q = copy.deepcopy(queries.get("Medspa Name", {}))
         if tier_q:
-            tier_q["filters"]["dbt__moxie_medspas_mart.medspa_name"] = {
+            _ensure_filters(tier_q)["dbt__moxie_medspas_mart.medspa_name"] = {
                 "kind": "CONTAINS", "type": "string",
                 "values": [practice_name.split()[0]],
                 "is_negative": False,
@@ -279,9 +286,11 @@ def load_from_omni(practice_name: str, month: int, year: int,
             tier_field = "dbt__moxie_medspas_mart.provider_segment_post_launch"
             name_field = "dbt__moxie_medspas_mart.medspa_name"
             id_field = "dbt__moxie_medspas_mart.medspa_id"
+            if not isinstance(tier_q.get("fields"), list):
+                tier_q["fields"] = []
             for f in [tier_field, name_field, id_field]:
-                if f not in tier_q.get("fields", []):
-                    tier_q.setdefault("fields", []).append(f)
+                if f not in tier_q["fields"]:
+                    tier_q["fields"].append(f)
             tier_q["limit"] = 50
             tier_r = _run_query(tier_q, api_key)
             tier_names = tier_r.get(name_field, [])
@@ -355,7 +364,8 @@ def load_from_omni(practice_name: str, month: int, year: int,
     _inv_type_field = "dbt__moxie_invoice_line_items_mart.invoice_item_type"
     if "Sales Summary" in queries:
         _by_type_q = copy.deepcopy(queries["Sales Summary"])
-        _by_type_q.setdefault("fields", [])
+        if not isinstance(_by_type_q.get("fields"), list):
+            _by_type_q["fields"] = []
         if _inv_type_field not in _by_type_q["fields"]:
             _by_type_q["fields"].append(_inv_type_field)
         queries["Sales Summary by Type"] = _by_type_q
@@ -516,7 +526,7 @@ def load_from_omni(practice_name: str, month: int, year: int,
         qtd_q = _find_query(queries, "Sales Summary")
         qtd_date_field = QUERY_DATE_FIELDS.get("Sales Summary")
         qtd_q = copy.deepcopy(qtd_q)
-        qtd_q.setdefault("filters", {})
+        _ensure_filters(qtd_q)
         qtd_q["filters"]["dbt__moxie_medspas_mart.medspa_name"] = {
             "kind": "EQUALS", "type": "string",
             "values": [practice_name], "is_negative": False,
@@ -667,14 +677,15 @@ def load_from_omni(practice_name: str, month: int, year: int,
 
         # Active by type — keep using legacy Active Members (no per-type field in Standard Reports)
         aq = copy.deepcopy(queries["Active Members"])
-        aq.setdefault("fields", [])
+        if not isinstance(aq.get("fields"), list):
+            aq["fields"] = []
         mem_name_field = "dbt__moxie_client_memberships_mart.membership_name"
         if mem_name_field not in aq["fields"]:
             aq["fields"].append(mem_name_field)
         active_mrr_field = "dbt__moxie_client_memberships_mart.mrr_sum"
         if active_mrr_field not in aq["fields"]:
             aq["fields"].append(active_mrr_field)
-        aq.setdefault("filters", {})["dbt__moxie_medspas_mart.medspa_name"] = pf
+        _ensure_filters(aq)["dbt__moxie_medspas_mart.medspa_name"] = pf
         active_r = _run_query(aq, api_key)
         active_names = _extract_col(active_r, "membership_name")
         active_counts = _extract_col(active_r, "count")
@@ -682,11 +693,12 @@ def load_from_omni(practice_name: str, month: int, year: int,
 
         # New by type — Standard Reports New Membership Enrollments + line_name dimension
         nq = copy.deepcopy(queries["New Membership Enrollments"])
-        nq.setdefault("fields", [])
+        if not isinstance(nq.get("fields"), list):
+            nq["fields"] = []
         line_name_field = "dbt__moxie_client_memberships_mart.line_name"
         if line_name_field not in nq["fields"]:
             nq["fields"].append(line_name_field)
-        nq.setdefault("filters", {})["dbt__moxie_medspas_mart.medspa_name"] = pf
+        _ensure_filters(nq)["dbt__moxie_medspas_mart.medspa_name"] = pf
         nq["filters"]["dbt__moxie_client_memberships_mart.started_at"] = _date_f("started_at")
         new_r = _run_query(nq, api_key)
         # line_name or membership_name — try both
@@ -695,10 +707,11 @@ def load_from_omni(practice_name: str, month: int, year: int,
 
         # Churned by type — Standard Reports Cancellations + membership_name dimension
         cq = copy.deepcopy(queries["Cancellations"])
-        cq.setdefault("fields", [])
+        if not isinstance(cq.get("fields"), list):
+            cq["fields"] = []
         if mem_name_field not in cq["fields"]:
             cq["fields"].append(mem_name_field)
-        cq.setdefault("filters", {})["dbt__moxie_medspas_mart.medspa_name"] = pf
+        _ensure_filters(cq)["dbt__moxie_medspas_mart.medspa_name"] = pf
         cq["filters"]["dbt__moxie_client_memberships_mart.canceled_at"] = _date_f("canceled_at")
         churned_r = _run_query(cq, api_key)
         churned_names = _extract_col(churned_r, "membership_name")
@@ -739,10 +752,9 @@ def load_from_omni(practice_name: str, month: int, year: int,
     # ── Staff Performance (Standard Reports: fed9785d) ──
     print("  Loading staff performance...")
     try:
-        def _staff_filter(q, start, dur=""):
+        def _staff_filter(q):
             q = copy.deepcopy(q)
-            q.setdefault("filters", {})
-            q["filters"]["dbt__moxie_medspas_mart.medspa_name"] = {
+            _ensure_filters(q)["dbt__moxie_medspas_mart.medspa_name"] = {
                 "kind": "EQUALS", "type": "string",
                 "values": [practice_name], "is_negative": False,
             }
@@ -765,8 +777,10 @@ def load_from_omni(practice_name: str, month: int, year: int,
             "is_negative": False,
         }
         gross_field = "dbt__moxie_invoice_line_items_mart.gross_revenue_sum"
-        if gross_field not in sales_q.get("fields", []):
-            sales_q.setdefault("fields", []).append(gross_field)
+        if not isinstance(sales_q.get("fields"), list):
+            sales_q["fields"] = []
+        if gross_field not in sales_q["fields"]:
+            sales_q["fields"].append(gross_field)
         sales_r = _run_query(sales_q, api_key)
 
         # Build per-provider lookup from Staff Appointment Summary
@@ -877,8 +891,10 @@ def load_from_omni(practice_name: str, month: int, year: int,
                 "ui_type": "PAST", "left_side": prev_start, "right_side": "1 months",
                 "is_negative": False,
             }
-            if gross_field not in prev_sales_q.get("fields", []):
-                prev_sales_q.setdefault("fields", []).append(gross_field)
+            if not isinstance(prev_sales_q.get("fields"), list):
+                prev_sales_q["fields"] = []
+            if gross_field not in prev_sales_q["fields"]:
+                prev_sales_q["fields"].append(gross_field)
             prev_sales_r = _run_query(prev_sales_q, api_key)
 
             # Build prior-month lookups
@@ -976,7 +992,7 @@ def load_from_omni(practice_name: str, month: int, year: int,
 
         rq = copy.deepcopy(list(ret_queries.values())[0])
         # This dashboard uses medspa_name_with_id filter; use CONTAINS to match
-        rq["filters"]["dbt__moxie_medspas_mart.medspa_name_with_id"] = {
+        _ensure_filters(rq)["dbt__moxie_medspas_mart.medspa_name_with_id"] = {
             "kind": "CONTAINS", "type": "string",
             "values": [practice_name], "is_negative": False,
         }
@@ -988,7 +1004,7 @@ def load_from_omni(practice_name: str, month: int, year: int,
         # Note: retention is a rolling 180d metric, but we compare the value reported for each month
         try:
             prev_rq = copy.deepcopy(list(ret_queries.values())[0])
-            prev_rq["filters"]["dbt__moxie_medspas_mart.medspa_name_with_id"] = {
+            _ensure_filters(prev_rq)["dbt__moxie_medspas_mart.medspa_name_with_id"] = {
                 "kind": "CONTAINS", "type": "string",
                 "values": [practice_name], "is_negative": False,
             }
@@ -1026,7 +1042,7 @@ def load_from_omni(practice_name: str, month: int, year: int,
 
         def _gfe_pull_named(query_name, start_date_val, duration_val):
             gq = copy.deepcopy(queries[query_name])
-            gq["filters"]["dbt__moxie_medspas_mart.medspa_name"] = {
+            _ensure_filters(gq)["dbt__moxie_medspas_mart.medspa_name"] = {
                 "kind": "EQUALS", "type": "string",
                 "values": [practice_name], "is_negative": False,
             }
@@ -1178,7 +1194,7 @@ def load_from_omni(practice_name: str, month: int, year: int,
         sup_queries = sup_dash.get("queries", [])
         if sup_queries:
             sq = copy.deepcopy(sup_queries[0]["query"])
-            sq["filters"]["dbt__moxie_medspas_mart.medspa_name"] = {
+            _ensure_filters(sq)["dbt__moxie_medspas_mart.medspa_name"] = {
                 "kind": "EQUALS", "type": "string",
                 "values": [practice_name], "is_negative": False,
             }
@@ -1264,6 +1280,7 @@ def load_from_omni(practice_name: str, month: int, year: int,
             mq = copy.deepcopy(mkt_queries[0]["query"])
             # Replace PSM filter with practice filter — use CONTAINS so name
             # variations ('&' vs 'and', extra whitespace) still match.
+            _ensure_filters(mq)
             mq["filters"].pop("dbt__moxie_medspas_mart.provider_success_manager_name", None)
             mq["filters"]["dbt__moxie_medspas_mart.medspa_name"] = {
                 "kind": "CONTAINS", "type": "string",
@@ -1279,9 +1296,11 @@ def load_from_omni(practice_name: str, month: int, year: int,
             # Add revenue fields (not in the base dashboard query)
             rev_field = "dbt__marketing_medspa_performance_daily_mart.meta_new_clients_completed_appointment_revenue_sum"
             all_rev_field = "dbt__marketing_medspa_performance_daily_mart.meta_completed_appointment_revenue_sum"
+            if not isinstance(mq.get("fields"), list):
+                mq["fields"] = []
             for extra_f in [rev_field, all_rev_field]:
-                if extra_f not in mq.get("fields", []):
-                    mq.setdefault("fields", []).append(extra_f)
+                if extra_f not in mq["fields"]:
+                    mq["fields"].append(extra_f)
             mkt_r = _run_query(mq, api_key)
 
             # Find the practice row using a normalized name comparison so
@@ -1357,6 +1376,7 @@ def load_from_omni(practice_name: str, month: int, year: int,
                     try:
                         from .data_schema import CampaignData
                         cq = copy.deepcopy(mkt_queries[0]["query"])
+                        _ensure_filters(cq)
                         cq["filters"].pop("dbt__moxie_medspas_mart.provider_success_manager_name", None)
                         cq["filters"]["dbt__moxie_medspas_mart.medspa_name"] = {
                             "kind": "EQUALS", "type": "string",
