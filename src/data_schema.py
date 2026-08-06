@@ -219,7 +219,9 @@ class MBRData:
     membership_sales: float = 0.0
     custom_items: float = 0.0
     retail_revenue: float = 0.0
-    total_gross: float = 0.0
+    total_sales: float = 0.0      # Suite "Total Sales" (total_invoice_revenue_sum, incl. wallet redemptions)
+    total_gross: float = 0.0      # Suite "Gross Revenue" (gross_revenue_sum)
+    tips: float = 0.0             # provider/owner tips collected
     retail_to_service_ratio: float = 0.0
 
     # Tile 7 - Adjustments

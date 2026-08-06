@@ -396,11 +396,13 @@ def load_from_omni(practice_name: str, month: int, year: int,
     # Revenue totals — from ungrouped Sales Summary (wallet/tax are invoice-level)
     r = batch1.get("Sales Summary", {})
     data.monthly_net_revenue = _val(r, "net_revenue_sum")
+    data.total_sales = _val(r, "total_invoice_revenue_sum")
     data.total_gross = _val(r, "gross_revenue_sum")
     data.discounts = abs(_val(r, "discount_amount_sum"))
     data.wallet_dollar_redemptions = abs(_val(r, "total_wallet_dollars_redeemed"))
     data.wallet_item_redemptions = abs(_val(r, "total_wallet_item_discounts"))
     data.tax_collected = _val(r, "total_tax_amount_sum")
+    data.tips = _val(r, "provider_owner_tip_amount_sum")
     # Goals not available in Standard Reports — remain 0
 
     # Revenue breakdown by invoice_item_type (from Sales Summary by Type)
