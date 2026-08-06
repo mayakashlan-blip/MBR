@@ -249,10 +249,10 @@
       </div>
     </div>
 
-    <div class="section-subtitle">Gross Revenue by Category</div>
+    <div class="section-subtitle">Total Sales by Category</div>
     <div class="revenue-bars">
-      {% set bar_total = data.service_revenue + data.prepayment_revenue + data.membership_sales + data.custom_items + data.retail_revenue %}
-      {% set max_rev = [data.service_revenue, data.prepayment_revenue, data.membership_sales, data.custom_items, data.retail_revenue] | max %}
+      {% set bar_total = data.service_revenue + data.prepayment_revenue + data.membership_sales + data.custom_items + data.retail_revenue + data.client_fees %}
+      {% set max_rev = [data.service_revenue, data.prepayment_revenue, data.membership_sales, data.custom_items, data.retail_revenue, data.client_fees] | max %}
       {% for item in revenue_items %}
       {% set bar_width = (item.value / max_rev * 100) if max_rev > 0 else 0 %}
       {% set pct_of_total = (item.value / bar_total * 100) if bar_total > 0 else 0 %}
@@ -272,6 +272,11 @@
         </div>
       </div>
       {% endfor %}
+      <div class="revenue-total">
+        <div class="revenue-bar-label">Total Sales</div>
+        <div></div>
+        <div class="revenue-bar-value">{{ bar_total | dollar(False) }}</div>
+      </div>
     </div>
 
     <div class="adjustments-row">
@@ -282,10 +287,6 @@
       <div class="adjustment-card">
         <div class="adj-label">Refunds</div>
         <div class="adj-value neutral">{{ data.refunds | dollar(False) }}</div>
-      </div>
-      <div class="adjustment-card">
-        <div class="adj-label">Client Fees</div>
-        <div class="adj-value neutral">{{ data.client_fees | dollar(False) }}</div>
       </div>
       {% if data.tips > 0 %}
       <div class="adjustment-card">

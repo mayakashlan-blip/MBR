@@ -29,7 +29,11 @@ QUERY_DATE_FIELDS = {
     # ── Standard Reports ──
     # Sales Report (b8baa4c2)
     "Sales Summary":              "dbt__moxie_invoice_transactions_mart.transaction_date_et",
-    "Sales Summary by Type":      "dbt__moxie_invoice_transactions_mart.transaction_date_et",
+    # By Type is built from the staff-dashboard line-items query, which ships a
+    # baked "last month" filter on first_payment_date — using the same field
+    # here OVERWRITES that filter (a different field would AND against it and
+    # zero out any non-current month).
+    "Sales Summary by Type":      "dbt__moxie_invoices_mart.first_payment_date",
     "Service Revenue Summary":    "dbt__moxie_invoices_mart.invoice_issued_date",
     # Appointments (d6776514)
     "Appointment Overview":       "dbt__moxie_appointments_mart.start_time",
@@ -396,11 +400,26 @@ def load_from_omni(practice_name: str, month: int, year: int,
     # ── Execute queries in parallel ──
     print(f"  Querying Omni for {practice_name}, {calendar.month_name[month]} {year}...")
 
-    # Dynamically create "Sales Summary by Type" — same as Sales Summary but with
-    # invoice_item_type dimension added so gross_revenue_sum is available per type.
-    # Wallet / tax fields stay on the ungrouped Sales Summary to avoid row duplication.
+    # Dynamically create "Sales Summary by Type" from the line-items mart.
+    # Line-level revenue per invoice_item_type is additive — the per-type rows
+    # genuinely sum to Total Sales. (Grouping invoice-level measures by item
+    # type overlaps instead: an invoice with a service AND a fee counts its
+    # full amount in both rows — that's true even in Omni's own by-type table.)
     _inv_type_field = "dbt__moxie_invoice_line_items_mart.invoice_item_type"
-    if "Sales Summary" in queries:
+    if "Staff Sales Summary" in queries:
+        _by_type_q = copy.deepcopy(queries["Staff Sales Summary"])
+        _by_type_q["fields"] = [
+            _inv_type_field,
+            "dbt__moxie_invoice_line_items_mart.sum_line_net_revenue",
+            "dbt__moxie_invoice_line_items_mart.gross_revenue_sum",
+        ]
+        _by_type_q["pivots"] = []
+        _by_type_q["sorts"] = []
+        _by_type_q["row_totals"] = {}
+        _by_type_q["column_totals"] = {}
+        queries["Sales Summary by Type"] = _by_type_q
+    elif "Sales Summary" in queries:
+        # Fallback (overlapping, non-additive) if the staff dashboard is down
         _by_type_q = copy.deepcopy(queries["Sales Summary"])
         if not isinstance(_by_type_q.get("fields"), list):
             _by_type_q["fields"] = []
@@ -452,26 +471,30 @@ def load_from_omni(practice_name: str, month: int, year: int,
     type_rev: dict = {}
     for _i, _itype in enumerate(item_types):
         _g = float(gross_by_type[_i]) if _i < len(gross_by_type) and gross_by_type[_i] else 0
-        # Null/blank types still carry revenue — bucket as "other" so the
-        # breakdown reconciles with Moxie Suite's Total Sales.
+        # Null/blank types still carry revenue — bucket as "other".
         _k = _itype.lower() if _itype else "other"
         type_rev[_k] = type_rev.get(_k, 0) + _g
     data.service_revenue = type_rev.get("service", 0)
-    data.retail_revenue = type_rev.get("product", 0)   # retail products + custom items combined
+    data.retail_revenue = type_rev.get("product", 0)
     data.prepayment_revenue = type_rev.get("prepayment", 0)
     data.client_fees = type_rev.get("fee", 0)
     if type_rev.get("membership", 0) > 0:
         data.membership_sales = type_rev["membership"]
     # Everything not mapped above (gift cards, custom items, null types, …)
-    # goes into custom_items so the bars sum to Suite's Total Sales.
+    # plus any small date-basis residual vs the Total Sales headline goes to
+    # custom_items so the category bars sum to Total Sales exactly.
     _mapped = {"service", "product", "prepayment", "fee", "membership"}
     data.custom_items = sum(v for k, v in type_rev.items() if k not in _mapped)
+    _all_types = sum(type_rev.values())
+    if data.total_sales > 0:
+        _resid = data.total_sales - _all_types
+        if 0 < _resid < data.total_sales * 0.05:
+            data.custom_items += _resid
     _bar_total = (data.service_revenue + data.prepayment_revenue +
-                  data.membership_sales + data.custom_items + data.retail_revenue)
-    _unmapped = {k: round(v, 2) for k, v in type_rev.items() if k not in _mapped}
-    print(f"  Sales by type: {sorted(type_rev)} | bar total ${_bar_total:,.2f} "
-          f"vs gross ${data.total_gross:,.2f}"
-          + (f" | unmapped→Custom Items: {_unmapped}" if _unmapped else ""))
+                  data.membership_sales + data.custom_items +
+                  data.retail_revenue + data.client_fees)
+    print(f"  Sales by type: { {k: round(v, 2) for k, v in sorted(type_rev.items())} } "
+          f"| bars ${_bar_total:,.2f} vs Total Sales ${data.total_sales:,.2f}")
 
     # Appointments — from Appointment Overview
     r = batch1.get("Appointment Overview", {})
