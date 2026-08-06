@@ -29,10 +29,8 @@ QUERY_DATE_FIELDS = {
     # ── Standard Reports ──
     # Sales Report (b8baa4c2)
     "Sales Summary":              "dbt__moxie_invoice_transactions_mart.transaction_date_et",
+    "Sales Summary by Type":      "dbt__moxie_invoice_transactions_mart.transaction_date_et",
     "Service Revenue Summary":    "dbt__moxie_invoices_mart.invoice_issued_date",
-    "Prepayment Revenue Summary": "dbt__moxie_invoices_mart.invoice_issued_date",
-    "Product Revenue Summary":    "dbt__moxie_invoices_mart.invoice_issued_date",
-    "Fee Revenue Summary":        "dbt__moxie_invoices_mart.invoice_issued_date",
     # Appointments (d6776514)
     "Appointment Overview":       "dbt__moxie_appointments_mart.start_time",
     "Appointment Stats":          "dbt__moxie_appointments_mart.start_time",
@@ -351,13 +349,22 @@ def load_from_omni(practice_name: str, month: int, year: int,
     # ── Execute queries in parallel ──
     print(f"  Querying Omni for {practice_name}, {calendar.month_name[month]} {year}...")
 
+    # Dynamically create "Sales Summary by Type" — same as Sales Summary but with
+    # invoice_item_type dimension added so gross_revenue_sum is available per type.
+    # Wallet / tax fields stay on the ungrouped Sales Summary to avoid row duplication.
+    _inv_type_field = "dbt__moxie_invoice_line_items_mart.invoice_item_type"
+    if "Sales Summary" in queries:
+        _by_type_q = copy.deepcopy(queries["Sales Summary"])
+        _by_type_q.setdefault("fields", [])
+        if _inv_type_field not in _by_type_q["fields"]:
+            _by_type_q["fields"].append(_inv_type_field)
+        queries["Sales Summary by Type"] = _by_type_q
+
     # Batch 1: all independent current-month queries (Standard Reports)
     batch1_names = [
         "Sales Summary",                     # net revenue, gross, discounts, wallet, taxes
-        "Service Revenue Summary",           # service revenue + service mix
-        "Prepayment Revenue Summary",        # package/prepayment revenue
-        "Product Revenue Summary",           # retail revenue
-        "Fee Revenue Summary",               # client fees
+        "Sales Summary by Type",             # gross_revenue_sum per invoice_item_type
+        "Service Revenue Summary",           # service mix chart (service_type dimension)
         "Appointment Overview",              # paid (completed) appointments
         "Appointment Stats",                 # rebooking rate, new/existing %
         "New Membership Enrollments",        # memberships new + new revenue
@@ -376,7 +383,7 @@ def load_from_omni(practice_name: str, month: int, year: int,
 
     # ── Process batch 1 results (Standard Reports field names) ──
 
-    # Revenue — from Sales Summary
+    # Revenue totals — from ungrouped Sales Summary (wallet/tax are invoice-level)
     r = batch1.get("Sales Summary", {})
     data.monthly_net_revenue = _val(r, "net_revenue_sum")
     data.total_gross = _val(r, "gross_revenue_sum")
@@ -386,11 +393,25 @@ def load_from_omni(practice_name: str, month: int, year: int,
     data.tax_collected = _val(r, "total_tax_amount_sum")
     # Goals not available in Standard Reports — remain 0
 
-    # Revenue breakdown by type
-    data.service_revenue = _sum_all(batch1.get("Service Revenue Summary", {}), "sum_line_net_revenue")
-    data.prepayment_revenue = _sum_all(batch1.get("Prepayment Revenue Summary", {}), "sum_line_net_revenue")
-    data.retail_revenue = _sum_all(batch1.get("Product Revenue Summary", {}), "sum_line_net_revenue")
-    data.client_fees = _sum_all(batch1.get("Fee Revenue Summary", {}), "sum_line_net_revenue")
+    # Revenue breakdown by invoice_item_type (from Sales Summary by Type)
+    # Uses gross_revenue_sum from moxie_invoice_transactions_mart grouped by invoice_item_type.
+    # 'product' combines retail products + custom items; 'membership' revenue from enrollments.
+    r_bt = batch1.get("Sales Summary by Type", {})
+    item_types = _extract_col(r_bt, "invoice_item_type")
+    gross_by_type = _extract_col(r_bt, "gross_revenue_sum")
+    type_rev: dict = {}
+    for _i, _itype in enumerate(item_types):
+        if not _itype:
+            continue
+        _g = float(gross_by_type[_i]) if _i < len(gross_by_type) and gross_by_type[_i] else 0
+        _k = _itype.lower()
+        type_rev[_k] = type_rev.get(_k, 0) + _g
+    data.service_revenue = type_rev.get("service", 0)
+    data.retail_revenue = type_rev.get("product", 0)   # retail products + custom items combined
+    data.prepayment_revenue = type_rev.get("prepayment", 0)
+    data.client_fees = type_rev.get("fee", 0)
+    if type_rev.get("membership", 0) > 0:
+        data.membership_sales = type_rev["membership"]
 
     # Appointments — from Appointment Overview
     r = batch1.get("Appointment Overview", {})
@@ -516,7 +537,7 @@ def load_from_omni(practice_name: str, month: int, year: int,
             pool.submit(run_prev, "Sales Summary"): "prev_rev",
             pool.submit(run_prev, "Appointment Overview"): "prev_appt",
             pool.submit(run_prev, "Utilization"): "prev_util",
-            pool.submit(run_prev, "Product Revenue Summary"): "prev_retail",
+            pool.submit(run_prev, "Sales Summary by Type"): "prev_retail",
             pool.submit(run_at, "Sales Summary", pm2_start): "rev_m2",
             pool.submit(run_at, "Sales Summary", pm3_start): "rev_m3",
             pool.submit(run_at, "Appointment Overview", pm2_start): "appt_m2",
@@ -557,10 +578,16 @@ def load_from_omni(practice_name: str, month: int, year: int,
             pt = _val(prev_util_r, "total_appointment_hours")
             prev_util = pt / pa if pa and pa > 0 else None
 
-    # Retail MoM
+    # Retail MoM — extract product gross from prior-month Sales Summary by Type
     prev_retail_r = mom_results.get("prev_retail")
     if prev_retail_r:
-        prev_retail = _sum_all(prev_retail_r, "sum_line_net_revenue")
+        _pr_types = _extract_col(prev_retail_r, "invoice_item_type")
+        _pr_gross = _extract_col(prev_retail_r, "gross_revenue_sum")
+        prev_retail = sum(
+            float(_pr_gross[_i]) if _i < len(_pr_gross) and _pr_gross[_i] else 0
+            for _i, _t in enumerate(_pr_types)
+            if (_t or "").lower() == "product"
+        )
         data.retail_revenue_mom_pct = _safe_mom(data.retail_revenue, prev_retail, 100)
 
     # Build 4-bar comparison history (m-3, m-2, m-1, current) for revenue & AOV.
