@@ -539,7 +539,7 @@
       {% set max_rev = data.services[0].revenue if (data.services and data.services[0].revenue > 0) else 1 %}
       {% for svc in data.services[:10] %}
       <div class="service-bar-row">
-        <div class="service-bar-label">{{ svc.name[:28] }}</div>
+        <div class="service-bar-label">{{ (svc.name or "Other")[:28] }}</div>
         <div class="service-bar-track">
           <div class="service-bar-fill" style="width: {{ svc.revenue / max_rev * 100 }}%"></div>
         </div>

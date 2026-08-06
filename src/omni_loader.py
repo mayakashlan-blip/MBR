@@ -658,7 +658,7 @@ def load_from_omni(practice_name: str, month: int, year: int,
     svc_by_type: dict = {}
     for i, cat in enumerate(svc_types):
         if not cat:
-            cat = svc_order_items[i] if i < len(svc_order_items) else "Other"
+            cat = (svc_order_items[i] if i < len(svc_order_items) else None) or "Other"
         rev = float(svc_revs[i]) if i < len(svc_revs) and svc_revs[i] else 0
         svc_by_type[cat] = svc_by_type.get(cat, 0) + rev
     for cat, rev in sorted(svc_by_type.items(), key=lambda x: -x[1]):
