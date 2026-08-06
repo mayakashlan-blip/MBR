@@ -1144,7 +1144,8 @@ def api_generate():
         return jsonify({"session_id": session_id, "ok": True, "from_saved": False})
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        import traceback
+        return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
 
 
 @app.route("/api/v1/mbr", methods=["POST"])
