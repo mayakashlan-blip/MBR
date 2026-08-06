@@ -1057,6 +1057,68 @@ def api_debug_gfe():
         return jsonify({"error": str(e), "traceback": traceback.format_exc()})
 
 
+@app.route("/api/debug-query")
+def api_debug_query():
+    """Dump Standard Report query JSON and optionally run it. Dev/debug only.
+
+    Auth: X-Api-Key header must match MBR_API_KEY.
+    Params:
+      dashboard  - dashboard id (default: sales report)
+      name       - query name; omitted → list query names + raw JSON of all
+      run        - "1" to execute the query
+      practice / month / year - filters applied when running
+    """
+    expected_key = os.environ.get("MBR_API_KEY", "")
+    provided = request.headers.get("X-Api-Key", "") or request.args.get("api_key", "")
+    if not expected_key or provided != expected_key:
+        return jsonify({"error": "unauthorized"}), 401
+    if not OMNI_KEY:
+        return jsonify({"error": "OMNI_API_KEY must be set"}), 500
+    try:
+        import copy
+        from src.omni_loader import (_run_query, _api_get, _ensure_filters,
+                                     SALES_REPORT_ID)
+        dash_id = request.args.get("dashboard", SALES_REPORT_ID)
+        dashboard = _api_get(f"/v1/documents/{dash_id}/queries", OMNI_KEY)
+        queries = {q["name"]: q["query"] for q in dashboard.get("queries", [])
+                   if q.get("name") and q.get("query")}
+        name = request.args.get("name", "").strip()
+        if not name:
+            return jsonify({
+                "dashboard": dash_id,
+                "query_names": sorted(queries.keys()),
+                "queries": queries,
+            })
+        if name not in queries:
+            return jsonify({"error": f"query '{name}' not found",
+                            "available": sorted(queries.keys())}), 404
+        q = copy.deepcopy(queries[name])
+        out = {"dashboard": dash_id, "name": name, "query": q}
+        if request.args.get("run") == "1":
+            practice = request.args.get("practice", "").strip()
+            month = int(request.args.get("month", 7))
+            year = int(request.args.get("year", 2026))
+            date_field = request.args.get("date_field", "")
+            if practice:
+                _ensure_filters(q)["dbt__moxie_medspas_mart.medspa_name"] = {
+                    "kind": "EQUALS", "type": "string",
+                    "values": [practice], "is_negative": False,
+                }
+            if date_field:
+                _ensure_filters(q)[date_field] = {
+                    "kind": "TIME_FOR_INTERVAL_DURATION", "type": "date",
+                    "ui_type": "PAST", "left_side": f"{year}-{month:02d}-01",
+                    "right_side": "1 months", "is_negative": False,
+                }
+            r = _run_query(q, OMNI_KEY)
+            out["result"] = {k: v[:25] if isinstance(v, list) else v
+                             for k, v in r.items() if not k.startswith("$")}
+        return jsonify(out)
+    except Exception as e:
+        import traceback
+        return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
+
+
 @app.route("/api/exists", methods=["POST"])
 def api_exists():
     """Quick check: does a saved session exist for this practice+month+year?
