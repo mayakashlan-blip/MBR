@@ -411,10 +411,10 @@ def load_from_omni(practice_name: str, month: int, year: int,
     gross_by_type = _extract_col(r_bt, "gross_revenue_sum")
     type_rev: dict = {}
     for _i, _itype in enumerate(item_types):
-        if not _itype:
-            continue
         _g = float(gross_by_type[_i]) if _i < len(gross_by_type) and gross_by_type[_i] else 0
-        _k = _itype.lower()
+        # Null/blank types still carry revenue — bucket as "other" so the
+        # breakdown reconciles with Moxie Suite's Total Sales.
+        _k = _itype.lower() if _itype else "other"
         type_rev[_k] = type_rev.get(_k, 0) + _g
     data.service_revenue = type_rev.get("service", 0)
     data.retail_revenue = type_rev.get("product", 0)   # retail products + custom items combined
@@ -422,6 +422,16 @@ def load_from_omni(practice_name: str, month: int, year: int,
     data.client_fees = type_rev.get("fee", 0)
     if type_rev.get("membership", 0) > 0:
         data.membership_sales = type_rev["membership"]
+    # Everything not mapped above (gift cards, custom items, null types, …)
+    # goes into custom_items so the bars sum to Suite's Total Sales.
+    _mapped = {"service", "product", "prepayment", "fee", "membership"}
+    data.custom_items = sum(v for k, v in type_rev.items() if k not in _mapped)
+    _bar_total = (data.service_revenue + data.prepayment_revenue +
+                  data.membership_sales + data.custom_items + data.retail_revenue)
+    _unmapped = {k: round(v, 2) for k, v in type_rev.items() if k not in _mapped}
+    print(f"  Sales by type: {sorted(type_rev)} | bar total ${_bar_total:,.2f} "
+          f"vs gross ${data.total_gross:,.2f}"
+          + (f" | unmapped→Custom Items: {_unmapped}" if _unmapped else ""))
 
     # Appointments — from Appointment Overview
     r = batch1.get("Appointment Overview", {})
@@ -452,7 +462,10 @@ def load_from_omni(practice_name: str, month: int, year: int,
 
     r = batch1.get("New Membership Enrollments", {})
     data.memberships_new = int(_val(r, "count"))
-    data.membership_sales = _val(r, "membership_revenue_sum")
+    # Membership bar uses the transactions-mart by-type value (matches Suite's
+    # Total Sales); enrollment revenue is only a fallback when that's absent.
+    if data.membership_sales == 0:
+        data.membership_sales = _val(r, "membership_revenue_sum")
 
     r = batch1.get("Cancellations", {})
     data.memberships_cancelled = int(_val(r, "count_cancellations"))
@@ -471,8 +484,13 @@ def load_from_omni(practice_name: str, month: int, year: int,
             data.terminal_revenue += amt
 
     r = batch1.get("Payment History", {})
-    data.transaction_fees = _sum_all(r, "fee_sum")
     data.performance_fees = _sum_all(r, "moxie_transaction_fee_sum")
+    # "fee_sum" substring also matches moxie_transaction_fee_sum — sum only
+    # the Stripe processing fee column(s), excluding the Moxie fee.
+    for _k, _v in r.items():
+        if "fee_sum" in _k and "moxie_transaction_fee" not in _k and _v:
+            data.transaction_fees = sum(float(x) for x in _v if x is not None)
+            break
 
     r = batch1.get("Refund History", {})
     data.refunds = _sum_all(r, "amount_sum")
@@ -824,8 +842,10 @@ def load_from_omni(practice_name: str, month: int, year: int,
             else:
                 sales_lookup[name]["service"] += net
 
-        # Build StaffMember list (union of both queries)
-        all_staff_names = set(appt_lookup) | set(sales_lookup)
+        # Build StaffMember list from Staff Sales Summary only — providers with
+        # attributed invoices this month. The appointment summary includes GFE
+        # reviewers and non-revenue staff, so it's used purely as enrichment.
+        all_staff_names = set(sales_lookup)
         for name in sorted(all_staff_names):
             appt = appt_lookup.get(name, {})
             sales = sales_lookup.get(name, {"net": 0, "gross": 0, "retail": 0, "service": 0})

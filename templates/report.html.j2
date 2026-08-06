@@ -355,7 +355,7 @@
       </div>
       <div style="background: #FAFAF7; border-radius: 6pt; padding: 0.08in; font-size: 7.5pt; color: var(--muted-text); align-self: start;">
         <strong style="color: var(--body-text); display: block; margin-bottom: 4pt;">Why this differs from net revenue</strong>
-        Net revenue (${{ "{:,.0f}".format(data.monthly_net_revenue) }}) includes all payment types — card, cash, and wallet credits. Payouts only reflect card and terminal transactions after Stripe and Moxie fees{% if data.tax_collected > 0 %} and taxes collected (${{ "{:,.2f}".format(data.tax_collected) }}) which are remitted separately to the government{% endif %}. Any remaining small difference is timing — end-of-month transactions that settle in the next payout cycle.
+        Payouts and net revenue measure different things, so they rarely match. Net revenue (${{ "{:,.0f}".format(data.monthly_net_revenue) }}) is earned revenue after discounts, and excludes tips and sales tax. Card and terminal charges are the full amounts clients paid — including tips{% if data.tax_collected > 0 %}, sales tax (${{ "{:,.2f}".format(data.tax_collected) }}, remitted separately){% endif %}, and upfront payments for packages, memberships, and gift cards — so payouts can exceed net revenue in months with strong prepayment or tip volume. They can also fall below it when clients pay by cash or wallet credit, which never flows through Stripe. Any remaining small difference is timing — end-of-month transactions that settle in the next payout cycle.
       </div>
     </div>
   </div>
