@@ -63,11 +63,42 @@ QUERY_DATE_FIELDS = {
 }
 
 
-def _api_get(path: str, api_key: str):
-    req = urllib.request.Request(f"{BASE_URL}{path}")
-    req.add_header("Authorization", f"Bearer {api_key}")
-    with urllib.request.urlopen(req, timeout=15) as resp:
-        return json.loads(resp.read().decode())
+def _api_get(path: str, api_key: str, retries: int = 5):
+    """GET an Omni API path with 429/5xx retry — a failed dashboard fetch
+    otherwise cascades into a report full of 'query not found' warnings."""
+    import time
+    for attempt in range(retries + 1):
+        req = urllib.request.Request(f"{BASE_URL}{path}")
+        req.add_header("Authorization", f"Bearer {api_key}")
+        try:
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                return json.loads(resp.read().decode())
+        except urllib.error.HTTPError as e:
+            if (e.code == 429 or 500 <= e.code < 600) and attempt < retries:
+                retry_after = e.headers.get("Retry-After")
+                wait = min(int(retry_after), 30) if retry_after and retry_after.isdigit() \
+                    else min(2 * 2 ** attempt, 30)
+                print(f"  API GET rate limited (attempt {attempt+1}/{retries}), waiting {wait}s…")
+                time.sleep(wait)
+                continue
+            raise
+
+
+# Dashboard query definitions barely change — cache them so each report
+# generation doesn't spend ~9 rate-limited API calls re-fetching them.
+_DASH_CACHE: dict = {}
+_DASH_TTL_SECONDS = 600
+
+
+def _get_dashboard_queries(dash_id: str, api_key: str) -> dict:
+    import time
+    now = time.time()
+    hit = _DASH_CACHE.get(dash_id)
+    if hit and now - hit[0] < _DASH_TTL_SECONDS:
+        return hit[1]
+    payload = _api_get(f"/v1/documents/{dash_id}/queries", api_key)
+    _DASH_CACHE[dash_id] = (now, payload)
+    return payload
 
 
 def _run_query(query_body: dict, api_key: str, retries: int = 7) -> dict:
@@ -246,7 +277,7 @@ def load_from_omni(practice_name: str, month: int, year: int,
     for dash_id in [SALES_REPORT_ID, APPOINTMENTS_ID, STAFF_REPORT_ID,
                     TRANSACTIONS_ID, MEMBERSHIPS_ID]:
         try:
-            dash = _api_get(f"/v1/documents/{dash_id}/queries", api_key)
+            dash = _get_dashboard_queries(dash_id, api_key)
             for q in dash.get("queries", []):
                 if q.get("name") and q.get("query"):
                     queries[q["name"]] = q["query"]
@@ -254,13 +285,20 @@ def load_from_omni(practice_name: str, month: int, year: int,
             print(f"  Warning: could not load dashboard {dash_id}: {e}")
     # Legacy dashboard kept for tier/medspa-id lookup, GFE, and membership active-by-type
     try:
-        legacy = _api_get(f"/v1/documents/{DASHBOARD_ID}/queries", api_key)
+        legacy = _get_dashboard_queries(DASHBOARD_ID, api_key)
         for q in legacy.get("queries", []):
             if q.get("name") and q.get("query") and q["name"] not in queries:
                 queries[q["name"]] = q["query"]
     except Exception as e:
         print(f"  Warning: could not load legacy dashboard: {e}")
     print(f"  Found {len(queries)} queries across all dashboards")
+    if not queries:
+        # Without query definitions every metric would silently load as $0.
+        # Fail loudly instead of generating (and saving) an empty report.
+        raise RuntimeError(
+            "Could not load any dashboard queries from Omni (likely rate "
+            "limited). Wait a minute and regenerate — do not trust a $0 report."
+        )
 
     data = MBRData(practice_name=practice_name, month=month, year=year)
 
@@ -1005,7 +1043,7 @@ def load_from_omni(practice_name: str, month: int, year: int,
     # ── Retention (separate dashboard) ──
     print("  Loading retention...")
     try:
-        ret_dash = _api_get(f"/v1/documents/{RETENTION_DASHBOARD_ID}/queries", api_key)
+        ret_dash = _get_dashboard_queries(RETENTION_DASHBOARD_ID, api_key)
         ret_queries = {q["name"]: q["query"] for q in ret_dash.get("queries", [])}
 
         rq = copy.deepcopy(list(ret_queries.values())[0])
@@ -1208,7 +1246,7 @@ def load_from_omni(practice_name: str, month: int, year: int,
     # ── Supplies Savings (separate dashboard) ──
     print("  Loading supplies savings...")
     try:
-        sup_dash = _api_get(f"/v1/documents/{SUPPLIES_DASHBOARD_ID}/queries", api_key)
+        sup_dash = _get_dashboard_queries(SUPPLIES_DASHBOARD_ID, api_key)
         sup_queries = sup_dash.get("queries", [])
         if sup_queries:
             sq = copy.deepcopy(sup_queries[0]["query"])
@@ -1292,7 +1330,7 @@ def load_from_omni(practice_name: str, month: int, year: int,
         show_marketing_lock_screen=True,
     )
     try:
-        mkt_dash = _api_get(f"/v1/documents/{MARKETING_DASHBOARD_ID}/queries", api_key)
+        mkt_dash = _get_dashboard_queries(MARKETING_DASHBOARD_ID, api_key)
         mkt_queries = mkt_dash.get("queries", [])
         if mkt_queries:
             mq = copy.deepcopy(mkt_queries[0]["query"])

@@ -1140,6 +1140,11 @@ def api_exists():
     return jsonify({"exists": path.exists(), "session_id": session_id})
 
 
+# In-flight generate tracking: session_id -> Event set when generation ends
+_generate_inflight: dict = {}
+_generate_inflight_lock = threading.Lock()
+
+
 @app.route("/api/generate", methods=["POST"])
 def api_generate():
     """Generate a report for a practice.
@@ -1166,6 +1171,21 @@ def api_generate():
         existing = _get_session(session_id)
         if existing:
             return jsonify({"session_id": session_id, "ok": True, "from_saved": True})
+
+    # Deduplicate concurrent identical generates — a duplicate request would
+    # double the Omni query load and trip rate limits. The second caller
+    # waits for the first to finish and reuses its saved session.
+    with _generate_inflight_lock:
+        evt = _generate_inflight.get(session_id)
+        if evt is None:
+            _generate_inflight[session_id] = threading.Event()
+    if evt is not None:
+        evt.wait(timeout=280)
+        existing = _get_session(session_id)
+        if existing:
+            return jsonify({"session_id": session_id, "ok": True, "from_saved": True})
+        return jsonify({"error": "A generation for this practice/month was already "
+                                 "running and did not produce a report. Please retry."}), 503
 
     try:
         key = _get_omni_key()
@@ -1222,6 +1242,11 @@ def api_generate():
     except Exception as e:
         import traceback
         return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
+    finally:
+        with _generate_inflight_lock:
+            done = _generate_inflight.pop(session_id, None)
+        if done is not None:
+            done.set()
 
 
 @app.route("/api/v1/mbr", methods=["POST"])
