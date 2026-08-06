@@ -823,18 +823,30 @@ def load_from_omni(practice_name: str, month: int, year: int,
         }
         appt_r = _run_query(appt_q, api_key)
 
-        # Staff Sales Summary — per-provider revenue by item type
-        sales_q = _staff_filter(queries["Staff Sales Summary"])
-        sales_q["filters"]["dbt__moxie_invoices_mart.first_payment_date"] = {
-            "kind": "TIME_FOR_INTERVAL_DURATION", "type": "date",
-            "ui_type": "PAST", "left_side": start_date, "right_side": duration,
-            "is_negative": False,
-        }
-        gross_field = "dbt__moxie_invoice_line_items_mart.gross_revenue_sum"
-        if not isinstance(sales_q.get("fields"), list):
-            sales_q["fields"] = []
-        if gross_field not in sales_q["fields"]:
-            sales_q["fields"].append(gross_field)
+        # Staff Sales Summary — per-provider revenue by item type.
+        # The dashboard version is a pivot with line_type/line_name dimensions
+        # AND subtotal rows; summing its rows triple-counts revenue. Rewrite it
+        # to flat provider × item_type rows with no subtotals.
+        def _flat_sales_query(base_q, left_side, right_side):
+            q = _staff_filter(base_q)
+            q["filters"]["dbt__moxie_invoices_mart.first_payment_date"] = {
+                "kind": "TIME_FOR_INTERVAL_DURATION", "type": "date",
+                "ui_type": "PAST", "left_side": left_side, "right_side": right_side,
+                "is_negative": False,
+            }
+            q["fields"] = [
+                "dbt__moxie_invoice_line_items_mart.attributed_provider_name",
+                "dbt__moxie_invoice_line_items_mart.invoice_item_type",
+                "dbt__moxie_invoice_line_items_mart.sum_line_net_revenue",
+                "dbt__moxie_invoice_line_items_mart.gross_revenue_sum",
+            ]
+            q["pivots"] = []
+            q["sorts"] = []
+            q["row_totals"] = {}
+            q["column_totals"] = {}
+            return q
+
+        sales_q = _flat_sales_query(queries["Staff Sales Summary"], start_date, duration)
         sales_r = _run_query(sales_q, api_key)
 
         # Build per-provider lookup from Staff Appointment Summary
@@ -941,16 +953,8 @@ def load_from_omni(practice_name: str, month: int, year: int,
             }
             prev_appt_r = _run_query(prev_appt_q, api_key)
 
-            prev_sales_q = _staff_filter(queries["Staff Sales Summary"])
-            prev_sales_q["filters"]["dbt__moxie_invoices_mart.first_payment_date"] = {
-                "kind": "TIME_FOR_INTERVAL_DURATION", "type": "date",
-                "ui_type": "PAST", "left_side": prev_start, "right_side": "1 months",
-                "is_negative": False,
-            }
-            if not isinstance(prev_sales_q.get("fields"), list):
-                prev_sales_q["fields"] = []
-            if gross_field not in prev_sales_q["fields"]:
-                prev_sales_q["fields"].append(gross_field)
+            prev_sales_q = _flat_sales_query(queries["Staff Sales Summary"],
+                                             prev_start, "1 months")
             prev_sales_r = _run_query(prev_sales_q, api_key)
 
             # Build prior-month lookups

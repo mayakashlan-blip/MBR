@@ -1093,6 +1093,13 @@ def api_debug_query():
             return jsonify({"error": f"query '{name}' not found",
                             "available": sorted(queries.keys())}), 404
         q = copy.deepcopy(queries[name])
+        fields_override = request.args.get("fields", "").strip()
+        if fields_override:
+            q["fields"] = fields_override.split(",")
+            q["pivots"] = []
+            q["sorts"] = []
+            q["row_totals"] = {}
+            q["column_totals"] = {}
         out = {"dashboard": dash_id, "name": name, "query": q}
         if request.args.get("run") == "1":
             practice = request.args.get("practice", "").strip()
