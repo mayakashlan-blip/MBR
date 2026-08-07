@@ -213,10 +213,11 @@ class MBRData:
     # Tile 5 - Reviews
     reviews: list[ReviewsPlatform] = field(default_factory=list)
 
-    # Tile 6 - Revenue Breakdown
+    # Tile 6 - Revenue Breakdown (subtotal__* measures — sum to total_sales)
     service_revenue: float = 0.0
-    prepayment_revenue: float = 0.0
+    prepayment_revenue: float = 0.0   # packages
     membership_sales: float = 0.0
+    gift_card_revenue: float = 0.0
     custom_items: float = 0.0
     retail_revenue: float = 0.0
     total_sales: float = 0.0      # Suite "Total Sales" (total_invoice_revenue_sum, incl. wallet redemptions)

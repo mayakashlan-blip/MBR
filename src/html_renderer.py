@@ -176,15 +176,16 @@ def render_html(data: MBRData, brand_bank_path: str = None,
         _gauge_params(data.retention_180d, "Retention (180D)", data.retention_mom_pct),
     ]
 
-    # Build revenue items — line-level per type; together they sum to Total Sales
+    # Build revenue items — Suite Sales Report categories; sum to Total Sales
     revenue_items = [
-        {"label": "Service Revenue", "value": data.service_revenue},
-        {"label": "Package Revenue", "value": data.prepayment_revenue},
-        {"label": "Membership Sales", "value": data.membership_sales},
-        {"label": "Custom & Other", "value": data.custom_items},
-        {"label": "Retail Revenue", "value": data.retail_revenue,
+        {"label": "Services", "value": data.service_revenue},
+        {"label": "Gift Cards", "value": data.gift_card_revenue},
+        {"label": "Packages", "value": data.prepayment_revenue},
+        {"label": "Memberships", "value": data.membership_sales},
+        {"label": "Retail Products", "value": data.retail_revenue,
          "mom_pct": data.retail_revenue_mom_pct},
-        {"label": "Client Fees", "value": data.client_fees},
+        {"label": "Custom Items", "value": data.custom_items},
+        {"label": "Fees", "value": data.client_fees},
     ]
 
     template = env.get_template("report.html.j2")
