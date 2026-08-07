@@ -1113,9 +1113,12 @@ def api_debug_query():
             year = int(request.args.get("year", 2026))
             date_field = request.args.get("date_field", "")
             if practice:
+                ftype = request.args.get("filter_type", "string").strip()
+                fval = float(practice) if ftype == "number" else practice
+                fval = int(fval) if ftype == "number" and fval == int(fval) else fval
                 _ensure_filters(q)[filter_override or "dbt__moxie_medspas_mart.medspa_name"] = {
-                    "kind": "EQUALS", "type": "string",
-                    "values": [practice], "is_negative": False,
+                    "kind": "EQUALS", "type": ftype,
+                    "values": [fval], "is_negative": False,
                 }
             if date_field:
                 _ensure_filters(q)[date_field] = {

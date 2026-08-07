@@ -334,18 +334,32 @@ def load_from_omni(practice_name: str, month: int, year: int,
             tiers = tier_r.get(tier_field, [])
             ids = tier_r.get(id_field, [])
             target_norm = _norm_name(practice_name)
+
+            def _pick(indices):
+                """Duplicate records can share one name (e.g. two 'Coastal Glo'
+                rows) — prefer the one with a tier set; it's the live record."""
+                if not indices:
+                    return None
+                with_tier = [i for i in indices
+                             if i < len(tiers) and tiers[i]]
+                if with_tier and len(indices) > 1:
+                    dupes = [(int(ids[i]) if i < len(ids) and ids[i] is not None else None,
+                              tiers[i] if i < len(tiers) else None) for i in indices]
+                    print(f"  Duplicate records for '{practice_name}': {dupes} "
+                          f"— using tiered record")
+                return with_tier[0] if with_tier else indices[0]
+
             # 1. Exact normalized match
-            tier_idx = next((i for i, n in enumerate(tier_names)
-                             if n and _norm_name(n) == target_norm), None)
+            tier_idx = _pick([i for i, n in enumerate(tier_names)
+                              if n and _norm_name(n) == target_norm])
             # 2. Prefix match — handles "Glow & Go" in Omni vs "Glow & Go Aesthetics" entered
             if tier_idx is None:
-                tier_idx = next(
-                    (i for i, n in enumerate(tier_names)
+                tier_idx = _pick(
+                    [i for i, n in enumerate(tier_names)
                      if n and len(_norm_name(n)) >= 6 and (
                          target_norm.startswith(_norm_name(n)) or
                          _norm_name(n).startswith(target_norm)
-                     )),
-                    None
+                     )]
                 )
                 if tier_idx is not None:
                     print(f"  Prefix match: '{practice_name}' ~ '{tier_names[tier_idx]}'")
