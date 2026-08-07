@@ -1132,6 +1132,23 @@ def api_debug_query():
         return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
 
 
+@app.route("/api/debug-get")
+def api_debug_get():
+    """Proxy a GET to the Omni API for model/topic metadata. Dev/debug only."""
+    expected_key = os.environ.get("MBR_API_KEY", "")
+    provided = request.headers.get("X-Api-Key", "") or request.args.get("api_key", "")
+    if not expected_key or provided != expected_key:
+        return jsonify({"error": "unauthorized"}), 401
+    path = request.args.get("path", "")
+    if not path.startswith("/v1/"):
+        return jsonify({"error": "path must start with /v1/"}), 400
+    try:
+        from src.omni_loader import _api_get
+        return jsonify(_api_get(path, OMNI_KEY))
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/exists", methods=["POST"])
 def api_exists():
     """Quick check: does a saved session exist for this practice+month+year?
