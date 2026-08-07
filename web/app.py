@@ -676,19 +676,22 @@ def api_practices():
                 tiers = v
 
         # Build list of {name, id, tier} pairs, filtering out deactivated.
-        # Duplicate records can share a name (e.g. two 'Coastal Glo' rows) —
-        # keep the one with a tier set; it's the live record.
-        by_name = {}
+        # Duplicate names are kept (e.g. two 'Coastal Glo' rows, ids 1194 and
+        # 1195) — each row shows its id and tier so users can tell them apart.
+        # Report generation by bare name resolves to the tiered record.
+        practices = []
+        seen_ids = set()
         for i in range(len(names)):
             n = names[i]
             if not n or n.startswith("(DEACTIVATED"):
                 continue
             mid = int(ids[i]) if i < len(ids) and ids[i] is not None else None
             tier = tiers[i] if i < len(tiers) and tiers[i] else ""
-            prev = by_name.get(n)
-            if prev is None or (not prev["tier"] and tier):
-                by_name[n] = {"name": n, "id": mid, "tier": tier}
-        practices = sorted(by_name.values(), key=lambda p: p["name"])
+            if mid in seen_ids and mid is not None:
+                continue
+            seen_ids.add(mid)
+            practices.append({"name": n, "id": mid, "tier": tier})
+        practices.sort(key=lambda p: (p["name"], p["id"] or 0))
 
         return jsonify({"practices": practices})
     except Exception as e:
