@@ -109,17 +109,29 @@ function unlockBatch() {
 let allPractices = [];  // [{name, id}]
 let selectedPractices = new Set();
 
-// Load practices
-fetch('/api/practices')
-  .then(r => r.json())
-  .then(data => {
-    allPractices = data.practices || [];
-    renderPractices(allPractices);
-    document.getElementById('batch-btn').disabled = false;
-  })
-  .catch(() => {
-    document.getElementById('practice-list').innerHTML = '<div class="loading-practices">Failed to load practices. Check your Omni API key.</div>';
-  });
+// Load practices — retry with backoff so a redeploy or rate-limit doesn't
+// leave the page empty with the button stuck disabled.
+function loadPractices(attempt = 0) {
+  fetch('/api/practices')
+    .then(r => r.json())
+    .then(data => {
+      if (data.practices && data.practices.length) {
+        allPractices = data.practices;
+        renderPractices(allPractices);
+        document.getElementById('batch-btn').disabled = false;
+      } else {
+        throw new Error(data.error || 'empty practice list');
+      }
+    })
+    .catch(() => {
+      if (attempt < 5) {
+        setTimeout(() => loadPractices(attempt + 1), 5000 * (attempt + 1));
+      } else {
+        document.getElementById('practice-list').innerHTML = '<div class="loading-practices">Failed to load practices. Check your Omni API key.</div>';
+      }
+    });
+}
+loadPractices();
 
 function renderPractices(list) {
   const container = document.getElementById('practice-list');

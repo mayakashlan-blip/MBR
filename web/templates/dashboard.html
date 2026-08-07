@@ -128,13 +128,27 @@
 </style>
 
 <script>
-// Load practices for autocomplete
+// Load practices for autocomplete + segment browser. Retries with backoff —
+// a page opened during a redeploy or an Omni rate-limit would otherwise stay
+// empty forever.
 let allPractices = [];
 let suggestionIndex = -1;
-fetch('/api/practices')
-  .then(r => r.json())
-  .then(data => { allPractices = data.practices || []; })
-  .catch(() => {});
+function loadPractices(attempt = 0) {
+  fetch('/api/practices')
+    .then(r => r.json())
+    .then(data => {
+      if (data.practices && data.practices.length) {
+        allPractices = data.practices;
+        if (typeof renderTierList === 'function') renderTierList();
+      } else if (attempt < 5) {
+        setTimeout(() => loadPractices(attempt + 1), 5000 * (attempt + 1));
+      }
+    })
+    .catch(() => {
+      if (attempt < 5) setTimeout(() => loadPractices(attempt + 1), 5000 * (attempt + 1));
+    });
+}
+loadPractices();
 
 function onPracticeInput() {
   const val = document.getElementById('practice').value.trim().toLowerCase();
