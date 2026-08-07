@@ -675,19 +675,20 @@ def api_practices():
             elif "provider_segment_post_launch" in k:
                 tiers = v
 
-        # Build list of {name, id, tier} pairs, filtering out deactivated
-        practices = []
-        seen = set()
+        # Build list of {name, id, tier} pairs, filtering out deactivated.
+        # Duplicate records can share a name (e.g. two 'Coastal Glo' rows) —
+        # keep the one with a tier set; it's the live record.
+        by_name = {}
         for i in range(len(names)):
             n = names[i]
             if not n or n.startswith("(DEACTIVATED"):
                 continue
             mid = int(ids[i]) if i < len(ids) and ids[i] is not None else None
             tier = tiers[i] if i < len(tiers) and tiers[i] else ""
-            if n not in seen:
-                seen.add(n)
-                practices.append({"name": n, "id": mid, "tier": tier})
-        practices.sort(key=lambda p: p["name"])
+            prev = by_name.get(n)
+            if prev is None or (not prev["tier"] and tier):
+                by_name[n] = {"name": n, "id": mid, "tier": tier}
+        practices = sorted(by_name.values(), key=lambda p: p["name"])
 
         return jsonify({"practices": practices})
     except Exception as e:

@@ -159,26 +159,39 @@ def _ensure_filters(q: dict) -> dict:
     return q["filters"]
 
 
+def _practice_filter(practice_name: str, medspa_id: int = None):
+    """Return (field, filter_dict) scoping a query to one practice.
+
+    Prefers a number-typed medspa_id EQUALS filter — duplicate names exist
+    in Omni (e.g. two 'Coastal Glo' records, ids 1194/1195) and a name
+    filter silently merges them. Falls back to medspa_name when the id
+    could not be resolved. (An earlier id attempt failed because it sent
+    string-typed values; Omni requires "type": "number" for this field.)
+    """
+    if medspa_id is not None:
+        return ("dbt__moxie_medspas_mart.medspa_id", {
+            "kind": "EQUALS", "type": "number", "is_inclusive": False,
+            "values": [int(medspa_id)], "is_negative": False,
+        })
+    return ("dbt__moxie_medspas_mart.medspa_name", {
+        "kind": "EQUALS", "type": "string",
+        "values": [practice_name], "is_negative": False,
+    })
+
+
 def _add_filters(query: dict, practice_name: str, start_date: str,
                  date_field: str = None, duration: str = "1 months",
                  medspa_id: int = None) -> dict:
     """Add practice and date range filters to a query.
 
-    Filters by medspa_name EQUALS — confirmed to work across every Omni
-    mart we query. The medspa_id parameter is kept for caller signature
-    compatibility but is intentionally not used as a filter: Omni's API
-    rejects numeric-type filters on this field in practice, which caused
-    every metric to come back as zero for practices where the medspa_id
-    branch was taken. duration can be "1 months", "3 months", etc.
+    duration can be "1 months", "3 months", etc.
     """
     q = copy.deepcopy(query)
     _ensure_filters(q)
-    q["filters"]["dbt__moxie_medspas_mart.medspa_name"] = {
-        "kind": "EQUALS",
-        "type": "string",
-        "values": [practice_name],
-        "is_negative": False,
-    }
+    pf_field, pf_dict = _practice_filter(practice_name, medspa_id)
+    # Drop any stale name filter so id- and name-scoping never AND together
+    q["filters"].pop("dbt__moxie_medspas_mart.medspa_name", None)
+    q["filters"][pf_field] = pf_dict
     if date_field:
         q["filters"][date_field] = {
             "kind": "TIME_FOR_INTERVAL_DURATION",
@@ -501,11 +514,9 @@ def load_from_omni(practice_name: str, month: int, year: int,
             gq["sorts"] = []
             gq["row_totals"] = {}
             gq["column_totals"] = {}
+            _pf_field, _pf = _practice_filter(practice_name, medspa_id)
             gq["filters"] = {
-                "dbt__moxie_medspas_mart.medspa_name": {
-                    "kind": "EQUALS", "type": "string",
-                    "values": [practice_name], "is_negative": False,
-                },
+                _pf_field: _pf,
                 f"{_GOALS_MART}.series_month": {
                     "kind": "TIME_FOR_INTERVAL_DURATION", "type": "date",
                     "ui_type": "PAST", "left_side": start_date,
@@ -628,10 +639,8 @@ def load_from_omni(practice_name: str, month: int, year: int,
         qtd_date_field = QUERY_DATE_FIELDS.get("Sales Summary")
         qtd_q = copy.deepcopy(qtd_q)
         _ensure_filters(qtd_q)
-        qtd_q["filters"]["dbt__moxie_medspas_mart.medspa_name"] = {
-            "kind": "EQUALS", "type": "string",
-            "values": [practice_name], "is_negative": False,
-        }
+        _pf_field, _pf = _practice_filter(practice_name, medspa_id)
+        qtd_q["filters"][_pf_field] = _pf
         qtd_q["filters"][qtd_date_field] = {
             "kind": "TIME_FOR_INTERVAL_DURATION", "type": "date",
             "ui_type": "PAST", "left_side": qtd_start,
@@ -762,7 +771,7 @@ def load_from_omni(practice_name: str, month: int, year: int,
 
     # Membership breakdown by type
     try:
-        pf = {"kind": "EQUALS", "type": "string", "values": [practice_name], "is_negative": False}
+        pf_field, pf = _practice_filter(practice_name, medspa_id)
         def _date_f(field_name):
             return {"kind": "TIME_FOR_INTERVAL_DURATION", "type": "date",
                     "ui_type": "PAST", "left_side": start_date,
@@ -778,7 +787,7 @@ def load_from_omni(practice_name: str, month: int, year: int,
         active_mrr_field = "dbt__moxie_client_memberships_mart.mrr_sum"
         if active_mrr_field not in aq["fields"]:
             aq["fields"].append(active_mrr_field)
-        _ensure_filters(aq)["dbt__moxie_medspas_mart.medspa_name"] = pf
+        _ensure_filters(aq)[pf_field] = pf
         active_r = _run_query(aq, api_key)
         active_names = _extract_col(active_r, "membership_name")
         active_counts = _extract_col(active_r, "count")
@@ -788,7 +797,7 @@ def load_from_omni(practice_name: str, month: int, year: int,
         nq = copy.deepcopy(queries["New Membership Enrollments"])
         if not isinstance(nq.get("fields"), list):
             nq["fields"] = []
-        _ensure_filters(nq)["dbt__moxie_medspas_mart.medspa_name"] = pf
+        _ensure_filters(nq)[pf_field] = pf
         nq["filters"]["dbt__moxie_client_memberships_mart.started_at"] = _date_f("started_at")
         new_r = _run_query(nq, api_key)
         new_names = _extract_col(new_r, "membership_name")
@@ -800,7 +809,7 @@ def load_from_omni(practice_name: str, month: int, year: int,
             cq["fields"] = []
         if mem_name_field not in cq["fields"]:
             cq["fields"].append(mem_name_field)
-        _ensure_filters(cq)["dbt__moxie_medspas_mart.medspa_name"] = pf
+        _ensure_filters(cq)[pf_field] = pf
         cq["filters"]["dbt__moxie_client_memberships_mart.canceled_at"] = _date_f("canceled_at")
         churned_r = _run_query(cq, api_key)
         churned_names = _extract_col(churned_r, "membership_name")
@@ -843,10 +852,8 @@ def load_from_omni(practice_name: str, month: int, year: int,
     try:
         def _staff_filter(q):
             q = copy.deepcopy(q)
-            _ensure_filters(q)["dbt__moxie_medspas_mart.medspa_name"] = {
-                "kind": "EQUALS", "type": "string",
-                "values": [practice_name], "is_negative": False,
-            }
+            _pf_field, _pf = _practice_filter(practice_name, medspa_id)
+            _ensure_filters(q)[_pf_field] = _pf
             return q
 
         # Staff Appointment Summary — utilization, rebooking, aov, hours per provider
@@ -1158,10 +1165,8 @@ def load_from_omni(practice_name: str, month: int, year: int,
 
         def _gfe_pull_named(query_name, start_date_val, duration_val):
             gq = copy.deepcopy(queries[query_name])
-            _ensure_filters(gq)["dbt__moxie_medspas_mart.medspa_name"] = {
-                "kind": "EQUALS", "type": "string",
-                "values": [practice_name], "is_negative": False,
-            }
+            _pf_field, _pf = _practice_filter(practice_name, medspa_id)
+            _ensure_filters(gq)[_pf_field] = _pf
             import re as _re
             all_field_names = list(gq.get("fields", [])) + list(gq.get("filters", {}).keys())
             unbracketed = [f for f in all_field_names
@@ -1310,10 +1315,8 @@ def load_from_omni(practice_name: str, month: int, year: int,
         sup_queries = sup_dash.get("queries", [])
         if sup_queries:
             sq = copy.deepcopy(sup_queries[0]["query"])
-            _ensure_filters(sq)["dbt__moxie_medspas_mart.medspa_name"] = {
-                "kind": "EQUALS", "type": "string",
-                "values": [practice_name], "is_negative": False,
-            }
+            _pf_field, _pf = _practice_filter(practice_name, medspa_id)
+            _ensure_filters(sq)[_pf_field] = _pf
             sq["filters"]["dbt__shopify_orders_mart.created_at"] = {
                 "kind": "TIME_FOR_INTERVAL_DURATION", "type": "date",
                 "ui_type": "PAST", "left_side": start_date,
@@ -1398,11 +1401,16 @@ def load_from_omni(practice_name: str, month: int, year: int,
             # variations ('&' vs 'and', extra whitespace) still match.
             _ensure_filters(mq)
             mq["filters"].pop("dbt__moxie_medspas_mart.provider_success_manager_name", None)
-            mq["filters"]["dbt__moxie_medspas_mart.medspa_name"] = {
-                "kind": "CONTAINS", "type": "string",
-                "values": [practice_name.split()[0]],
-                "is_negative": False,
-            }
+            if medspa_id is not None:
+                _pf_field, _pf = _practice_filter(practice_name, medspa_id)
+                mq["filters"][_pf_field] = _pf
+            else:
+                # CONTAINS so name variations ('&' vs 'and') still match
+                mq["filters"]["dbt__moxie_medspas_mart.medspa_name"] = {
+                    "kind": "CONTAINS", "type": "string",
+                    "values": [practice_name.split()[0]],
+                    "is_negative": False,
+                }
             mq["filters"]["dbt__marketing_medspa_performance_daily_mart.series_date"] = {
                 "kind": "TIME_FOR_INTERVAL_DURATION", "type": "date",
                 "ui_type": "PAST",
@@ -1494,10 +1502,8 @@ def load_from_omni(practice_name: str, month: int, year: int,
                         cq = copy.deepcopy(mkt_queries[0]["query"])
                         _ensure_filters(cq)
                         cq["filters"].pop("dbt__moxie_medspas_mart.provider_success_manager_name", None)
-                        cq["filters"]["dbt__moxie_medspas_mart.medspa_name"] = {
-                            "kind": "EQUALS", "type": "string",
-                            "values": [practice_name], "is_negative": False,
-                        }
+                        _pf_field, _pf = _practice_filter(practice_name, medspa_id)
+                        cq["filters"][_pf_field] = _pf
                         cq["filters"]["dbt__marketing_medspa_performance_daily_mart.series_date"] = {
                             "kind": "TIME_FOR_INTERVAL_DURATION", "type": "date",
                             "ui_type": "PAST",
