@@ -1100,6 +1100,12 @@ def api_debug_query():
             q["sorts"] = []
             q["row_totals"] = {}
             q["column_totals"] = {}
+        table_override = request.args.get("table", "").strip()
+        if table_override:
+            q["table"] = table_override
+            q["join_paths_from_topic_name"] = request.args.get("topic", table_override).strip()
+            q["filters"] = {}
+        filter_override = request.args.get("filter_field", "").strip()
         out = {"dashboard": dash_id, "name": name, "query": q}
         if request.args.get("run") == "1":
             practice = request.args.get("practice", "").strip()
@@ -1107,7 +1113,7 @@ def api_debug_query():
             year = int(request.args.get("year", 2026))
             date_field = request.args.get("date_field", "")
             if practice:
-                _ensure_filters(q)["dbt__moxie_medspas_mart.medspa_name"] = {
+                _ensure_filters(q)[filter_override or "dbt__moxie_medspas_mart.medspa_name"] = {
                     "kind": "EQUALS", "type": "string",
                     "values": [practice], "is_negative": False,
                 }
