@@ -473,50 +473,41 @@ def load_from_omni(practice_name: str, month: int, year: int,
                 if data.total_appointments > 0 else 0)
 
     # ── Monthly goals (dbt__moxie_medspa_monthly_summary_mart) ──
+    # The goals mart is its own topic (not joinable from the invoices topic),
+    # so re-base a query chassis onto it. Month grain field: series_month.
     try:
-        goal_base = queries.get("Medspa Name", {})
+        goal_base = queries.get("Sales Summary") or next(iter(queries.values()), None)
         if goal_base:
-            goal_r = None
-            for _month_field in ("dbt__moxie_medspa_monthly_summary_mart.month_start",
-                                 "dbt__moxie_medspa_monthly_summary_mart.month"):
-                gq = copy.deepcopy(goal_base)
-                gq["fields"] = [
-                    "dbt__moxie_medspa_monthly_summary_mart.revenue_goal",
-                    "dbt__moxie_medspa_monthly_summary_mart.aov_goal",
-                ]
-                gq["pivots"] = []
-                gq["sorts"] = []
-                gq["row_totals"] = {}
-                gq["column_totals"] = {}
-                _ensure_filters(gq)["dbt__moxie_medspas_mart.medspa_name"] = {
+            _GOALS_MART = "dbt__moxie_medspa_monthly_summary_mart"
+            gq = copy.deepcopy(goal_base)
+            gq["table"] = _GOALS_MART
+            gq["join_paths_from_topic_name"] = _GOALS_MART
+            gq["fields"] = [f"{_GOALS_MART}.revenue_goal", f"{_GOALS_MART}.aov_goal"]
+            gq["pivots"] = []
+            gq["sorts"] = []
+            gq["row_totals"] = {}
+            gq["column_totals"] = {}
+            gq["filters"] = {
+                "dbt__moxie_medspas_mart.medspa_name": {
                     "kind": "EQUALS", "type": "string",
                     "values": [practice_name], "is_negative": False,
-                }
-                gq["filters"][_month_field] = {
+                },
+                f"{_GOALS_MART}.series_month": {
                     "kind": "TIME_FOR_INTERVAL_DURATION", "type": "date",
                     "ui_type": "PAST", "left_side": start_date,
                     "right_side": duration, "is_negative": False,
-                }
-                try:
-                    goal_r = _run_query(gq, api_key)
-                    break
-                except Exception as ge:
-                    if "No such field" in str(ge):
-                        continue
-                    raise
-            if goal_r is not None:
-                data.revenue_goal = _val(goal_r, "revenue_goal")
-                data.aov_goal = _val(goal_r, "aov_goal")
-                if data.revenue_goal > 0:
-                    data.pct_net_revenue_goal = data.monthly_net_revenue / data.revenue_goal
-                if data.aov_goal > 0:
-                    data.pct_aov_goal = data.aov / data.aov_goal
-                print(f"  Goals: revenue ${data.revenue_goal:,.0f} "
-                      f"({data.pct_net_revenue_goal * 100:.1f}%), "
-                      f"AOV ${data.aov_goal:,.0f} ({data.pct_aov_goal * 100:.1f}%)")
-            else:
-                print("  Warning: goals month field not found "
-                      "(tried month_start, month) — goals left unset")
+                },
+            }
+            goal_r = _run_query(gq, api_key)
+            data.revenue_goal = _val(goal_r, "revenue_goal")
+            data.aov_goal = _val(goal_r, "aov_goal")
+            if data.revenue_goal > 0:
+                data.pct_net_revenue_goal = data.monthly_net_revenue / data.revenue_goal
+            if data.aov_goal > 0:
+                data.pct_aov_goal = data.aov / data.aov_goal
+            print(f"  Goals: revenue ${data.revenue_goal:,.0f} "
+                  f"({data.pct_net_revenue_goal * 100:.1f}%), "
+                  f"AOV ${data.aov_goal:,.0f} ({data.pct_aov_goal * 100:.1f}%)")
     except Exception as e:
         print(f"  Warning: could not load goals: {e}")
 
