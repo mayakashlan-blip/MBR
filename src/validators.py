@@ -16,9 +16,10 @@ def validate_and_cap(data: MBRData) -> MBRData:
             print(f"  Data validation: {field} ({val}) capped to {hi}", file=sys.stderr)
             setattr(data, field, hi)
 
-    # Rates stored as decimals (0.0 - 1.0), allow up to 2.0 for revenue goal
-    _cap("pct_net_revenue_goal", 0.0, 2.0)
-    _cap("pct_aov_goal", 0.0, 2.0)
+    # Rates stored as decimals (0.0 - 1.0). Goal attainment can legitimately
+    # exceed 200% (Suite shows e.g. 204%) — cap only at implausible levels.
+    _cap("pct_net_revenue_goal", 0.0, 10.0)
+    _cap("pct_aov_goal", 0.0, 10.0)
     _cap("utilization_rate", 0.0, 1.0)
     _cap("rebooking_rate", 0.0, 1.0)
     _cap("retention_180d", 0.0, 1.0)
