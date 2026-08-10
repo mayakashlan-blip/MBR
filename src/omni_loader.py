@@ -587,7 +587,8 @@ def load_from_omni(practice_name: str, month: int, year: int,
             for i, mkey in enumerate(_months):
                 if not mkey:
                     continue
-                mkey = str(mkey)[:10]
+                # Omni returns month grain as 'YYYY-MM' — normalize to that
+                mkey = str(mkey)[:7]
                 paid_by_month[mkey] = int(_paid[i]) if i < len(_paid) and _paid[i] else 0
                 goal_by_month[mkey] = float(_goal[i]) if i < len(_goal) and _goal[i] else 0
                 aov_by_month[mkey] = float(_aov[i]) if i < len(_aov) and _aov[i] else 0
@@ -595,7 +596,7 @@ def load_from_omni(practice_name: str, month: int, year: int,
     except Exception as e:
         print(f"  Warning: paid appointments query failed: {e}")
 
-    _cur_key = f"{year}-{month:02d}-01"
+    _cur_key = f"{year}-{month:02d}"
     data.total_appointments = paid_by_month.get(_cur_key, 0)
     data.appt_goal = goal_by_month.get(_cur_key, 0)
     data.aov = aov_by_month.get(_cur_key, 0)
@@ -819,7 +820,7 @@ def load_from_omni(practice_name: str, month: int, year: int,
 
     # Prefer the Suite-basis series (paid appointments + mart AOV) for MoM
     # when the embedded query returned the prior month.
-    _pm_key = f"{prev_year}-{prev_month:02d}-01"
+    _pm_key = f"{prev_year}-{prev_month:02d}"
     if paid_by_month.get(_pm_key):
         data.appointments_mom_pct = _safe_mom(
             data.total_appointments, paid_by_month[_pm_key], 5)
@@ -875,7 +876,7 @@ def load_from_omni(practice_name: str, month: int, year: int,
     # Use mart AOV for any month the embedded series covered, so all four
     # bars share the same basis as the AOV tile.
     for _entry in data.aov_history:
-        _k = f"{_entry['year']}-{_entry['month']:02d}-01"
+        _k = f"{_entry['year']}-{_entry['month']:02d}"
         if aov_by_month.get(_k):
             _entry["value"] = aov_by_month[_k]
 

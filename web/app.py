@@ -1159,9 +1159,10 @@ def _compute_parity(d, practice, month, year, medspa_id=None):
 
     def run_emb(name, fields, date_field):
         q = copy.deepcopy(equeries[name])
-        q["fields"] = fields
-        q["pivots"] = []; q["sorts"] = []
-        q["row_totals"] = {}; q["column_totals"] = {}
+        if fields is not None:
+            q["fields"] = fields
+            q["pivots"] = []; q["sorts"] = []
+            q["row_totals"] = {}; q["column_totals"] = {}
         _ensure_filters(q)
         pf_field, pf = _practice_filter(practice, int(mid) if mid else None)
         q["filters"].pop("dbt__moxie_medspas_mart.medspa_name", None)
@@ -1209,9 +1210,10 @@ def _compute_parity(d, practice, month, year, medspa_id=None):
     add("aov", round(d.aov, 2), round(float(_aov or 0), 2))
     add("aov_goal", round(d.aov_goal, 2), round(float(_aov_goal or 0), 2))
 
-    # Service mix (official service type donut)
-    r = run_emb("Gross Revenue By Official Service Type",
-                [f"{L}.service_category", f"{L}.gross_revenue_sum"],
+    # Service mix — run the donut chassis UNTOUCHED: it is top-10 sorted by
+    # share (limit 10), which is exactly what Suite displays. Overriding
+    # fields/sorts makes Omni return a different arbitrary 10 rows.
+    r = run_emb("Gross Revenue By Official Service Type", None,
                 f"{T}.transaction_date_et")
     cats = _extract_col(r, "service_category")
     revs = _extract_col(r, "gross_revenue_sum")
