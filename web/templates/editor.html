@@ -281,12 +281,10 @@
     <div class="sidebar-section">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
         <label style="margin: 0;">Executive Summary</label>
-        {% if data.tier in ['Silver', 'Momentum', 'Growth'] %}
         <label style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: #4A4744; cursor: pointer; font-weight: 400;">
           <input type="checkbox" id="show-exec-summary" {% if data.show_executive_summary %}checked{% endif %} onchange="debounceSave()">
           Show on report
         </label>
-        {% endif %}
       </div>
       {% if data.tier in ['Silver', 'Momentum', 'Growth'] %}
       <div style="font-size: 11px; color: #8C8580; margin-bottom: 6px;">

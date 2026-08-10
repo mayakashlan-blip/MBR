@@ -207,8 +207,9 @@ class MBRData:
     membership_types: list[MembershipType] = field(default_factory=list)
 
     # Tile 4 - Client Mix
-    new_clients: int = 0
-    existing_clients: int = 0
+    new_clients: int = 0        # new-client appointments
+    existing_clients: int = 0   # existing-client appointments
+    paid_clients: Optional[int] = None  # DISTINCT paying clients (Suite basis)
 
     # Tile 5 - Reviews
     reviews: list[ReviewsPlatform] = field(default_factory=list)
@@ -294,19 +295,27 @@ class MBRData:
 
     @property
     def total_clients(self) -> int:
+        """Distinct paying clients when known; appointment-based otherwise."""
+        if self.paid_clients:
+            return self.paid_clients
+        return self.new_clients + self.existing_clients
+
+    @property
+    def _mix_total(self) -> int:
+        """Denominator for the new/existing mix — always appointment-based."""
         return self.new_clients + self.existing_clients
 
     @property
     def new_client_pct(self) -> float:
-        if self.total_clients == 0:
+        if self._mix_total == 0:
             return 0
-        return self.new_clients / self.total_clients * 100
+        return self.new_clients / self._mix_total * 100
 
     @property
     def existing_client_pct(self) -> float:
-        if self.total_clients == 0:
+        if self._mix_total == 0:
             return 0
-        return self.existing_clients / self.total_clients * 100
+        return self.existing_clients / self._mix_total * 100
 
     @property
     def revenue_per_client(self) -> float:

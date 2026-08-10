@@ -35,6 +35,7 @@ QUERY_DATE_FIELDS = {
     "Gross Revenue By Official Service Type":
         "dbt__moxie_invoice_transactions_mart.transaction_date_et",
     "Paid Appointments, Monthly": "dbt__moxie_appointments_mart.start_time",
+    "Client Counts":              "dbt__moxie_appointments_mart.start_time",
     # Appointments (d6776514)
     "Appointment Overview":       "dbt__moxie_appointments_mart.start_time",
     "Appointment Stats":          "dbt__moxie_appointments_mart.start_time",
@@ -314,7 +315,8 @@ def load_from_omni(practice_name: str, month: int, year: int,
         emb = _get_dashboard_queries(EMBEDDED_MBR_ID, api_key)
         for q in emb.get("queries", []):
             if q.get("name") in ("Gross Revenue By Official Service Type",
-                                 "Paid Appointments, Monthly") and q.get("query"):
+                                 "Paid Appointments, Monthly",
+                                 "Client Counts") and q.get("query"):
                 queries[q["name"]] = q["query"]
     except Exception as e:
         print(f"  Warning: could not load embedded MBR dashboard: {e}")
@@ -490,7 +492,8 @@ def load_from_omni(practice_name: str, month: int, year: int,
         "Gross Revenue By Official Service Type",  # service mix (Suite-embedded donut)
         "Service Revenue Summary",           # service mix fallback (service_type dimension)
         "Appointment Overview",              # completed appointments (fallback)
-        "Appointment Stats",                 # rebooking rate, new/existing %
+        "Appointment Stats",                 # rebooking rate, new/existing % (fallback)
+        "Client Counts",                     # new/existing appts + distinct paid clients
         "New Membership Enrollments",        # memberships new + new revenue
         "Cancellations",                     # memberships cancelled
         "Monthly Recurring Revenue (MRR)",   # active mrr
@@ -661,6 +664,20 @@ def load_from_omni(practice_name: str, month: int, year: int,
             pct_new /= 100
         data.new_clients = round(data.total_appointments * pct_new)
         data.existing_clients = data.total_appointments - data.new_clients
+
+    # Client counts — Suite-embedded query. new/existing are appointment
+    # counts (client-mix bar); paid_appointment_clients is DISTINCT paying
+    # clients, so Revenue per Client no longer collapses into AOV.
+    r = batch1.get("Client Counts", {})
+    if r:
+        _new = int(_val(r, "count_new_client_appointments"))
+        _existing = int(_val(r, "count_existing_client_appointments"))
+        if _new or _existing:
+            data.new_clients = _new
+            data.existing_clients = _existing
+        _distinct = int(_val(r, "paid_appointment_clients"))
+        if _distinct > 0:
+            data.paid_clients = _distinct
 
     # Memberships
     r = batch1.get("Average Monthly Members", {})
