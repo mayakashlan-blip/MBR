@@ -1139,6 +1139,113 @@ def api_debug_query():
         return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
 
 
+@app.route("/api/verify-parity")
+def api_verify_parity():
+    """Diff a saved MBR session against the Suite-embedded Omni dashboard.
+
+    Runs the same queries the embedded MBR dashboard (source of truth for
+    what practices see in Suite) uses and compares field-by-field with the
+    saved session's data. API-key gated.
+    """
+    expected_key = os.environ.get("MBR_API_KEY", "")
+    provided = request.headers.get("X-Api-Key", "") or request.args.get("api_key", "")
+    if not expected_key or provided != expected_key:
+        return jsonify({"error": "unauthorized"}), 401
+
+    practice = request.args.get("practice", "").strip()
+    month = int(request.args.get("month", 7))
+    year = int(request.args.get("year", 2026))
+    if not practice or not OMNI_KEY:
+        return jsonify({"error": "practice param + OMNI_API_KEY required"}), 400
+
+    import copy
+    from src.omni_loader import (_run_query, _ensure_filters, _practice_filter,
+                                 _val, _extract_col, _get_dashboard_queries,
+                                 EMBEDDED_MBR_ID)
+
+    # Resolve medspa_id: exact-name matches, pick the record with revenue
+    mid = request.args.get("medspa_id")
+    session = _get_session(_practice_key(practice, month, year))
+    if not session:
+        return jsonify({"error": "no saved session — generate the report first"}), 404
+    d = session["data"]
+
+    emb = _get_dashboard_queries(EMBEDDED_MBR_ID, OMNI_KEY)
+    equeries = {q["name"]: q["query"] for q in emb.get("queries", [])
+                if q.get("name") and q.get("query")}
+    start = f"{year}-{month:02d}-01"
+
+    def run_emb(name, fields, date_field):
+        q = copy.deepcopy(equeries[name])
+        q["fields"] = fields
+        q["pivots"] = []; q["sorts"] = []
+        q["row_totals"] = {}; q["column_totals"] = {}
+        _ensure_filters(q)
+        pf_field, pf = _practice_filter(practice, int(mid) if mid else None)
+        q["filters"].pop("dbt__moxie_medspas_mart.medspa_name", None)
+        q["filters"][pf_field] = pf
+        if date_field:
+            q["filters"][date_field] = {
+                "kind": "TIME_FOR_INTERVAL_DURATION", "type": "date",
+                "ui_type": "PAST", "left_side": start,
+                "right_side": "1 months", "is_negative": False,
+            }
+        return _run_query(q, OMNI_KEY)
+
+    T = "dbt__moxie_invoice_transactions_mart"
+    A = "dbt__moxie_appointments_mart"
+    L = "dbt__moxie_invoice_line_items_mart"
+    checks = {}
+
+    def add(label, mbr_val, omni_val, tol=0.01):
+        try:
+            match = abs(float(mbr_val) - float(omni_val)) <= tol
+        except (TypeError, ValueError):
+            match = str(mbr_val) == str(omni_val)
+        checks[label] = {"mbr": mbr_val, "omni": omni_val,
+                         "match": "✓" if match else "✗ MISMATCH"}
+
+    # Net revenue + goal (KPI: Net Revenue basis)
+    r = run_emb("KPI: Net Revenue",
+                [f"{T}.net_revenue_sum",
+                 "dbt__moxie_medspa_goals_monthly_mart.revenue_goal_sum"],
+                f"{T}.transaction_date_et")
+    add("monthly_net_revenue", round(d.monthly_net_revenue, 2), round(_val(r, "net_revenue_sum"), 2))
+    add("revenue_goal", round(d.revenue_goal, 2), round(_val(r, "revenue_goal_sum"), 2))
+
+    # AOV + paid appointments + goals (KPI tiles basis: appointment start_time)
+    r = run_emb("KPI: Paid Appointments",
+                [f"{A}.paid_appointments",
+                 "dbt__moxie_medspa_appointment_goals_monthly_mart.appointment_goal_sum",
+                 f"{A}.aov",
+                 "dbt__moxie_medspa_appointment_goals_monthly_mart.aov_goal_average"],
+                f"{A}.start_time")
+    _aov = next((v[0] for k, v in r.items() if k.endswith("_mart.aov") and v), 0)
+    _aov_goal = next((v[0] for k, v in r.items() if k.endswith(".aov_goal_average") and v), 0)
+    add("paid_appointments", d.total_appointments, int(_val(r, "paid_appointments")))
+    add("appointment_goal", round(d.appt_goal), round(_val(r, "appointment_goal_sum")))
+    add("aov", round(d.aov, 2), round(float(_aov or 0), 2))
+    add("aov_goal", round(d.aov_goal, 2), round(float(_aov_goal or 0), 2))
+
+    # Service mix (official service type donut)
+    r = run_emb("Gross Revenue By Official Service Type",
+                [f"{L}.service_category", f"{L}.gross_revenue_sum"],
+                f"{T}.transaction_date_et")
+    cats = _extract_col(r, "service_category")
+    revs = _extract_col(r, "gross_revenue_sum")
+    pairs = sorted(
+        ((c or "Other", float(v or 0)) for c, v in zip(cats, revs)),
+        key=lambda x: -x[1])
+    total = sum(v for _, v in pairs) or 1
+    omni_top = [f"{c} {v / total * 100:.1f}%" for c, v in pairs[:3]]
+    mbr_top = [f"{s.name} {s.pct_of_total:.1f}%" for s in d.services[:3]]
+    add("top_services", " | ".join(mbr_top), " | ".join(omni_top))
+
+    ok = all(v["match"] == "✓" for v in checks.values())
+    return jsonify({"practice": practice, "month": month, "year": year,
+                    "all_match": ok, "checks": checks})
+
+
 @app.route("/api/debug-get")
 def api_debug_get():
     """Proxy a GET to the Omni API for model/topic metadata. Dev/debug only."""
