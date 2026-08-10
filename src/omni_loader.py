@@ -365,17 +365,40 @@ def load_from_omni(practice_name: str, month: int, year: int,
 
             def _pick(indices):
                 """Duplicate records can share one name (e.g. two 'Coastal Glo'
-                rows) — prefer the one with a tier set; it's the live record."""
+                rows) — prefer the one with a tier set; it's the live record.
+                If still ambiguous (e.g. two untiered 'The Beauty Bar' rows),
+                probe trailing-12-month revenue and pick the active record."""
                 if not indices:
                     return None
-                with_tier = [i for i in indices
-                             if i < len(tiers) and tiers[i]]
-                if with_tier and len(indices) > 1:
-                    dupes = [(int(ids[i]) if i < len(ids) and ids[i] is not None else None,
-                              tiers[i] if i < len(tiers) else None) for i in indices]
+                if len(indices) == 1:
+                    return indices[0]
+                dupes = [(int(ids[i]) if i < len(ids) and ids[i] is not None else None,
+                          tiers[i] if i < len(tiers) else None) for i in indices]
+                with_tier = [i for i in indices if i < len(tiers) and tiers[i]]
+                pool = with_tier or indices
+                if len(pool) == 1:
                     print(f"  Duplicate records for '{practice_name}': {dupes} "
                           f"— using tiered record")
-                return with_tier[0] if with_tier else indices[0]
+                    return pool[0]
+                best, best_rev = pool[0], -1.0
+                for i in pool:
+                    mid = int(ids[i]) if i < len(ids) and ids[i] is not None else None
+                    if mid is None:
+                        continue
+                    try:
+                        probe = _find_query(queries, "Sales Summary")
+                        probe = _add_filters(
+                            probe, practice_name, f"{year - 1}-{month:02d}-01",
+                            QUERY_DATE_FIELDS["Sales Summary"], "13 months",
+                            medspa_id=mid)
+                        rev = _val(_run_query(probe, api_key), "net_revenue_sum")
+                    except Exception:
+                        rev = 0.0
+                    if rev > best_rev:
+                        best, best_rev = i, rev
+                print(f"  Duplicate records for '{practice_name}': {dupes} — "
+                      f"picked id {ids[best]} (${best_rev:,.0f} trailing-12mo revenue)")
+                return best
 
             # 1. Exact normalized match
             tier_idx = _pick([i for i, n in enumerate(tier_names)
