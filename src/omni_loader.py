@@ -441,6 +441,7 @@ def load_from_omni(practice_name: str, month: int, year: int,
                       f"{[n for n in tier_names if n][:5]}")
     except Exception as e:
         print(f"  Warning: Could not load tier/id: {e}")
+    data.medspa_id = medspa_id
 
     from concurrent.futures import ThreadPoolExecutor, as_completed
 

@@ -1139,36 +1139,18 @@ def api_debug_query():
         return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
 
 
-@app.route("/api/verify-parity")
-def api_verify_parity():
-    """Diff a saved MBR session against the Suite-embedded Omni dashboard.
+def _compute_parity(d, practice, month, year, medspa_id=None):
+    """Diff loaded MBR data against the Suite-embedded Omni dashboard.
 
     Runs the same queries the embedded MBR dashboard (source of truth for
-    what practices see in Suite) uses and compares field-by-field with the
-    saved session's data. API-key gated.
+    what practices see in Suite) uses and compares field-by-field.
     """
-    expected_key = os.environ.get("MBR_API_KEY", "")
-    provided = request.headers.get("X-Api-Key", "") or request.args.get("api_key", "")
-    if not expected_key or provided != expected_key:
-        return jsonify({"error": "unauthorized"}), 401
-
-    practice = request.args.get("practice", "").strip()
-    month = int(request.args.get("month", 7))
-    year = int(request.args.get("year", 2026))
-    if not practice or not OMNI_KEY:
-        return jsonify({"error": "practice param + OMNI_API_KEY required"}), 400
-
     import copy
     from src.omni_loader import (_run_query, _ensure_filters, _practice_filter,
                                  _val, _extract_col, _get_dashboard_queries,
                                  EMBEDDED_MBR_ID)
 
-    # Resolve medspa_id: exact-name matches, pick the record with revenue
-    mid = request.args.get("medspa_id")
-    session = _get_session(_practice_key(practice, month, year))
-    if not session:
-        return jsonify({"error": "no saved session — generate the report first"}), 404
-    d = session["data"]
+    mid = medspa_id if medspa_id is not None else getattr(d, "medspa_id", None)
 
     emb = _get_dashboard_queries(EMBEDDED_MBR_ID, OMNI_KEY)
     equeries = {q["name"]: q["query"] for q in emb.get("queries", [])
@@ -1242,8 +1224,33 @@ def api_verify_parity():
     add("top_services", " | ".join(mbr_top), " | ".join(omni_top))
 
     ok = all(v["match"] == "✓" for v in checks.values())
-    return jsonify({"practice": practice, "month": month, "year": year,
-                    "all_match": ok, "checks": checks})
+    return {"practice": practice, "month": month, "year": year,
+            "all_match": ok, "checks": checks}
+
+
+@app.route("/api/verify-parity")
+def api_verify_parity():
+    """Parity-check a saved MBR session against Suite. API-key gated."""
+    expected_key = os.environ.get("MBR_API_KEY", "")
+    provided = request.headers.get("X-Api-Key", "") or request.args.get("api_key", "")
+    if not expected_key or provided != expected_key:
+        return jsonify({"error": "unauthorized"}), 401
+    practice = request.args.get("practice", "").strip()
+    month = int(request.args.get("month", 7))
+    year = int(request.args.get("year", 2026))
+    if not practice or not OMNI_KEY:
+        return jsonify({"error": "practice param + OMNI_API_KEY required"}), 400
+    session = _get_session(_practice_key(practice, month, year))
+    if not session:
+        return jsonify({"error": "no saved session — generate the report first"}), 404
+    mid = request.args.get("medspa_id")
+    try:
+        result = _compute_parity(session["data"], practice, month, year,
+                                 medspa_id=int(mid) if mid else None)
+        return jsonify(result)
+    except Exception as e:
+        import traceback
+        return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
 
 
 @app.route("/api/debug-get")
@@ -1381,7 +1388,15 @@ def api_generate():
         }
         _save_session(session_id, sessions[session_id])
 
-        return jsonify({"session_id": session_id, "ok": True, "from_saved": False})
+        # Parity check: verify the loaded numbers against the Suite-embedded
+        # dashboard so every generation ships with a field-by-field receipt.
+        try:
+            parity = _compute_parity(data, practice, month, year)
+        except Exception as pe:
+            parity = {"error": f"parity check unavailable: {pe}"}
+
+        return jsonify({"session_id": session_id, "ok": True,
+                        "from_saved": False, "parity": parity})
 
     except Exception as e:
         import traceback
