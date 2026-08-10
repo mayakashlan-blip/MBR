@@ -26,7 +26,7 @@ Period: {data.month_name} {data.year}
 
 KEY METRICS:
 - Monthly Net Revenue: ${data.monthly_net_revenue:,.2f}
-- Total Appointments: {data.total_appointments}
+- Paid Appointments: {data.total_appointments}
 - AOV: ${data.aov:,.2f}
 - Quarter to Date: {"${:,.2f}".format(data.quarter_to_date) if data.quarter_to_date else "N/A"}
 
