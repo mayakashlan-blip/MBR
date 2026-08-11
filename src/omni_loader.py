@@ -644,9 +644,11 @@ def load_from_omni(practice_name: str, month: int, year: int,
           f"AOV ${data.aov_goal:,.0f} ({data.pct_aov_goal * 100:.1f}%), "
           f"appts {data.total_appointments} of {data.appt_goal:,.0f}")
 
-    # Rebooking + new/existing client split — from Appointment Stats
+    # Rebooking + new/existing client split — from Appointment Stats.
+    # Exact-suffix match: "cancellation_rebooking_rate" also contains the
+    # substring "rebooking_rate" and must not be picked up.
     r = batch1.get("Appointment Stats", {})
-    rebooking = _val(r, "rebooking_rate", default=None)
+    rebooking = _val_suffix(r, ".rebooking_rate", default=None)
     if rebooking is not None:
         data.rebooking_rate = rebooking if rebooking <= 1.0 else rebooking / 100
     pct_new = _val(r, "pct_completed_appointments__new_client", default=None)
@@ -778,6 +780,7 @@ def load_from_omni(practice_name: str, month: int, year: int,
         mom_futures = {
             pool.submit(run_prev, "Sales Summary"): "prev_rev",
             pool.submit(run_prev, "Appointment Overview"): "prev_appt",
+            pool.submit(run_prev, "Appointment Stats"): "prev_stats",
             pool.submit(run_prev, "Utilization"): "prev_util",
             pool.submit(run_at, "Sales Summary", pm2_start): "rev_m2",
             pool.submit(run_at, "Sales Summary", pm3_start): "rev_m3",
@@ -806,6 +809,15 @@ def load_from_omni(practice_name: str, month: int, year: int,
     if prev_revenue > 0 and prev_appointments > 0:
         prev_aov = prev_revenue / prev_appointments
         data.aov_mom_pct = _safe_mom(data.aov, prev_aov, 20)
+
+    # Rebooking MoM — prior-month Appointment Stats, same measure as the gauge
+    _prev_rebook = _val_suffix(mom_results.get("prev_stats") or {},
+                               ".rebooking_rate", default=None)
+    if _prev_rebook is not None and data.rebooking_rate > 0:
+        if _prev_rebook > 1.0:
+            _prev_rebook /= 100
+        if _prev_rebook > 0.05:
+            data.rebooking_mom_pct = _safe_mom(data.rebooking_rate, _prev_rebook, 0.05)
 
     # Prefer the Suite-basis values (paid appointments + transactions AOV)
     # for MoM when available.
@@ -1149,13 +1161,9 @@ def load_from_omni(practice_name: str, month: int, year: int,
             if weighted_util > 0:
                 data.utilization_rate = weighted_util
 
-        # Practice-level rebooking — weighted by net revenue
-        total_rebook_weight = sum(s.net_revenue for s in data.staff if s.rebooking_rate)
-        if total_rebook_weight > 0:
-            data.rebooking_rate = sum(
-                s.rebooking_rate * s.net_revenue
-                for s in data.staff if s.rebooking_rate
-            ) / total_rebook_weight
+        # Practice-level rebooking stays on Omni's own rebooking_rate measure
+        # (Appointment Stats) — a staff-weighted blend here produced values
+        # (26.3%) that didn't match Omni's number (25%).
 
         # ── Per-provider MoM (prior month staff queries) ──
         try:
@@ -1226,16 +1234,8 @@ def load_from_omni(practice_name: str, month: int, year: int,
                 if prev_hrs and prev_hrs > 0 and prev_gr > 500 and s.rev_per_hour:
                     s.rev_per_hour_mom_pct = _safe_mom(s.rev_per_hour, prev_gr / prev_hrs, 10)
 
-            # Practice-level rebooking MoM
-            prev_rebook_lookup = {n: d["rebook"] for n, d in prev_appt_lookup.items() if d.get("rebook")}
-            prev_weight = sum(s.net_revenue for s in data.staff if s.name in prev_rebook_lookup and prev_rebook_lookup[s.name] > 0)
-            if prev_weight > 0:
-                prev_rebook_weighted = sum(
-                    prev_rebook_lookup[s.name] * s.net_revenue
-                    for s in data.staff if s.name in prev_rebook_lookup and prev_rebook_lookup[s.name] > 0
-                ) / prev_weight
-                if prev_rebook_weighted > 0.05 and data.rebooking_rate > 0:
-                    data.rebooking_mom_pct = _safe_mom(data.rebooking_rate, prev_rebook_weighted, 0.05)
+            # Practice-level rebooking MoM comes from the prior-month
+            # Appointment Stats query (same measure as the gauge).
 
             # Practice-level utilization MoM
             p_total_hours = sum(
