@@ -1188,26 +1188,28 @@ def _compute_parity(d, practice, month, year, medspa_id=None):
         checks[label] = {"mbr": mbr_val, "omni": omni_val,
                          "match": "✓" if match else "✗ MISMATCH"}
 
-    # Net revenue + goal (KPI: Net Revenue basis)
+    # Net revenue + goal + AOV (all transactions basis — the canonical AOV
+    # is dbt__moxie_invoice_transactions_mart.aov per team decision)
     r = run_emb("KPI: Net Revenue",
                 [f"{T}.net_revenue_sum",
-                 "dbt__moxie_medspa_goals_monthly_mart.revenue_goal_sum"],
+                 "dbt__moxie_medspa_goals_monthly_mart.revenue_goal_sum",
+                 f"{T}.aov"],
                 f"{T}.transaction_date_et")
+    _aov = next((v[0] for k, v in r.items() if k.endswith("_mart.aov") and v), 0)
     add("monthly_net_revenue", round(d.monthly_net_revenue, 2), round(_val(r, "net_revenue_sum"), 2))
     add("revenue_goal", round(d.revenue_goal, 2), round(_val(r, "revenue_goal_sum"), 2))
+    add("aov", round(d.aov, 2), round(float(_aov or 0), 2))
 
-    # AOV + paid appointments + goals (KPI tiles basis: appointment start_time)
+    # Paid appointments + goals (transaction-date basis, like Suite's
+    # global "Transaction Date Month" control)
     r = run_emb("KPI: Paid Appointments",
                 [f"{A}.paid_appointments",
                  "dbt__moxie_medspa_appointment_goals_monthly_mart.appointment_goal_sum",
-                 f"{A}.aov",
                  "dbt__moxie_medspa_appointment_goals_monthly_mart.aov_goal_average"],
-                f"{A}.start_time")
-    _aov = next((v[0] for k, v in r.items() if k.endswith("_mart.aov") and v), 0)
+                f"{T}.transaction_date_et")
     _aov_goal = next((v[0] for k, v in r.items() if k.endswith(".aov_goal_average") and v), 0)
     add("paid_appointments", d.total_appointments, int(_val(r, "paid_appointments")))
     add("appointment_goal", round(d.appt_goal), round(_val(r, "appointment_goal_sum")))
-    add("aov", round(d.aov, 2), round(float(_aov or 0), 2))
     add("aov_goal", round(d.aov_goal, 2), round(float(_aov_goal or 0), 2))
 
     # Service mix — run the donut chassis UNTOUCHED: it is top-10 sorted by

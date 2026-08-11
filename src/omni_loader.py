@@ -34,7 +34,7 @@ QUERY_DATE_FIELDS = {
     # ── Suite-embedded MBR dashboard (6740bb26) ──
     "Gross Revenue By Official Service Type":
         "dbt__moxie_invoice_transactions_mart.transaction_date_et",
-    "Paid Appointments, Monthly": "dbt__moxie_appointments_mart.start_time",
+    "KPI: Paid Appointments":     "dbt__moxie_invoice_transactions_mart.transaction_date_et",
     "Client Counts":              "dbt__moxie_appointments_mart.start_time",
     # Appointments (d6776514)
     "Appointment Overview":       "dbt__moxie_appointments_mart.start_time",
@@ -54,9 +54,7 @@ QUERY_DATE_FIELDS = {
     # ── Legacy (kept for GFE + backward compat) ──
     "KPI: Net Revenue":           "dbt__moxie_invoice_transactions_mart.transaction_date_et",
     "Payments & Refunds":         "dbt__moxie_invoice_transactions_mart.transaction_date_et",
-    "KPI: Paid Appointments":     "dbt__moxie_appointments_mart.start_time",
     "KPI: AOV":                   "dbt__moxie_appointments_mart.start_time",
-    "Client Counts":              "dbt__moxie_appointments_mart.start_time",
     "Total Membership Revenue":   "dbt__moxie_invoices_mart.invoice_issued_date",
     "Gross Revenue Breakdown Summary": "dbt__moxie_invoices_mart.invoice_issued_date",
     "Retail to Service Revenue":  "dbt__moxie_invoices_mart.invoice_issued_date",
@@ -315,7 +313,7 @@ def load_from_omni(practice_name: str, month: int, year: int,
         emb = _get_dashboard_queries(EMBEDDED_MBR_ID, api_key)
         for q in emb.get("queries", []):
             if q.get("name") in ("Gross Revenue By Official Service Type",
-                                 "Paid Appointments, Monthly",
+                                 "KPI: Paid Appointments",
                                  "Client Counts") and q.get("query"):
                 queries[q["name"]] = q["query"]
     except Exception as e:
@@ -478,6 +476,8 @@ def load_from_omni(practice_name: str, month: int, year: int,
         # Net revenue goal joins from the goals mart within the same topic —
         # exactly how the Suite-embedded "KPI: Net Revenue" tile does it.
         "dbt__moxie_medspa_goals_monthly_mart.revenue_goal_sum",
+        # Canonical AOV (Sales-Report basis; also in the monthly summary mart)
+        "dbt__moxie_invoice_transactions_mart.aov",
     ]
     if "Sales Summary" in queries:
         _sq = queries["Sales Summary"]
@@ -537,72 +537,61 @@ def load_from_omni(practice_name: str, month: int, year: int,
                   data.retail_revenue + data.custom_items + data.client_fees)
     print(f"  Sales categories sum ${_bar_total:,.2f} vs Total Sales ${data.total_sales:,.2f}")
 
-    # ── Appointments + AOV — Suite-embedded "Paid Appointments, Monthly" ──
-    # One query grouped by month covers the current tile values (paid
-    # appointments, appointment goal, mart AOV, AOV goal) AND the prior
-    # months needed for MoM and the AOV trend chart, all on the same basis
-    # as the Suite tiles (appointments start_time, invoices topic).
-    def _col_suffix(res: dict, suffix: str) -> list:
+    # ── Appointments + goals — Suite-embedded "KPI: Paid Appointments" ──
+    # Same chassis and TRANSACTION-date basis as the Suite tiles (the
+    # dashboard's global control is "Transaction Date Month"). Verified:
+    # AW Medspa 48 paid / LA-Mi 14 paid match Suite exactly on this basis.
+    def _val_suffix(res: dict, suffix: str, default=0):
         for k, v in res.items():
-            if k.endswith(suffix):
-                return v or []
-        return []
+            if k.endswith(suffix) and v and v[0] is not None:
+                try:
+                    return float(v[0])
+                except (TypeError, ValueError):
+                    return v[0]
+        return default
 
-    paid_by_month: dict = {}
-    aov_by_month: dict = {}
-    goal_by_month: dict = {}
-    aov_goal_by_month: dict = {}
+    paid_prev = None
     try:
-        pa_base = queries.get("Paid Appointments, Monthly")
+        pa_base = queries.get("KPI: Paid Appointments")
         if pa_base:
-            paq = copy.deepcopy(pa_base)
-            _month_dim = "dbt__moxie_appointments_mart.start_time[month]"
-            paq["fields"] = [
-                _month_dim,
-                "dbt__moxie_appointments_mart.paid_appointments",
-                "dbt__moxie_medspa_appointment_goals_monthly_mart.appointment_goal_sum",
-                "dbt__moxie_appointments_mart.aov",
-                "dbt__moxie_medspa_appointment_goals_monthly_mart.aov_goal_average",
-            ]
-            paq["pivots"] = []
-            paq["sorts"] = []
-            paq["row_totals"] = {}
-            paq["column_totals"] = {}
-            _ensure_filters(paq)
-            _pf_field, _pf = _practice_filter(practice_name, medspa_id)
-            paq["filters"][_pf_field] = _pf
-            _idx = year * 12 + (month - 1) - 3
-            _w_start = f"{_idx // 12}-{_idx % 12 + 1:02d}-01"
-            paq["filters"]["dbt__moxie_appointments_mart.start_time"] = {
-                "kind": "TIME_FOR_INTERVAL_DURATION", "type": "date",
-                "ui_type": "PAST", "left_side": _w_start,
-                "right_side": "4 months", "is_negative": False,
-            }
-            pa_r = _run_query(paq, api_key)
-            _months = [m for m in pa_r.get(_month_dim, []) or []]
-            _paid = _col_suffix(pa_r, ".paid_appointments")
-            _goal = _col_suffix(pa_r, ".appointment_goal_sum")
-            _aov = _col_suffix(pa_r, "_mart.aov")
-            _aov_g = _col_suffix(pa_r, ".aov_goal_average")
-            for i, mkey in enumerate(_months):
-                if not mkey:
-                    continue
-                # Omni returns month grain as 'YYYY-MM' — normalize to that
-                mkey = str(mkey)[:7]
-                paid_by_month[mkey] = int(_paid[i]) if i < len(_paid) and _paid[i] else 0
-                goal_by_month[mkey] = float(_goal[i]) if i < len(_goal) and _goal[i] else 0
-                aov_by_month[mkey] = float(_aov[i]) if i < len(_aov) and _aov[i] else 0
-                aov_goal_by_month[mkey] = float(_aov_g[i]) if i < len(_aov_g) and _aov_g[i] else 0
+            def _paid_query(m_start):
+                paq = copy.deepcopy(pa_base)
+                paq["fields"] = [
+                    "dbt__moxie_appointments_mart.paid_appointments",
+                    "dbt__moxie_medspa_appointment_goals_monthly_mart.appointment_goal_sum",
+                    "dbt__moxie_medspa_appointment_goals_monthly_mart.aov_goal_average",
+                ]
+                paq["pivots"] = []
+                paq["sorts"] = []
+                paq["row_totals"] = {}
+                paq["column_totals"] = {}
+                _ensure_filters(paq)
+                _pf_field, _pf = _practice_filter(practice_name, medspa_id)
+                paq["filters"][_pf_field] = _pf
+                paq["filters"]["dbt__moxie_invoice_transactions_mart.transaction_date_et"] = {
+                    "kind": "TIME_FOR_INTERVAL_DURATION", "type": "date",
+                    "ui_type": "PAST", "left_side": m_start,
+                    "right_side": "1 months", "is_negative": False,
+                }
+                return _run_query(paq, api_key)
+
+            pa_r = _paid_query(start_date)
+            data.total_appointments = int(_val_suffix(pa_r, ".paid_appointments"))
+            data.appt_goal = _val_suffix(pa_r, ".appointment_goal_sum")
+            data.aov_goal = _val_suffix(pa_r, ".aov_goal_average")
+
+            _pidx = year * 12 + (month - 1) - 1
+            _prev_start = f"{_pidx // 12}-{_pidx % 12 + 1:02d}-01"
+            paid_prev = int(_val_suffix(_paid_query(_prev_start), ".paid_appointments"))
     except Exception as e:
         print(f"  Warning: paid appointments query failed: {e}")
 
-    _cur_key = f"{year}-{month:02d}"
-    data.total_appointments = paid_by_month.get(_cur_key, 0)
-    data.appt_goal = goal_by_month.get(_cur_key, 0)
-    data.aov = aov_by_month.get(_cur_key, 0)
-    data.aov_goal = aov_goal_by_month.get(_cur_key, 0)
+    # AOV — transactions-mart measure (the Sales-Report AOV; also stored in
+    # the monthly summary mart). Rides along on the Sales Summary result.
+    data.aov = _val_suffix(batch1.get("Sales Summary", {}),
+                           "invoice_transactions_mart.aov")
 
-    # Fallbacks if the embedded query was unavailable
+    # Fallbacks if the embedded queries were unavailable
     if data.total_appointments == 0:
         r = batch1.get("Appointment Overview", {})
         data.total_appointments = int(_val(r, "completed_appointments"))
@@ -818,14 +807,14 @@ def load_from_omni(practice_name: str, month: int, year: int,
         prev_aov = prev_revenue / prev_appointments
         data.aov_mom_pct = _safe_mom(data.aov, prev_aov, 20)
 
-    # Prefer the Suite-basis series (paid appointments + mart AOV) for MoM
-    # when the embedded query returned the prior month.
-    _pm_key = f"{prev_year}-{prev_month:02d}"
-    if paid_by_month.get(_pm_key):
+    # Prefer the Suite-basis values (paid appointments + transactions AOV)
+    # for MoM when available.
+    if paid_prev:
         data.appointments_mom_pct = _safe_mom(
-            data.total_appointments, paid_by_month[_pm_key], 5)
-    if aov_by_month.get(_pm_key) and data.aov > 0:
-        data.aov_mom_pct = _safe_mom(data.aov, aov_by_month[_pm_key], 20)
+            data.total_appointments, paid_prev, 5)
+    _prev_tx_aov = _val_suffix(prev_rev_r or {}, "invoice_transactions_mart.aov")
+    if _prev_tx_aov and data.aov > 0:
+        data.aov_mom_pct = _safe_mom(data.aov, _prev_tx_aov, 20)
 
     # Utilization MoM (from legacy Utilization query — no Standard Report equivalent)
     prev_util_r = mom_results.get("prev_util")
@@ -865,20 +854,21 @@ def load_from_omni(practice_name: str, month: int, year: int,
         _hist(month, year, data.monthly_net_revenue),
     ]
 
-    aov_m2_val = rev_m2_val / appt_m2 if appt_m2 > 0 else 0
-    aov_m3_val = rev_m3_val / appt_m3 if appt_m3 > 0 else 0
+    # Trend bars share the AOV tile's basis: transactions-mart aov rides on
+    # every Sales Summary run (m-3, m-2, m-1 and current). Fall back to
+    # net/appointments only when the measure is missing.
+    aov_m2_val = (_val_suffix(mom_results.get("rev_m2") or {}, "invoice_transactions_mart.aov")
+                  or (rev_m2_val / appt_m2 if appt_m2 > 0 else 0))
+    aov_m3_val = (_val_suffix(mom_results.get("rev_m3") or {}, "invoice_transactions_mart.aov")
+                  or (rev_m3_val / appt_m3 if appt_m3 > 0 else 0))
+    prev_aov_val = (_val_suffix(prev_rev_r or {}, "invoice_transactions_mart.aov")
+                    or prev_aov_val)
     data.aov_history = [
         _hist(pm3_month, pm3_year, aov_m3_val),
         _hist(pm2_month, pm2_year, aov_m2_val),
         _hist(prev_month, prev_year, prev_aov_val),
         _hist(month, year, data.aov),
     ]
-    # Use mart AOV for any month the embedded series covered, so all four
-    # bars share the same basis as the AOV tile.
-    for _entry in data.aov_history:
-        _k = f"{_entry['year']}-{_entry['month']:02d}"
-        if aov_by_month.get(_k):
-            _entry["value"] = aov_by_month[_k]
 
     print(f"  MoM: Rev {'N/A' if data.revenue_mom_pct is None else f'{data.revenue_mom_pct:+.1%}'}, "
           f"Appts {'N/A' if data.appointments_mom_pct is None else f'{data.appointments_mom_pct:+.1%}'}, "

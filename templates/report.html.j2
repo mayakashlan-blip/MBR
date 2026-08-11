@@ -324,7 +324,7 @@
       </div>
       <div class="staff-metrics">
         <div class="staff-metric">
-          <div class="sm-label">Total Sales</div>
+          <div class="sm-label">Total Service Sales</div>
           <div class="sm-value">{{ s.gross_revenue | dollar(False) }}</div>
           {% if s.revenue_mom_pct is not none %}
           <div class="sm-mom{% if s.revenue_mom_pct >= 0 %} positive{% else %} negative{% endif %}">{{ "▲" if s.revenue_mom_pct >= 0 else "▼" }} {{ "%.0f"|format((s.revenue_mom_pct * 100)|abs) }}%</div>
