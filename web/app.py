@@ -1212,13 +1212,20 @@ def _compute_parity(d, practice, month, year, medspa_id=None):
     add("appointment_goal", round(d.appt_goal), round(_val(r, "appointment_goal_sum")))
     add("aov_goal", round(d.aov_goal, 2), round(float(_aov_goal or 0), 2))
 
-    # Service mix — run the donut chassis UNTOUCHED: it is top-10 sorted by
-    # share (limit 10), which is exactly what Suite displays. Overriding
-    # fields/sorts makes Omni return a different arbitrary 10 rows.
-    r = run_emb("Gross Revenue By Official Service Type", None,
-                f"{T}.transaction_date_et")
+    # Service mix — same mutation the loader applies to the donut chassis:
+    # total_invoice_revenue (transactions mart) split by service_category,
+    # sorted by the measure desc (chassis keeps its top-10 limit).
+    _svc_chassis = copy.deepcopy(equeries["Gross Revenue By Official Service Type"])
+    _SVC_MEASURE = f"{T}.total_invoice_revenue_sum"
+    _svc_chassis["fields"] = [f"{L}.service_category", _SVC_MEASURE]
+    _svc_chassis["sorts"] = [{"column_name": _SVC_MEASURE, "sort_descending": True}]
+    _svc_chassis["pivots"] = []
+    _svc_chassis["row_totals"] = {}
+    _svc_chassis["column_totals"] = {}
+    equeries["__svc_parity__"] = _svc_chassis
+    r = run_emb("__svc_parity__", None, f"{T}.transaction_date_et")
     cats = _extract_col(r, "service_category")
-    revs = _extract_col(r, "gross_revenue_sum")
+    revs = _extract_col(r, "total_invoice_revenue_sum")
     pairs = sorted(
         ((c or "Other", float(v or 0)) for c, v in zip(cats, revs)),
         key=lambda x: -x[1])
