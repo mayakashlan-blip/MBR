@@ -301,6 +301,7 @@ def _save_session(session_id: str, sess: dict, snapshot: bool = True):
         "brand_bank_path": sess.get("brand_bank_path"),
         "marketing_image_path": sess.get("marketing_image_path"),
         "launches_image_path": sess.get("launches_image_path"),
+        "manual_overrides": sess.get("manual_overrides") or {},
         "created": sess["created"].isoformat(),
     }
 
@@ -366,6 +367,7 @@ def _load_session(session_id: str) -> dict:
         "brand_bank_path": payload.get("brand_bank_path"),
         "marketing_image_path": payload.get("marketing_image_path"),
         "launches_image_path": payload.get("launches_image_path"),
+        "manual_overrides": payload.get("manual_overrides") or {},
         "created": created,
     }
 
@@ -1380,9 +1382,29 @@ def api_generate():
         except Exception as e:
             return jsonify({"error": f"[generate_narratives] {e}", "traceback": _tb.format_exc()}), 500
 
+        # Parity check runs on the freshly loaded Omni values, before any
+        # manual overrides are re-applied.
+        try:
+            parity = _compute_parity(data, practice, month, year)
+        except Exception as pe:
+            parity = {"error": f"parity check unavailable: {pe}"}
+
+        # Re-apply manual editor edits (e.g. marketing data corrections) and
+        # uploaded images from the prior session — regeneration must not
+        # silently wipe human corrections. Pass discard_edits=true to reset
+        # the report to pure Omni values.
+        prior = _get_session(session_id) or {}
+        overrides = {} if bool(request.json.get("discard_edits", False)) \
+            else (prior.get("manual_overrides") or {})
+        if overrides:
+            _apply_payload(data, overrides)
+        bb_path = prior.get("brand_bank_path")
+        mk_path = prior.get("marketing_image_path")
+        ln_path = prior.get("launches_image_path")
+
         # Render HTML
         try:
-            html = render_html(data)
+            html = render_html(data, bb_path, mk_path, ln_path)
         except Exception as e:
             tb = _tb.format_exc()
             import sys
@@ -1392,22 +1414,17 @@ def api_generate():
         sessions[session_id] = {
             "data": data,
             "html": html,
-            "brand_bank_path": None,
-            "marketing_image_path": None,
-            "launches_image_path": None,
+            "brand_bank_path": bb_path,
+            "marketing_image_path": mk_path,
+            "launches_image_path": ln_path,
+            "manual_overrides": overrides,
             "created": datetime.now(),
         }
         _save_session(session_id, sessions[session_id])
 
-        # Parity check: verify the loaded numbers against the Suite-embedded
-        # dashboard so every generation ships with a field-by-field receipt.
-        try:
-            parity = _compute_parity(data, practice, month, year)
-        except Exception as pe:
-            parity = {"error": f"parity check unavailable: {pe}"}
-
         return jsonify({"session_id": session_id, "ok": True,
-                        "from_saved": False, "parity": parity})
+                        "from_saved": False, "parity": parity,
+                        "restored_edits": sorted(overrides.keys())})
 
     except Exception as e:
         import traceback
@@ -1613,6 +1630,10 @@ def api_update(session_id):
     if not sess:
         return jsonify({"error": "Session not found"}), 404
     _apply_payload(sess["data"], request.json)
+    # Remember edits so a later regeneration re-applies them instead of
+    # silently wiping manual corrections (e.g. marketing data fixes).
+    overrides = sess.setdefault("manual_overrides", {})
+    overrides.update(request.json or {})
     _rerender(sess)
     _save_session(session_id, sess, snapshot=False)
     return jsonify({"ok": True})
@@ -1625,6 +1646,10 @@ def api_save(session_id):
     if not sess:
         return jsonify({"error": "Session not found"}), 404
     _apply_payload(sess["data"], request.json)
+    # Remember edits so a later regeneration re-applies them instead of
+    # silently wiping manual corrections (e.g. marketing data fixes).
+    overrides = sess.setdefault("manual_overrides", {})
+    overrides.update(request.json or {})
     _rerender(sess)
     _save_session(session_id, sess, snapshot=True)
     return jsonify({"ok": True})

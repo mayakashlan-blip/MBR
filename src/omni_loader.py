@@ -18,51 +18,56 @@ STAFF_REPORT_ID     = "fed9785d"  # Medspa Staff Performance Report
 TRANSACTIONS_ID     = "76abf294"  # Medspa Transactions Report
 MEMBERSHIPS_ID      = "475dc8d8"  # Medspa Memberships
 
-# ── Legacy dashboards (data not yet in Standard Reports) ──
-DASHBOARD_ID           = "bfd963dd"  # tier / medspa-id lookup + GFE queries
+# ── Single source of truth: [New Embedded] Monthly Business Review ──
+NEW_MBR_ID             = "6b24fa95"
+# Kept for data the consolidated dashboard doesn't carry
+DASHBOARD_ID           = "bfd963dd"  # tier / medspa-id lookup
 SUPPLIES_DASHBOARD_ID  = "54d5da36"
-RETENTION_DASHBOARD_ID = "59ca3051"
-MARKETING_DASHBOARD_ID = "0ef3afa3"
-EMBEDDED_MBR_ID        = "6740bb26"  # Suite-embedded MBR (source of truth for tiles)
+MARKETING_DASHBOARD_ID = "0ef3afa3"  # campaign-level breakdown only
+EMBEDDED_MBR_ID        = NEW_MBR_ID  # back-compat alias (parity checker)
 
-# Query names → date filter fields used by _add_filters()
+_T = "dbt__moxie_invoice_transactions_mart"
+_A = "dbt__moxie_appointments_mart"
+
+# Query names → date filter fields used by _add_filters(). Using the SAME
+# field as a query's baked date template overwrites it; a different field
+# would AND against it and zero out historical months.
 QUERY_DATE_FIELDS = {
-    # ── Standard Reports ──
-    # Sales Report (b8baa4c2)
-    "Sales Summary":              "dbt__moxie_invoice_transactions_mart.transaction_date_et",
-    "Service Revenue Summary":    "dbt__moxie_invoices_mart.invoice_issued_date",
-    # ── Suite-embedded MBR dashboard (6740bb26) ──
-    "Gross Revenue By Official Service Type":
-        "dbt__moxie_invoice_transactions_mart.transaction_date_et",
-    "KPI: Paid Appointments":     "dbt__moxie_invoice_transactions_mart.transaction_date_et",
-    "Client Counts":              "dbt__moxie_appointments_mart.start_time",
-    # Appointments (d6776514)
-    "Appointment Overview":       "dbt__moxie_appointments_mart.start_time",
-    "Appointment Stats":          "dbt__moxie_appointments_mart.start_time",
-    # Staff Performance (fed9785d)
-    "Staff Appointment Summary":  "dbt__moxie_embedded_staff_report_mart.report_date",
-    "Staff Sales Summary":        "dbt__moxie_invoices_mart.first_payment_date",
-    # Transactions (76abf294)
-    "Payment Method Breakdown":   "dbt__moxie_transactions_mart.transaction_time",
-    "Payment History":            "dbt__moxie_transactions_mart.transaction_time",
-    "Refund History":             "dbt__moxie_transactions_mart.transaction_time",
-    # Memberships (475dc8d8)
-    "New Membership Enrollments": "dbt__moxie_client_memberships_mart.started_at",
-    "Cancellations":              "dbt__moxie_client_memberships_mart.canceled_at",
-    "Average Monthly Members":    "dbt__moxie_membership_churn_monthly_mart.month_start",
-    "Monthly Recurring Revenue (MRR)": "dbt__moxie_membership_churn_monthly_mart.month_start",
-    # ── Legacy (kept for GFE + backward compat) ──
-    "KPI: Net Revenue":           "dbt__moxie_invoice_transactions_mart.transaction_date_et",
-    "Payments & Refunds":         "dbt__moxie_invoice_transactions_mart.transaction_date_et",
-    "KPI: AOV":                   "dbt__moxie_appointments_mart.start_time",
-    "Total Membership Revenue":   "dbt__moxie_invoices_mart.invoice_issued_date",
-    "Gross Revenue Breakdown Summary": "dbt__moxie_invoices_mart.invoice_issued_date",
-    "Retail to Service Revenue":  "dbt__moxie_invoices_mart.invoice_issued_date",
-    "Gross Revenue By Official Service Type": "dbt__moxie_invoices_mart.invoice_issued_date",
-    "Utilization":                "dbt__moxie_utilization_daily_mart.series_date",
-    "Active Members":             None,
-    "New Memberships":            "dbt__moxie_client_memberships_mart.started_at",
-    "Churned Memberships":        "dbt__moxie_client_memberships_mart.ended_at",
+    # ── Consolidated MBR dashboard (6b24fa95) ──
+    "Sales Summary":              f"{_T}.transaction_date_et",
+    "Total Sales by Category":    "dbt__moxie_invoices_mart.invoice_issued_date",
+    "Total Sales by Service":     f"{_T}.transaction_date_et",
+    "KPI Goal: Net Revenue":      f"{_T}.transaction_date_et",
+    "KPI Goal: AOV":              f"{_T}.transaction_date_et",
+    "KPI Goal: Paid Appointments": f"{_A}.start_time_local",
+    "KPI Goal: Net Revenue — Last 4 Months": f"{_T}.transaction_date_et",
+    "KPI Goal: AOV — Last 4 Months":         f"{_T}.transaction_date_et",
+    "KPI Goal: Paid Appointments — Last 4 Months": f"{_A}.start_time",
+    "KPI: Rebooking Rate":        f"{_A}.start_time_local",
+    "KPI: Retention Rate":        f"{_A}.start_time_local",
+    "KPI: Utilization":           "dbt__moxie_utilization_daily_mart.series_date",
+    "Client Mix":                 f"{_A}.start_time_local",
+    "Net Revenue, QTD":           f"{_T}.transaction_date_et",
+    "Payments & Refunds":         f"{_T}.transaction_date_et",
+    "Membership Overview":        "dbt__moxie_client_membership_churn_monthly_mart.month_start",
+    "Membership Breakdown":       "dbt__moxie_client_membership_churn_monthly_mart.month_start",
+    "Staff Performance":          "dbt__moxie_embedded_staff_report_mart.report_date",
+    "Monthly Marketing Performance": "dbt__marketing_medspa_performance_daily_mart.series_date",
+    "YTD Marketing Performance":  "dbt__marketing_medspa_performance_daily_mart.series_date",
+    "Monthly GFE Savings":        "dbt__moxie_gfe_review_submissions_mart.review_finished_at",
+    "YTD GFE Savings":            "dbt__moxie_gfe_review_submissions_mart.review_finished_at",
+}
+
+# Multi-month windows: query name → months of history to request. The window
+# ends at the report month; rows come back per-month for MoM + trend charts.
+QUERY_WINDOW_MONTHS = {
+    "KPI Goal: Net Revenue — Last 4 Months": 4,
+    "KPI Goal: AOV — Last 4 Months": 4,
+    "KPI Goal: Paid Appointments — Last 4 Months": 4,
+    "KPI Goal: Paid Appointments": 2,
+    "KPI: Rebooking Rate": 2,
+    "KPI: Retention Rate": 2,
+    "KPI: Utilization": 2,
 }
 
 
@@ -193,8 +198,11 @@ def _add_filters(query: dict, practice_name: str, start_date: str,
     q = copy.deepcopy(query)
     _ensure_filters(q)
     pf_field, pf_dict = _practice_filter(practice_name, medspa_id)
-    # Drop any stale name filter so id- and name-scoping never AND together
+    # Drop stale name-based templates so they never AND against our id filter.
+    # Dashboard queries ship with test values baked in (e.g. medspa_name_with_id
+    # = "The Ivy Wellness (1538)" on the AOV tile).
     q["filters"].pop("dbt__moxie_medspas_mart.medspa_name", None)
+    q["filters"].pop("dbt__moxie_medspas_mart.medspa_name_with_id", None)
     q["filters"][pf_field] = pf_dict
     if date_field:
         q["filters"][date_field] = {
@@ -287,19 +295,18 @@ def load_from_omni(practice_name: str, month: int, year: int,
     start_date = f"{year}-{month:02d}-01"
     duration = f"{duration_months} months"
 
-    # Load queries from Standard Report dashboards + legacy dashboard (for tier/GFE)
+    # Load queries from the consolidated MBR dashboard — the single source of
+    # truth for every report metric — plus the legacy dashboard for the
+    # tier/medspa-id lookup only.
     print(f"  Connecting to Omni API...")
     queries = {}
-    for dash_id in [SALES_REPORT_ID, APPOINTMENTS_ID, STAFF_REPORT_ID,
-                    TRANSACTIONS_ID, MEMBERSHIPS_ID]:
-        try:
-            dash = _get_dashboard_queries(dash_id, api_key)
-            for q in dash.get("queries", []):
-                if q.get("name") and q.get("query"):
-                    queries[q["name"]] = q["query"]
-        except Exception as e:
-            print(f"  Warning: could not load dashboard {dash_id}: {e}")
-    # Legacy dashboard kept for tier/medspa-id lookup, GFE, and membership active-by-type
+    try:
+        dash = _get_dashboard_queries(NEW_MBR_ID, api_key)
+        for q in dash.get("queries", []):
+            if q.get("name") and q.get("query"):
+                queries[q["name"]] = q["query"]
+    except Exception as e:
+        print(f"  Warning: could not load MBR dashboard {NEW_MBR_ID}: {e}")
     try:
         legacy = _get_dashboard_queries(DASHBOARD_ID, api_key)
         for q in legacy.get("queries", []):
@@ -307,17 +314,16 @@ def load_from_omni(practice_name: str, month: int, year: int,
                 queries[q["name"]] = q["query"]
     except Exception as e:
         print(f"  Warning: could not load legacy dashboard: {e}")
-    # Cherry-pick from the Suite-embedded MBR dashboard — these queries are
-    # the source of truth for what practices see inside Moxie Suite.
-    try:
-        emb = _get_dashboard_queries(EMBEDDED_MBR_ID, api_key)
-        for q in emb.get("queries", []):
-            if q.get("name") in ("Gross Revenue By Official Service Type",
-                                 "KPI: Paid Appointments",
-                                 "Client Counts") and q.get("query"):
-                queries[q["name"]] = q["query"]
-    except Exception as e:
-        print(f"  Warning: could not load embedded MBR dashboard: {e}")
+    # GFE queries ship with a hardcoded reviewer list baked in from testing —
+    # clear it so every practice's reviewers count.
+    for _gname in ("Monthly GFE Savings", "YTD GFE Savings",
+                   "Completed GFEs By Reviewer [New Flow]"):
+        _gq = queries.get(_gname)
+        if _gq:
+            _gf = (_gq.get("filters") or {}).get(
+                "dbt__moxie_providers_mart.provider_name")
+            if isinstance(_gf, dict):
+                _gf["values"] = []
     # Service mix per team spec: total_invoice_revenue (transactions mart)
     # split by service_category (line items mart), top categories first.
     _svc_q = queries.get("Gross Revenue By Official Service Type")
@@ -456,11 +462,22 @@ def load_from_omni(practice_name: str, month: int, year: int,
 
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
+    def _month_start_offset(k_back: int) -> str:
+        idx = year * 12 + (month - 1) - k_back
+        return f"{idx // 12}-{idx % 12 + 1:02d}-01"
+
     def run(name: str) -> dict:
         q = _find_query(queries, name)
         date_field = QUERY_DATE_FIELDS.get(name)
-        q = _add_filters(q, practice_name, start_date, date_field, duration,
-                         medspa_id=medspa_id)
+        k = QUERY_WINDOW_MONTHS.get(name)
+        if k and k > 1:
+            # Multi-month window ending at the report month (per-month rows
+            # for MoM + trend charts, mirroring the dashboard's tiles)
+            q = _add_filters(q, practice_name, _month_start_offset(k - 1),
+                             date_field, f"{k} months", medspa_id=medspa_id)
+        else:
+            q = _add_filters(q, practice_name, start_date, date_field, duration,
+                             medspa_id=medspa_id)
         return _run_query(q, api_key)
 
     def run_safe(name: str) -> dict:
