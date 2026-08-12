@@ -324,7 +324,7 @@
       </div>
       <div class="staff-metrics">
         <div class="staff-metric">
-          <div class="sm-label">Total Service Sales</div>
+          <div class="sm-label">Total Sales</div>
           <div class="sm-value">{{ s.gross_revenue | dollar(False) }}</div>
           {% if s.revenue_mom_pct is not none %}
           <div class="sm-mom{% if s.revenue_mom_pct >= 0 %} positive{% else %} negative{% endif %}">{{ "▲" if s.revenue_mom_pct >= 0 else "▼" }} {{ "%.0f"|format((s.revenue_mom_pct * 100)|abs) }}%</div>
@@ -368,6 +368,9 @@
       </div>
     </div>
     {% endfor %}
+  </div>
+  <div style="font-size: 6.5pt; color: var(--muted-text); margin-top: 0.05in;">
+    * Some appointment revenue has no attributed provider, so per-provider AOV and sales will not sum to the practice-level figures.
   </div>
 
   {# Revenue contribution bar — hide for sole providers #}
@@ -416,10 +419,6 @@
       <div style="flex: 1; text-align: center;">
         <div style="font-size: 13pt; font-weight: 700; color: {% if data.net_new_members >= 0 %}#2E7D32{% else %}#B53631{% endif %};">{{ "%+d"|format(data.net_new_members) }}</div>
         <div style="font-size: 6.5pt; color: var(--muted-text); text-transform: uppercase; letter-spacing: 0.03em;">Net New</div>
-      </div>
-      <div style="flex: 1; text-align: center;">
-        <div style="font-size: 13pt; font-weight: 700; color: var(--purple);">{{ "%.0f"|format(data.membership_conversion_rate) }}%</div>
-        <div style="font-size: 6.5pt; color: var(--muted-text); text-transform: uppercase; letter-spacing: 0.03em;">Conversion</div>
       </div>
     </div>
   </div>
@@ -476,14 +475,14 @@
       <div class="top-service-rank">{{ label }}</div>
       <div class="top-service-name">{{ svc.name }}</div>
       <div class="top-service-pct">{{ "%.1f" | format(svc.pct_of_total) }}%</div>
-      <div class="top-service-sub">of total revenue</div>
+      <div class="top-service-sub">of total sales</div>
     </div>
     {% endfor %}
   </div>
   {% endif %}
 
   <div class="card" style="margin-bottom: 0.15in;">
-    <div class="section-subtitle">Gross Revenue by Service</div>
+    <div class="section-subtitle">Total Sales by Service</div>
     <div class="service-bars">
       {% set max_rev = data.services[0].revenue if (data.services and data.services[0].revenue > 0) else 1 %}
       {% for svc in data.services[:10] %}

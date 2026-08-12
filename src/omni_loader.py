@@ -1053,6 +1053,7 @@ def load_from_omni(practice_name: str, month: int, year: int,
             }
             q["fields"] = [
                 "dbt__moxie_invoice_line_items_mart.attributed_provider_name",
+                "dbt__moxie_invoice_transactions_mart.total_invoice_revenue_sum",
                 "dbt__moxie_invoice_transactions_mart.net_revenue_sum",
                 "dbt__moxie_invoice_transactions_mart.aov",
             ]
@@ -1062,25 +1063,8 @@ def load_from_omni(practice_name: str, month: int, year: int,
             q["column_totals"] = {}
             return q
 
-        def _service_sales_query(base_q, left_side, right_side):
-            """Total Service Sales per provider: line-items gross_revenue
-            where invoice_item_type = "service" (team spec)."""
-            q = _flat_sales_query(base_q, left_side, right_side)
-            q["fields"] = [
-                "dbt__moxie_invoice_line_items_mart.attributed_provider_name",
-                "dbt__moxie_invoice_line_items_mart.gross_revenue_sum",
-            ]
-            q["filters"]["dbt__moxie_invoice_line_items_mart.invoice_item_type"] = {
-                "kind": "EQUALS", "type": "string",
-                "values": ["service"], "is_negative": False,
-            }
-            return q
-
         sales_q = _flat_sales_query(queries["Staff Sales Summary"], start_date, duration)
         sales_r = _run_query(sales_q, api_key)
-        svc_sales_r = _run_query(
-            _service_sales_query(queries["Staff Sales Summary"], start_date, duration),
-            api_key)
 
         # Per-provider utilization + hours from the Utilization topic
         util_lookup: dict = {}
@@ -1135,8 +1119,10 @@ def load_from_omni(practice_name: str, month: int, year: int,
                 "aov": float(appt_aov[i]) if i < len(appt_aov) and appt_aov[i] else None,
             }
 
-        # Per-provider Net Revenue / AOV (transactions mart)
+        # Per-provider Total Sales / Net Revenue / AOV (transactions mart —
+        # same measures as the practice-level tiles, per team decision)
         sales_names  = _extract_col(sales_r, "attributed_provider_name")
+        sales_total  = _extract_col(sales_r, "total_invoice_revenue_sum")
         sales_net    = _extract_col(sales_r, "net_revenue_sum")
         sales_aov    = _extract_col(sales_r, ".aov")
 
@@ -1145,30 +1131,20 @@ def load_from_omni(practice_name: str, month: int, year: int,
             if not name:
                 continue
             sales_lookup[name] = {
+                "total": float(sales_total[i]) if i < len(sales_total) and sales_total[i] else 0,
                 "net": float(sales_net[i]) if i < len(sales_net) and sales_net[i] else 0,
                 "aov": float(sales_aov[i]) if i < len(sales_aov) and sales_aov[i] else None,
             }
 
-        # Total Service Sales per provider — line-items gross_revenue where
-        # invoice_item_type = "service" (team spec)
-        svc_names = _extract_col(svc_sales_r, "attributed_provider_name")
-        svc_gross = _extract_col(svc_sales_r, "gross_revenue_sum")
-        service_sales_lookup: dict = {}
-        for i, name in enumerate(svc_names):
-            if not name:
-                continue
-            service_sales_lookup[name] = (
-                float(svc_gross[i]) if i < len(svc_gross) and svc_gross[i] else 0)
-
-        # Build StaffMember list from the sales queries only — providers with
+        # Build StaffMember list from the sales query only — providers with
         # attributed invoices this month. The appointment summary includes GFE
         # reviewers and non-revenue staff, so it's used purely as enrichment.
-        all_staff_names = set(sales_lookup) | set(service_sales_lookup)
+        all_staff_names = set(sales_lookup)
         for name in sorted(all_staff_names):
             appt = appt_lookup.get(name, {})
-            sales = sales_lookup.get(name, {"net": 0, "aov": None})
+            sales = sales_lookup.get(name, {"total": 0, "net": 0, "aov": None})
             net_rev = sales["net"]
-            total_sales_rev = service_sales_lookup.get(name, 0)
+            total_sales_rev = sales["total"] if sales["total"] > 0 else net_rev
             aov_val = sales.get("aov") or appt.get("aov") or 0
             rebook = appt.get("rebook", 0)
             if rebook and rebook > 1.0:
@@ -1176,7 +1152,7 @@ def load_from_omni(practice_name: str, month: int, year: int,
             data.staff.append(StaffMember(
                 name=name,
                 net_revenue=net_rev,
-                gross_revenue=total_sales_rev,   # rendered as "Total Service Sales"
+                gross_revenue=total_sales_rev,   # rendered as "Total Sales"
                 aov=aov_val,
                 utilization=util_lookup.get(name, appt.get("util")),
                 rebooking_rate=rebook or 0,
@@ -1215,15 +1191,6 @@ def load_from_omni(practice_name: str, month: int, year: int,
             prev_sales_q = _flat_sales_query(queries["Staff Sales Summary"],
                                              prev_start, "1 months")
             prev_sales_r = _run_query(prev_sales_q, api_key)
-            prev_svc_r = _run_query(
-                _service_sales_query(queries["Staff Sales Summary"],
-                                     prev_start, "1 months"), api_key)
-            p_svc_names = _extract_col(prev_svc_r, "attributed_provider_name")
-            p_svc_gross = _extract_col(prev_svc_r, "gross_revenue_sum")
-            prev_service_lookup = {
-                n: (float(p_svc_gross[i]) if i < len(p_svc_gross) and p_svc_gross[i] else 0)
-                for i, n in enumerate(p_svc_names) if n
-            }
 
             # Build prior-month lookups
             p_appt_names   = _extract_col(prev_appt_r, "provider_name")
