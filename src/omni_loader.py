@@ -357,6 +357,12 @@ def load_from_omni(practice_name: str, month: int, year: int,
                 "dbt__moxie_providers_mart.provider_name")
             if isinstance(_gf, dict):
                 _gf["values"] = []
+    # The dashboard's Total Sales by Service chart keeps a top-10 row limit
+    # for display; the report wants every service category (percentages are
+    # computed against practice Total Sales, so nothing may be truncated).
+    _svc_q = queries.get("Total Sales by Service")
+    if _svc_q and _svc_q.get("limit"):
+        _svc_q["limit"] = 500
     # The Monthly Marketing Performance tile lacks the "booked appointments"
     # step of the funnel — ride it along on the same mart.
     _mkq = queries.get("Monthly Marketing Performance")

@@ -336,7 +336,13 @@ class MBRData:
         return self.memberships_new - self.memberships_cancelled
 
     def compute_service_percentages(self):
-        total = sum(s.revenue for s in self.services)
+        # Per team decision: each service's share is measured against the
+        # practice's Total Sales headline, not the sum of the service rows —
+        # a rows-only denominator overstates shares whenever the source
+        # chart truncates (e.g. a top-10 limit) or non-service categories
+        # (retail, packages) exist. Falls back to the rows' sum when Total
+        # Sales isn't loaded (e.g. CSV mode).
+        total = self.total_sales or sum(s.revenue for s in self.services)
         if total > 0:
             for s in self.services:
                 s.pct_of_total = s.revenue / total * 100

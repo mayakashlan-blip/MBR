@@ -998,6 +998,14 @@ def api_upload_enterprise_marketing():
     marketing numbers for the month. Reports generated afterwards use
     these figures instead of Omni's attribution for the listed practices.
     """
+    import traceback as _tb
+    try:
+        return _handle_enterprise_marketing_upload()
+    except Exception as e:
+        return jsonify({"error": str(e), "traceback": _tb.format_exc()}), 500
+
+
+def _handle_enterprise_marketing_upload():
     month = int(request.form.get("month", 0))
     year = int(request.form.get("year", 0))
     if not (1 <= month <= 12 and year >= 2020):
@@ -1385,16 +1393,17 @@ def _compute_parity(d, practice, month, year, medspa_id=None):
     add("aov_goal", round(d.aov_goal, 2), round(float(_aov_goal or 0), 2))
 
     # Service mix — the dashboard's own "Total Sales by Service" tile
-    # (line-items gross revenue by service_category, service items only)
+    # (line-items gross revenue by service_category, service items only).
+    # Compare dollar values: report percentages are shares of Total Sales,
+    # which this tile doesn't carry.
     r = run_emb("Total Sales by Service", None, f"{T}.transaction_date_et")
     cats = _extract_col(r, "service_category")
     revs = _extract_col(r, "gross_revenue_sum")
     pairs = sorted(
         ((c or "Other", float(v or 0)) for c, v in zip(cats, revs)),
         key=lambda x: -x[1])
-    total = sum(v for _, v in pairs) or 1
-    omni_top = [f"{c} {v / total * 100:.1f}%" for c, v in pairs[:3]]
-    mbr_top = [f"{s.name} {s.pct_of_total:.1f}%" for s in d.services[:3]]
+    omni_top = [f"{c} ${v:,.0f}" for c, v in pairs[:3]]
+    mbr_top = [f"{s.name} ${s.revenue:,.0f}" for s in d.services[:3]]
     add("top_services", " | ".join(mbr_top), " | ".join(omni_top))
 
     ok = all(v["match"] == "✓" for v in checks.values())

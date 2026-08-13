@@ -281,8 +281,8 @@
 
     <div class="adjustments-row">
       <div class="adjustment-card">
-        <div class="adj-label">Discount % of Gross</div>
-        <div class="adj-value">{% if data.total_gross > 0 %}{{ "%.1f" | format(data.discounts / data.total_gross * 100) }}%{% else %}—{% endif %}</div>
+        <div class="adj-label">Discount % of Total Sales</div>
+        <div class="adj-value">{% if data.total_sales > 0 %}{{ "%.1f" | format(data.discounts / data.total_sales * 100) }}%{% else %}—{% endif %}</div>
       </div>
       <div class="adjustment-card">
         <div class="adj-label">Refunds</div>
