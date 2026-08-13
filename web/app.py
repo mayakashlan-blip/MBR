@@ -224,6 +224,95 @@ def _save_monthly_upload(month: int, year: int, asset_type: str, src_path: str, 
     return dest
 
 
+# ── Validated Enterprise marketing (agency-compiled workbook) ──────────────
+# Marketing Services compiles validated marketing numbers for Enterprise
+# practices each month ("Enterprise Reporting [Compiled] - <Month>.xlsx").
+# Uploading it on the Monthly Assets page stores a per-month JSON blob;
+# report generation then overlays those numbers on Omni's marketing block.
+
+_VM_CACHE: dict = {}  # (month, year) -> (fetched_at, payload)
+_VM_CACHE_TTL = 300
+
+
+def _validated_marketing_key(month: int, year: int) -> str:
+    return f"{_monthly_key(month, year)}_validated_marketing.json"
+
+
+def _load_validated_marketing(month: int, year: int) -> dict:
+    """Return {medspa_id_str: record} for the month, or {}."""
+    import time as _time
+    hit = _VM_CACHE.get((month, year))
+    if hit and _time.time() - hit[0] < _VM_CACHE_TTL:
+        return hit[1]
+    payload = {}
+    try:
+        if _DB_ENABLED:
+            local = _db.download_file("monthly-assets",
+                                      _validated_marketing_key(month, year),
+                                      suffix=".json")
+            with open(local) as f:
+                payload = json.load(f)
+        else:
+            path = MONTHLY_DIR / _validated_marketing_key(month, year)
+            if path.exists():
+                with open(path) as f:
+                    payload = json.load(f)
+    except Exception:
+        payload = {}
+    _VM_CACHE[(month, year)] = (_time.time(), payload)
+    return payload
+
+
+def _save_validated_marketing(month: int, year: int, practices: dict):
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as tmp:
+        json.dump(practices, tmp, default=str)
+        tmp_path = tmp.name
+    if _DB_ENABLED:
+        _db.upload_file("monthly-assets",
+                        _validated_marketing_key(month, year), tmp_path)
+    else:
+        shutil.copy2(tmp_path,
+                     MONTHLY_DIR / _validated_marketing_key(month, year))
+        _backup_to_git_async(
+            f"validated-marketing: {_monthly_key(month, year)}", force=True)
+    _VM_CACHE.pop((month, year), None)
+
+
+def _apply_validated_marketing(data):
+    """Overlay agency-validated marketing numbers onto the loaded report.
+
+    Runs after load_from_omni and BEFORE manual_overrides are re-applied,
+    so precedence is: human editor edits > validated workbook > Omni.
+    """
+    try:
+        if not (data.month and data.year and data.medspa_id is not None):
+            return
+        rec = _load_validated_marketing(data.month, data.year).get(
+            str(data.medspa_id))
+        if not rec:
+            return
+        from src.data_schema import MarketingData, CampaignData
+        campaigns = [CampaignData(**c) for c in rec.get("campaigns", [])]
+        data.marketing = MarketingData(
+            ad_spend=rec.get("ad_spend") or 0.0,
+            leads=int(rec.get("leads") or 0),
+            booked=int(rec.get("booked") or 0),
+            completed=int(rec.get("completed") or 0),
+            revenue=rec.get("revenue") or 0.0,
+            total_revenue_all_clients=rec.get("total_revenue_all_clients") or 0.0,
+            first_visit_roi=rec.get("first_visit_roi"),
+            lead_to_booking_rate=rec.get("lead_to_booking_rate"),
+            first_visit_aov=rec.get("first_visit_aov"),
+            campaigns=campaigns,
+            show_campaign_breakdown=len(campaigns) > 1,
+            show_marketing_lock_screen=False,
+        )
+        print(f"  Marketing: applied validated Enterprise data "
+              f"({rec.get('practice_name')}, {len(campaigns)} campaign(s))")
+    except Exception as e:
+        print(f"  Warning: could not apply validated marketing: {e}")
+
+
 def _serialize_data(data) -> dict:
     """Serialize MBRData to a JSON-safe dict."""
     from dataclasses import asdict
@@ -900,6 +989,87 @@ def api_upload_monthly_brand_bank():
     return jsonify({"ok": True, "brand_bank_items": items, "filename": file.filename})
 
 
+@app.route("/api/upload-enterprise-marketing", methods=["POST"])
+def api_upload_enterprise_marketing():
+    """Upload the agency's Enterprise Reporting [Compiled] workbook.
+
+    Parses the Summary sheet, reconciles medspa ids against Omni (some
+    practices have numbers in their names), and stores the validated
+    marketing numbers for the month. Reports generated afterwards use
+    these figures instead of Omni's attribution for the listed practices.
+    """
+    month = int(request.form.get("month", 0))
+    year = int(request.form.get("year", 0))
+    if not (1 <= month <= 12 and year >= 2020):
+        return jsonify({"error": "month and year are required"}), 400
+    if "workbook" not in request.files:
+        return jsonify({"error": "No file uploaded (field name: workbook)"}), 400
+    file = request.files["workbook"]
+    if not file.filename:
+        return jsonify({"error": "No file selected"}), 400
+
+    tmp = tempfile.NamedTemporaryFile(
+        suffix=Path(file.filename).suffix.lower() or ".xlsx", delete=False)
+    file.save(tmp.name)
+    tmp.close()
+
+    from src.validated_marketing import (parse_enterprise_workbook,
+                                         reconcile_with_omni)
+    try:
+        parsed = parse_enterprise_workbook(tmp.name)
+    except Exception as e:
+        return jsonify({"error": f"Could not parse workbook: {e}"}), 400
+
+    recon = {"verified": False, "remapped": {}, "unmatched": []}
+    if OMNI_KEY:
+        try:
+            recon = reconcile_with_omni(parsed, OMNI_KEY)
+        except Exception as e:
+            print(f"  Warning: Omni reconciliation failed: {e}")
+
+    practices = parsed["practices"]
+    if not practices:
+        return jsonify({"error": "No practice rows with data found",
+                        "skipped": parsed["skipped"]}), 400
+
+    _save_validated_marketing(month, year, practices)
+    # Keep the raw workbook alongside the parsed data
+    try:
+        _save_monthly_upload(month, year, "enterprise_marketing",
+                             tmp.name, file.filename)
+    except Exception as e:
+        print(f"  Warning: could not persist raw workbook: {e}")
+
+    return jsonify({
+        "ok": True,
+        "month": month, "year": year,
+        "practice_count": len(practices),
+        "practices": [
+            {"medspa_id": mid,
+             "name": rec.get("omni_name") or rec["practice_name"],
+             "ad_spend": rec["ad_spend"],
+             "campaigns": len(rec.get("campaigns", []))}
+            for mid, rec in sorted(practices.items(), key=lambda x: int(x[0]))
+        ],
+        "id_check": ("verified against Omni" if recon["verified"]
+                     else "NOT verified (Omni unavailable)"),
+        "remapped": recon["remapped"],
+        "unmatched": recon["unmatched"],
+        "skipped_empty_rows": parsed["skipped"],
+    })
+
+
+@app.route("/api/validated-marketing", methods=["GET"])
+def api_get_validated_marketing():
+    """Return the stored validated marketing data for a month."""
+    month = int(request.args.get("month", 0))
+    year = int(request.args.get("year", 0))
+    if not (1 <= month <= 12 and year >= 2020):
+        return jsonify({"error": "month and year are required"}), 400
+    return jsonify({"month": month, "year": year,
+                    "practices": _load_validated_marketing(month, year)})
+
+
 @app.route("/api/status")
 def api_status():
     """Return app status — used by the dashboard to show warnings."""
@@ -1359,6 +1529,7 @@ def api_generate():
             data = load_from_omni(practice, month, year, api_key=key)
         except Exception as e:
             return jsonify({"error": f"[load_from_omni] {e}", "traceback": _tb.format_exc()}), 500
+        _apply_validated_marketing(data)
 
         # Inject monthly assets (launches & brand bank)
         assets = _load_monthly_assets(month, year)
@@ -1489,6 +1660,7 @@ def api_v1_mbr():
             html = cached["html"]
         else:
             data = load_from_omni(medspa_name, month, year, api_key=omni_key)
+            _apply_validated_marketing(data)
             assets = _load_monthly_assets(month, year)
             if assets.get("launches"):
                 data.launches = [LaunchFeature(**l) for l in assets["launches"]]
@@ -1564,6 +1736,8 @@ def api_generate_beta():
 
         # Load data over extended period
         data = load_from_omni(practice, month, year, api_key=key, duration_months=duration_months)
+        if duration_months == 1:
+            _apply_validated_marketing(data)
 
         # Inject monthly assets only for single-month pulls
         if duration_months == 1:
@@ -1746,6 +1920,7 @@ def api_admin_refresh_session(session_id):
                               duration_months=duration_months)
 
         if duration_months == 1:
+            _apply_validated_marketing(data)
             assets = _load_monthly_assets(month, year)
             if assets.get("launches"):
                 data.launches = [LaunchFeature(**l) for l in assets["launches"]]
@@ -2500,6 +2675,7 @@ def api_batch_start():
                 batch_jobs[job_id]["current"] = practice
                 try:
                     data = load_from_omni(practice, month, year, api_key=key)
+                    _apply_validated_marketing(data)
                     # Inject monthly assets
                     if assets.get("launches"):
                         data.launches = [LaunchFeature(**l) for l in assets["launches"]]

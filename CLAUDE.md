@@ -101,6 +101,14 @@ wrong-numbers-in-a-client-report bug:
    human corrections (`discard_edits: true` resets to pure Omni values). The
    parity check (`_compute_parity`) runs on raw Omni values *before*
    overrides are re-applied.
+9. **Enterprise marketing numbers can be agency-validated.** The compiled
+   workbook ("Enterprise Reporting [Compiled] - <Month>.xlsx") uploads on
+   the Monthly Assets page; `src/validated_marketing.py` parses it and
+   `_apply_validated_marketing` overlays those figures on every generation.
+   Precedence: editor edits > validated workbook > Omni attribution. The
+   sheet's leading number is usually the medspa id, but not always (the
+   practice named "424 Cosmetic Dermatology" is id 1790) — ids are
+   reconciled against Omni at upload time.
 
 ## Debugging Omni queries
 

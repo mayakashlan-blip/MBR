@@ -8,3 +8,4 @@ PyMuPDF
 playwright
 gunicorn
 supabase
+openpyxl

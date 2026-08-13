@@ -126,6 +126,27 @@
       </div>
     </div>
 
+    {# Enterprise Marketing (validated workbook) #}
+    <div style="border: 1px solid #e8e0d8; border-radius: 8px; padding: 16px; margin-top: 16px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+        <label style="font-weight: 600; font-size: 14px;">Enterprise Marketing (Validated)</label>
+        <span id="em-count" style="font-size: 12px; color: #8C8580;"></span>
+      </div>
+      <p style="font-size: 12px; color: #8C8580; margin: 0 0 10px;">
+        Upload the "Enterprise Reporting [Compiled]" workbook from Marketing
+        Services. Reports generated for the listed practices will use these
+        validated numbers instead of Omni's marketing attribution.
+      </p>
+      <div class="upload-zone" id="em-zone" style="margin-bottom: 10px;">
+        <input type="file" accept=".xlsx,.xlsm" onchange="handleEnterpriseMarketingUpload(this)">
+        <div class="upload-text" id="em-text">
+          <strong>Click to upload</strong> compiled workbook<br>XLSX
+        </div>
+      </div>
+      <div id="em-status" style="font-size: 12px; color: #8C8580;"></div>
+      <div id="em-list" style="margin-top: 10px; font-size: 12px;"></div>
+    </div>
+
     <div style="margin-top: 16px; display: flex; align-items: center; gap: 12px;">
       <button class="btn btn-primary" onclick="saveMonthlyAssets()" id="save-assets-btn">
         Save Monthly Assets
@@ -163,8 +184,63 @@ function unlockAssets() {
 function getAssetMonth() { return document.getElementById('asset-month').value; }
 function getAssetYear() { return document.getElementById('asset-year').value; }
 
+function loadValidatedMarketing() {
+  const month = getAssetMonth(), year = getAssetYear();
+  fetch(`/api/validated-marketing?month=${month}&year=${year}`)
+    .then(r => r.json())
+    .then(data => {
+      const practices = data.practices || {};
+      const ids = Object.keys(practices);
+      const badge = document.getElementById('em-count');
+      const list = document.getElementById('em-list');
+      if (!ids.length) {
+        badge.textContent = '';
+        list.innerHTML = '';
+        return;
+      }
+      badge.textContent = `${ids.length} practices loaded`;
+      list.innerHTML = ids.sort((a, b) => Number(a) - Number(b)).map(id => {
+        const p = practices[id];
+        const name = p.omni_name || p.practice_name;
+        const spend = Number(p.ad_spend || 0).toLocaleString(undefined, {maximumFractionDigits: 0});
+        return `<div style="padding:3px 0; border-bottom:1px solid #f3ede8;">` +
+               `<span style="color:#8C8580;">${id}</span> ${name} ` +
+               `<span style="color:#8C8580;">— $${spend} spend, ${(p.campaigns || []).length} campaign(s)</span></div>`;
+      }).join('');
+    })
+    .catch(() => {});
+}
+
+function handleEnterpriseMarketingUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const status = document.getElementById('em-status');
+  status.textContent = 'Uploading & parsing…';
+  const fd = new FormData();
+  fd.append('workbook', file);
+  fd.append('month', getAssetMonth());
+  fd.append('year', getAssetYear());
+  fetch('/api/upload-enterprise-marketing', { method: 'POST', body: fd })
+    .then(r => r.json())
+    .then(res => {
+      if (res.error) { status.textContent = 'Error: ' + res.error; return; }
+      let msg = `Loaded ${res.practice_count} practices (${res.id_check}).`;
+      if (res.unmatched && res.unmatched.length)
+        msg += ` UNMATCHED (fix the sheet): ${res.unmatched.join('; ')}`;
+      if (res.remapped && Object.keys(res.remapped).length)
+        msg += ` Remapped ids: ${Object.entries(res.remapped).map(([k, v]) => `${k} → ${v}`).join('; ')}`;
+      if (res.skipped_empty_rows && res.skipped_empty_rows.length)
+        msg += ` Skipped (no data): ${res.skipped_empty_rows.join('; ')}`;
+      status.textContent = msg;
+      loadValidatedMarketing();
+    })
+    .catch(e => { status.textContent = 'Upload failed: ' + e; })
+    .finally(() => { input.value = ''; });
+}
+
 function loadMonthlyAssets() {
   const month = getAssetMonth(), year = getAssetYear();
+  loadValidatedMarketing();
   fetch(`/api/monthly-assets?month=${month}&year=${year}`)
     .then(r => r.json())
     .then(data => {
