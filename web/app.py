@@ -1192,7 +1192,7 @@ def _compute_parity(d, practice, month, year, medspa_id=None):
 
     # Net revenue + goal + AOV (all transactions basis — the canonical AOV
     # is dbt__moxie_invoice_transactions_mart.aov per team decision)
-    r = run_emb("KPI: Net Revenue",
+    r = run_emb("KPI Goal: Net Revenue",
                 [f"{T}.net_revenue_sum",
                  "dbt__moxie_medspa_goals_monthly_mart.revenue_goal_sum",
                  f"{T}.aov"],
@@ -1202,32 +1202,23 @@ def _compute_parity(d, practice, month, year, medspa_id=None):
     add("revenue_goal", round(d.revenue_goal, 2), round(_val(r, "revenue_goal_sum"), 2))
     add("aov", round(d.aov, 2), round(float(_aov or 0), 2))
 
-    # Paid appointments + goals (transaction-date basis, like Suite's
-    # global "Transaction Date Month" control)
-    r = run_emb("KPI: Paid Appointments",
+    # Paid appointments + goals (start_time_local basis — the tile's own
+    # date field, and the basis the loader's headline uses)
+    r = run_emb("KPI Goal: Paid Appointments",
                 [f"{A}.paid_appointments",
                  "dbt__moxie_medspa_appointment_goals_monthly_mart.appointment_goal_sum",
                  "dbt__moxie_medspa_appointment_goals_monthly_mart.aov_goal_average"],
-                f"{T}.transaction_date_et")
+                f"{A}.start_time_local")
     _aov_goal = next((v[0] for k, v in r.items() if k.endswith(".aov_goal_average") and v), 0)
     add("paid_appointments", d.total_appointments, int(_val(r, "paid_appointments")))
     add("appointment_goal", round(d.appt_goal), round(_val(r, "appointment_goal_sum")))
     add("aov_goal", round(d.aov_goal, 2), round(float(_aov_goal or 0), 2))
 
-    # Service mix — same mutation the loader applies to the donut chassis:
-    # total_invoice_revenue (transactions mart) split by service_category,
-    # sorted by the measure desc (chassis keeps its top-10 limit).
-    _svc_chassis = copy.deepcopy(equeries["Gross Revenue By Official Service Type"])
-    _SVC_MEASURE = f"{T}.total_invoice_revenue_sum"
-    _svc_chassis["fields"] = [f"{L}.service_category", _SVC_MEASURE]
-    _svc_chassis["sorts"] = [{"column_name": _SVC_MEASURE, "sort_descending": True}]
-    _svc_chassis["pivots"] = []
-    _svc_chassis["row_totals"] = {}
-    _svc_chassis["column_totals"] = {}
-    equeries["__svc_parity__"] = _svc_chassis
-    r = run_emb("__svc_parity__", None, f"{T}.transaction_date_et")
+    # Service mix — the dashboard's own "Total Sales by Service" tile
+    # (line-items gross revenue by service_category, service items only)
+    r = run_emb("Total Sales by Service", None, f"{T}.transaction_date_et")
     cats = _extract_col(r, "service_category")
-    revs = _extract_col(r, "total_invoice_revenue_sum")
+    revs = _extract_col(r, "gross_revenue_sum")
     pairs = sorted(
         ((c or "Other", float(v or 0)) for c, v in zip(cats, revs)),
         key=lambda x: -x[1])

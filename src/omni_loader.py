@@ -19,7 +19,11 @@ TRANSACTIONS_ID     = "76abf294"  # Medspa Transactions Report
 MEMBERSHIPS_ID      = "475dc8d8"  # Medspa Memberships
 
 # ── Single source of truth: [New Embedded] Monthly Business Review ──
-NEW_MBR_ID             = "6b24fa95"
+# The team iterates on this dashboard and its document id can change when
+# it's republished (6b24fa95 → 7c568f71 on 2026-08-12). _resolve_mbr_dash()
+# falls back to a lookup by exact name whenever the id 404s.
+NEW_MBR_ID             = "7c568f71"
+NEW_MBR_NAME           = "[New Embedded] Monthly Business Review"
 # Kept for data the consolidated dashboard doesn't carry
 DASHBOARD_ID           = "bfd963dd"  # tier / medspa-id lookup
 SUPPLIES_DASHBOARD_ID  = "54d5da36"
@@ -47,6 +51,7 @@ QUERY_DATE_FIELDS = {
     "KPI: Retention Rate":        f"{_A}.start_time_local",
     "KPI: Utilization":           "dbt__moxie_utilization_daily_mart.series_date",
     "Client Mix":                 f"{_A}.start_time_local",
+    "Client Counts":              f"{_A}.start_time_local",
     "Net Revenue, QTD":           f"{_T}.transaction_date_et",
     "Payments & Refunds":         f"{_T}.transaction_date_et",
     "Membership Overview":        "dbt__moxie_client_membership_churn_monthly_mart.month_start",
@@ -107,6 +112,40 @@ def _get_dashboard_queries(dash_id: str, api_key: str) -> dict:
     payload = _api_get(f"/v1/documents/{dash_id}/queries", api_key)
     _DASH_CACHE[dash_id] = (now, payload)
     return payload
+
+
+def _resolve_mbr_dashboard(api_key: str) -> dict:
+    """Fetch the consolidated MBR dashboard's queries, surviving id changes.
+
+    Republishing the dashboard can mint a new document id (it happened
+    mid-migration: 6b24fa95 → 7c568f71). Fast path is the known id; on a
+    404 we page the documents API and match NEW_MBR_NAME exactly.
+    """
+    try:
+        return _get_dashboard_queries(NEW_MBR_ID, api_key)
+    except urllib.error.HTTPError as e:
+        if e.code != 404:
+            raise
+    print(f"  MBR dashboard id {NEW_MBR_ID} not found — resolving by name…")
+    import urllib.parse
+    cursor = None
+    for _ in range(20):
+        path = "/v1/documents?pageSize=100"
+        if cursor:
+            path += f"&cursor={urllib.parse.quote(cursor)}"
+        page = _api_get(path, api_key) or {}
+        for rec in page.get("records", []):
+            if rec.get("name") == NEW_MBR_NAME and not rec.get("deleted"):
+                new_id = rec.get("identifier")
+                print(f"  Resolved '{NEW_MBR_NAME}' → {new_id}")
+                return _get_dashboard_queries(new_id, api_key)
+        info = page.get("pageInfo", {})
+        if not info.get("hasNextPage"):
+            break
+        cursor = info.get("nextCursor")
+    raise RuntimeError(
+        f"Could not find dashboard named '{NEW_MBR_NAME}' in Omni — "
+        f"was it renamed or deleted?")
 
 
 def _run_query(query_body: dict, api_key: str, retries: int = 7) -> dict:
@@ -296,24 +335,18 @@ def load_from_omni(practice_name: str, month: int, year: int,
     duration = f"{duration_months} months"
 
     # Load queries from the consolidated MBR dashboard — the single source of
-    # truth for every report metric — plus the legacy dashboard for the
-    # tier/medspa-id lookup only.
+    # truth for every report metric, including the tier/medspa-id lookup
+    # ("Medspa Name"). Supplies + marketing-campaign extras still come from
+    # their own dashboards further down.
     print(f"  Connecting to Omni API...")
     queries = {}
     try:
-        dash = _get_dashboard_queries(NEW_MBR_ID, api_key)
+        dash = _resolve_mbr_dashboard(api_key)
         for q in dash.get("queries", []):
             if q.get("name") and q.get("query"):
                 queries[q["name"]] = q["query"]
     except Exception as e:
-        print(f"  Warning: could not load MBR dashboard {NEW_MBR_ID}: {e}")
-    try:
-        legacy = _get_dashboard_queries(DASHBOARD_ID, api_key)
-        for q in legacy.get("queries", []):
-            if q.get("name") and q.get("query") and q["name"] not in queries:
-                queries[q["name"]] = q["query"]
-    except Exception as e:
-        print(f"  Warning: could not load legacy dashboard: {e}")
+        print(f"  Warning: could not load MBR dashboard: {e}")
     # GFE queries ship with a hardcoded reviewer list baked in from testing —
     # clear it so every practice's reviewers count.
     for _gname in ("Monthly GFE Savings", "YTD GFE Savings",
@@ -324,20 +357,14 @@ def load_from_omni(practice_name: str, month: int, year: int,
                 "dbt__moxie_providers_mart.provider_name")
             if isinstance(_gf, dict):
                 _gf["values"] = []
-    # Service mix per team spec: total_invoice_revenue (transactions mart)
-    # split by service_category (line items mart), top categories first.
-    _svc_q = queries.get("Gross Revenue By Official Service Type")
-    if _svc_q:
-        _SVC_MEASURE = "dbt__moxie_invoice_transactions_mart.total_invoice_revenue_sum"
-        _svc_q["fields"] = [
-            "dbt__moxie_invoice_line_items_mart.service_category",
-            _SVC_MEASURE,
-        ]
-        _svc_q["sorts"] = [{"column_name": _SVC_MEASURE, "sort_descending": True}]
-        _svc_q["pivots"] = []
-        _svc_q["row_totals"] = {}
-        _svc_q["column_totals"] = {}
-    print(f"  Found {len(queries)} queries across all dashboards")
+    # The Monthly Marketing Performance tile lacks the "booked appointments"
+    # step of the funnel — ride it along on the same mart.
+    _mkq = queries.get("Monthly Marketing Performance")
+    _MKT_BOOKED = ("dbt__marketing_medspa_performance_daily_mart"
+                   ".meta_new_clients_booked_appointment_sum")
+    if _mkq and isinstance(_mkq.get("fields"), list) and _MKT_BOOKED not in _mkq["fields"]:
+        _mkq["fields"].append(_MKT_BOOKED)
+    print(f"  Found {len(queries)} queries on the MBR dashboard")
     if not queries:
         # Without query definitions every metric would silently load as $0.
         # Fail loudly instead of generating (and saving) an empty report.
@@ -495,6 +522,8 @@ def load_from_omni(practice_name: str, month: int, year: int,
     # on the same transactions mart as the Total Sales headline, so
     # services + gift cards + packages + memberships + retail + custom + fees
     # sums to total_invoice_revenue_sum exactly (confirmed against Suite).
+    # Tips ride along too — the consolidated dashboard's Sales Summary tile
+    # doesn't carry provider_owner_tip_amount_sum natively.
     _SUBTOTAL_FIELDS = [
         "dbt__moxie_invoice_transactions_mart.subtotal__service_sum",
         "dbt__moxie_invoice_transactions_mart.subtotal__package_sum",
@@ -503,8 +532,9 @@ def load_from_omni(practice_name: str, month: int, year: int,
         "dbt__moxie_invoice_transactions_mart.subtotal__gift_card_sum",
         "dbt__moxie_invoice_transactions_mart.subtotal__custom_item_sum",
         "dbt__moxie_invoice_transactions_mart.fee_amount_sum",
+        "dbt__moxie_invoice_transactions_mart.provider_owner_tip_amount_sum",
         # Net revenue goal joins from the goals mart within the same topic —
-        # exactly how the Suite-embedded "KPI: Net Revenue" tile does it.
+        # exactly how the dashboard's "KPI Goal: Net Revenue" tile does it.
         "dbt__moxie_medspa_goals_monthly_mart.revenue_goal_sum",
         # Canonical AOV (Sales-Report basis; also in the monthly summary mart)
         "dbt__moxie_invoice_transactions_mart.aov",
@@ -517,21 +547,26 @@ def load_from_omni(practice_name: str, month: int, year: int,
             if _f not in _sq["fields"]:
                 _sq["fields"].append(_f)
 
-    # Batch 1: all independent current-month queries (Standard Reports)
+    # Batch 1: all independent queries from the consolidated MBR dashboard.
+    # The windowed KPI queries (QUERY_WINDOW_MONTHS) return one row per month,
+    # covering current value, prior-month MoM, and 4-bar trend charts in a
+    # single run each — no separate per-month re-queries.
     batch1_names = [
-        "Sales Summary",                     # totals + per-category subtotals + fees/tax/tips
-        "Gross Revenue By Official Service Type",  # service mix (Suite-embedded donut)
-        "Service Revenue Summary",           # service mix fallback (service_type dimension)
-        "Appointment Overview",              # completed appointments (fallback)
-        "Appointment Stats",                 # rebooking rate, new/existing % (fallback)
-        "Client Counts",                     # new/existing appts + distinct paid clients
-        "New Membership Enrollments",        # memberships new + new revenue
-        "Cancellations",                     # memberships cancelled
-        "Monthly Recurring Revenue (MRR)",   # active mrr
-        "Average Monthly Members",           # active membership count
-        "Payment Method Breakdown",          # card / terminal split
-        "Payment History",                   # transaction fees + performance fees
-        "Refund History",                    # refunds
+        "Sales Summary",                     # totals + subtotals + goal + aov + tips
+        "Total Sales by Service",            # service mix (line-items gross revenue)
+        "Client Mix",                        # new/existing appointment counts
+        "Client Counts",                     # distinct paying clients
+        "Membership Overview",               # active/new/churned/MRR totals
+        "Membership Breakdown",              # same measures per membership name
+        "Payments & Refunds",                # payment + refund totals
+        "KPI Goal: Net Revenue — Last 4 Months",       # revenue trend + goals
+        "KPI Goal: AOV — Last 4 Months",               # aov trend + goals
+        "KPI Goal: Paid Appointments — Last 4 Months", # appointment trend + goals
+        "KPI Goal: Paid Appointments",       # paid appts current + prior (tile basis)
+        "KPI: Rebooking Rate",               # current + prior month
+        "KPI: Retention Rate",               # current + prior month
+        "KPI: Utilization",                  # current + prior month
+        "Monthly Marketing Performance",     # marketing funnel (single row)
     ]
     batch1 = {}
     with ThreadPoolExecutor(max_workers=2) as pool:
@@ -539,9 +574,42 @@ def load_from_omni(practice_name: str, month: int, year: int,
         for future in as_completed(futures):
             batch1[futures[future]] = future.result()
 
-    # ── Process batch 1 results (Standard Reports field names) ──
+    # ── Month-keyed extraction for month-dimension tiles ──
+    # Windowed queries return one row per month and sort order varies by
+    # tile, so rows are always keyed by their 'YYYY-MM' label, never by
+    # position.
+    def _month_map(res: dict, value_substring: str) -> dict:
+        res = res or {}
+        months = next((v for k, v in res.items()
+                       if k.endswith("[month]") and isinstance(v, list)), None)
+        vals = next((v for k, v in res.items()
+                     if value_substring in k and "[" not in k
+                     and not k.startswith("$") and isinstance(v, list)), None)
+        out = {}
+        if months and vals:
+            for i, m in enumerate(months):
+                if m is not None and i < len(vals) and vals[i] is not None:
+                    try:
+                        out[str(m)] = float(vals[i])
+                    except (TypeError, ValueError):
+                        pass
+        return out
 
-    # Revenue totals — from ungrouped Sales Summary (wallet/tax are invoice-level)
+    def _mkey(y: int, m: int) -> str:
+        return f"{y}-{m:02d}"
+
+    cur_key = _mkey(year, month)
+    prev_month = month - 1 if month > 1 else 12
+    prev_year = year if month > 1 else year - 1
+    prev_start = f"{prev_year}-{prev_month:02d}-01"
+    prev_key = _mkey(prev_year, prev_month)
+
+    # ── Process batch 1 results ──
+
+    # Revenue totals — from ungrouped Sales Summary (wallet/tax are invoice-level).
+    # The dashboard's field names differ slightly from the old Standard Report
+    # (discount_amount_sum_0, total_wallet_dollars_redeemed__negative_) but
+    # _val's substring match handles both.
     r = batch1.get("Sales Summary", {})
     data.monthly_net_revenue = _val(r, "net_revenue_sum")
     data.total_sales = _val(r, "total_invoice_revenue_sum")
@@ -551,7 +619,6 @@ def load_from_omni(practice_name: str, month: int, year: int,
     data.wallet_item_redemptions = abs(_val(r, "total_wallet_item_discounts"))
     data.tax_collected = _val(r, "total_tax_amount_sum")
     data.tips = _val(r, "provider_owner_tip_amount_sum")
-    # Goals not available in Standard Reports — remain 0
 
     # Revenue breakdown — per-category subtotal measures from the same Sales
     # Summary result (transactions mart, same date basis as Total Sales).
@@ -567,10 +634,9 @@ def load_from_omni(practice_name: str, month: int, year: int,
                   data.retail_revenue + data.custom_items + data.client_fees)
     print(f"  Sales categories sum ${_bar_total:,.2f} vs Total Sales ${data.total_sales:,.2f}")
 
-    # ── Appointments + goals — Suite-embedded "KPI: Paid Appointments" ──
-    # Same chassis and TRANSACTION-date basis as the Suite tiles (the
-    # dashboard's global control is "Transaction Date Month"). Verified:
-    # AW Medspa 48 paid / LA-Mi 14 paid match Suite exactly on this basis.
+    # ── Appointments + goals — dashboard's "KPI Goal: Paid Appointments" ──
+    # The 2-month windowed tile (start_time_local basis, matching what
+    # practices see in Suite) covers both the headline and the MoM value.
     def _val_suffix(res: dict, suffix: str, default=0):
         for k, v in res.items():
             if k.endswith(suffix) and v and v[0] is not None:
@@ -580,51 +646,27 @@ def load_from_omni(practice_name: str, month: int, year: int,
                     return v[0]
         return default
 
-    paid_prev = None
-    try:
-        pa_base = queries.get("KPI: Paid Appointments")
-        if pa_base:
-            def _paid_query(m_start):
-                paq = copy.deepcopy(pa_base)
-                paq["fields"] = [
-                    "dbt__moxie_appointments_mart.paid_appointments",
-                    "dbt__moxie_medspa_appointment_goals_monthly_mart.appointment_goal_sum",
-                    "dbt__moxie_medspa_appointment_goals_monthly_mart.aov_goal_average",
-                ]
-                paq["pivots"] = []
-                paq["sorts"] = []
-                paq["row_totals"] = {}
-                paq["column_totals"] = {}
-                _ensure_filters(paq)
-                _pf_field, _pf = _practice_filter(practice_name, medspa_id)
-                paq["filters"][_pf_field] = _pf
-                paq["filters"]["dbt__moxie_invoice_transactions_mart.transaction_date_et"] = {
-                    "kind": "TIME_FOR_INTERVAL_DURATION", "type": "date",
-                    "ui_type": "PAST", "left_side": m_start,
-                    "right_side": "1 months", "is_negative": False,
-                }
-                return _run_query(paq, api_key)
+    paid_map = _month_map(batch1.get("KPI Goal: Paid Appointments"),
+                          "paid_appointments")
+    paid4_map = _month_map(batch1.get("KPI Goal: Paid Appointments — Last 4 Months"),
+                           "paid_appointments")
+    data.total_appointments = int(paid_map.get(cur_key)
+                                  or paid4_map.get(cur_key, 0))
+    paid_prev = paid_map.get(prev_key) or paid4_map.get(prev_key)
 
-            pa_r = _paid_query(start_date)
-            data.total_appointments = int(_val_suffix(pa_r, ".paid_appointments"))
-            data.appt_goal = _val_suffix(pa_r, ".appointment_goal_sum")
-            data.aov_goal = _val_suffix(pa_r, ".aov_goal_average")
+    appt_goal_map = _month_map(batch1.get("KPI Goal: Paid Appointments"),
+                               "appointment_goal_sum")
+    data.appt_goal = appt_goal_map.get(cur_key, 0)
 
-            _pidx = year * 12 + (month - 1) - 1
-            _prev_start = f"{_pidx // 12}-{_pidx % 12 + 1:02d}-01"
-            paid_prev = int(_val_suffix(_paid_query(_prev_start), ".paid_appointments"))
-    except Exception as e:
-        print(f"  Warning: paid appointments query failed: {e}")
+    # AOV goal — from the AOV tile's appointment-goals-mart join
+    aov_goal_map = _month_map(batch1.get("KPI Goal: AOV — Last 4 Months"),
+                              "aov_goal_average")
+    data.aov_goal = aov_goal_map.get(cur_key, 0)
 
-    # AOV — transactions-mart measure (the Sales-Report AOV; also stored in
-    # the monthly summary mart). Rides along on the Sales Summary result.
+    # AOV — transactions-mart measure (the tile's own basis). Rides along on
+    # the Sales Summary result.
     data.aov = _val_suffix(batch1.get("Sales Summary", {}),
                            "invoice_transactions_mart.aov")
-
-    # Fallbacks if the embedded queries were unavailable
-    if data.total_appointments == 0:
-        r = batch1.get("Appointment Overview", {})
-        data.total_appointments = int(_val(r, "completed_appointments"))
     if data.aov == 0:
         data.aov = (data.monthly_net_revenue / data.total_appointments
                     if data.total_appointments > 0 else 0)
@@ -674,74 +716,69 @@ def load_from_omni(practice_name: str, month: int, year: int,
           f"AOV ${data.aov_goal:,.0f} ({data.pct_aov_goal * 100:.1f}%), "
           f"appts {data.total_appointments} of {data.appt_goal:,.0f}")
 
-    # Rebooking + new/existing client split — from Appointment Stats.
-    # Exact-suffix match: "cancellation_rebooking_rate" also contains the
-    # substring "rebooking_rate" and must not be picked up.
-    r = batch1.get("Appointment Stats", {})
-    rebooking = _val_suffix(r, ".rebooking_rate", default=None)
-    if rebooking is not None:
-        data.rebooking_rate = rebooking if rebooking <= 1.0 else rebooking / 100
-    pct_new = _val(r, "pct_completed_appointments__new_client", default=None)
-    if pct_new is not None:
-        if pct_new > 1:
-            pct_new /= 100
-        data.new_clients = round(data.total_appointments * pct_new)
-        data.existing_clients = data.total_appointments - data.new_clients
+    # Rebooking — the dashboard's own KPI tile (2-month window → MoM too)
+    rebook_map = _month_map(batch1.get("KPI: Rebooking Rate"), "rebooking_rate")
+    _rb = rebook_map.get(cur_key)
+    if _rb is not None:
+        data.rebooking_rate = _rb if _rb <= 1.0 else _rb / 100
+    _rb_prev = rebook_map.get(prev_key)
+    if _rb_prev is not None and data.rebooking_rate > 0:
+        if _rb_prev > 1.0:
+            _rb_prev /= 100
+        if _rb_prev > 0.05:
+            data.rebooking_mom_pct = _safe_mom(data.rebooking_rate, _rb_prev, 0.05)
 
-    # Client counts — Suite-embedded query. new/existing are appointment
-    # counts (client-mix bar); paid_appointment_clients is DISTINCT paying
-    # clients, so Revenue per Client no longer collapses into AOV.
+    # Retention — the dashboard's KPI tile (rolling 180d measure, per month)
+    ret_map = _month_map(batch1.get("KPI: Retention Rate"),
+                         "pct_has_repeat_completed_appointments_180d")
+    data.retention_180d = ret_map.get(cur_key, 0.0)
+    _ret_prev = ret_map.get(prev_key)
+    if _ret_prev and data.retention_180d:
+        data.retention_mom_pct = _safe_mom(data.retention_180d, _ret_prev, 0.05)
+    if data.retention_180d:
+        print(f"  Retention (180d): {data.retention_180d*100:.1f}%")
+
+    # Practice utilization — the dashboard's KPI tile (2-month window → MoM).
+    # The tile is the source of truth; no staff-hours-weighted blend (same
+    # decision as rebooking — blends drift from Omni's own number).
+    util_map = _month_map(batch1.get("KPI: Utilization"),
+                          "column_b_divided_by_column_a")
+    _u = util_map.get(cur_key)
+    if _u is not None:
+        data.utilization_rate = _u if _u <= 1.0 else _u / 100
+    _u_prev = util_map.get(prev_key)
+    if _u_prev is not None and data.utilization_rate > 0:
+        if _u_prev > 1.0:
+            _u_prev /= 100
+        data.utilization_mom_pct = _safe_mom(data.utilization_rate, _u_prev, 0.05)
+
+    # Client mix — new/existing are appointment counts (client-mix bar);
+    # paid_appointment_clients is DISTINCT paying clients, so Revenue per
+    # Client doesn't collapse into AOV.
+    r = batch1.get("Client Mix", {})
+    _new = int(_val(r, "count_new_client_appointments"))
+    _existing = int(_val(r, "count_existing_client_appointments"))
+    if _new or _existing:
+        data.new_clients = _new
+        data.existing_clients = _existing
     r = batch1.get("Client Counts", {})
-    if r:
-        _new = int(_val(r, "count_new_client_appointments"))
-        _existing = int(_val(r, "count_existing_client_appointments"))
-        if _new or _existing:
-            data.new_clients = _new
-            data.existing_clients = _existing
-        _distinct = int(_val(r, "paid_appointment_clients"))
-        if _distinct > 0:
-            data.paid_clients = _distinct
+    _distinct = int(_val(r, "paid_appointment_clients"))
+    if _distinct > 0:
+        data.paid_clients = _distinct
 
-    # Memberships
-    r = batch1.get("Average Monthly Members", {})
+    # Memberships — one Membership Overview tile carries all four measures
+    r = batch1.get("Membership Overview", {})
     data.memberships_active = int(_val(r, "active_memberships_sum"))
-
-    r = batch1.get("Monthly Recurring Revenue (MRR)", {})
+    data.memberships_new = int(_val(r, "new_memberships_sum"))
+    data.memberships_cancelled = int(_val(r, "churned_memberships_sum"))
     data.mrr = _val(r, "active_mrr")
-
-    r = batch1.get("New Membership Enrollments", {})
-    data.memberships_new = int(_val(r, "count"))
     # membership_sales comes from subtotal__membership_sum (authoritative, same
     # basis as Total Sales) — no enrollment-revenue fallback, it would break
     # the category bars' reconciliation.
 
-    r = batch1.get("Cancellations", {})
-    data.memberships_cancelled = int(_val(r, "count_cancellations"))
-
-    # Payout reconciliation — from Transaction Reports
-    # Payment Method Breakdown: rows by transaction_method_category
-    r = batch1.get("Payment Method Breakdown", {})
-    categories = _extract_col(r, "transaction_method_category")
-    amounts = _extract_col(r, "amount_sum")
-    for i, cat in enumerate(categories):
-        amt = float(amounts[i]) if i < len(amounts) and amounts[i] else 0
-        cat_lower = (cat or "").lower()
-        if "card" in cat_lower and "terminal" not in cat_lower:
-            data.card_revenue += amt
-        elif "terminal" in cat_lower or "reader" in cat_lower:
-            data.terminal_revenue += amt
-
-    r = batch1.get("Payment History", {})
-    data.performance_fees = _sum_all(r, "moxie_transaction_fee_sum")
-    # "fee_sum" substring also matches moxie_transaction_fee_sum — sum only
-    # the Stripe processing fee column(s), excluding the Moxie fee.
-    for _k, _v in r.items():
-        if "fee_sum" in _k and "moxie_transaction_fee" not in _k and _v:
-            data.transaction_fees = sum(float(x) for x in _v if x is not None)
-            break
-
-    r = batch1.get("Refund History", {})
-    data.refunds = _sum_all(r, "amount_sum")
+    # Refunds — from the Payments & Refunds tile
+    r = batch1.get("Payments & Refunds", {})
+    data.refunds = abs(_val(r, "refund_amount_sum"))
     data.redemptions = data.refunds  # backward compat
 
     # Retail MoM placeholder (will be updated after MoM queries)
@@ -749,10 +786,11 @@ def load_from_omni(practice_name: str, month: int, year: int,
     if data.service_revenue > 0:
         data.retail_to_service_ratio = data.retail_revenue / data.service_revenue
 
-    # ── Previous Month MoM + QTD (parallel batch 2) ──
-    prev_month = month - 1 if month > 1 else 12
-    prev_year = year if month > 1 else year - 1
-    prev_start = f"{prev_year}-{prev_month:02d}-01"
+    # ── Previous Month MoM + QTD ──
+    # Revenue / AOV / appointment MoM and trend history all come from the
+    # dashboard's windowed "— Last 4 Months" tiles (already in batch1).
+    # Only two extra runs remain: prior-month Sales Summary (retail MoM +
+    # prev-AOV fallback) and QTD.
     print(f"  Loading prior month + QTD in parallel...")
 
     def run_prev(name: str):
@@ -764,24 +802,9 @@ def load_from_omni(practice_name: str, month: int, year: int,
         except Exception:
             return None
 
-    # Pull KPI values for the two months prior to "prev" so we can render a
-    # 4-bar comparison chart (m-3, m-2, m-1, current) for revenue and AOV.
     def _month_offset(m, y, k):
         idx = (y * 12 + (m - 1)) - k
         return idx % 12 + 1, idx // 12
-    pm2_month, pm2_year = _month_offset(month, year, 2)
-    pm3_month, pm3_year = _month_offset(month, year, 3)
-    pm2_start = f"{pm2_year}-{pm2_month:02d}-01"
-    pm3_start = f"{pm3_year}-{pm3_month:02d}-01"
-
-    def run_at(name: str, start: str):
-        try:
-            q = _find_query(queries, name)
-            date_field = QUERY_DATE_FIELDS.get(name)
-            q = _add_filters(q, practice_name, start, date_field, medspa_id=medspa_id)
-            return _run_query(q, api_key)
-        except Exception:
-            return None
 
     def run_qtd():
         quarter_start_month = ((month - 1) // 3) * 3 + 1
@@ -809,73 +832,43 @@ def load_from_omni(practice_name: str, month: int, year: int,
     with ThreadPoolExecutor(max_workers=2) as pool:
         mom_futures = {
             pool.submit(run_prev, "Sales Summary"): "prev_rev",
-            pool.submit(run_prev, "Appointment Overview"): "prev_appt",
-            pool.submit(run_prev, "Appointment Stats"): "prev_stats",
-            pool.submit(run_prev, "Utilization"): "prev_util",
-            pool.submit(run_at, "Sales Summary", pm2_start): "rev_m2",
-            pool.submit(run_at, "Sales Summary", pm3_start): "rev_m3",
-            pool.submit(run_at, "Appointment Overview", pm2_start): "appt_m2",
-            pool.submit(run_at, "Appointment Overview", pm3_start): "appt_m3",
             pool.submit(run_qtd): "qtd",
         }
         for future in as_completed(mom_futures):
             mom_results[mom_futures[future]] = future.result()
 
     data.quarter_to_date = mom_results.get("qtd", data.monthly_net_revenue)
-
     prev_rev_r = mom_results.get("prev_rev")
-    prev_revenue = 0
-    if prev_rev_r:
+
+    # Revenue MoM — from the Net Revenue Last-4-Months tile
+    rev_map = _month_map(batch1.get("KPI Goal: Net Revenue — Last 4 Months"),
+                         "net_revenue_sum")
+    prev_revenue = rev_map.get(prev_key, 0)
+    if not prev_revenue and prev_rev_r:
         prev_revenue = _val(prev_rev_r, "net_revenue_sum")
+    if prev_revenue:
         data.revenue_mom_pct = _safe_mom(data.monthly_net_revenue, prev_revenue, 100)
 
-    prev_appt_r = mom_results.get("prev_appt")
-    prev_appointments = 0
-    if prev_appt_r:
-        prev_appointments = int(_val(prev_appt_r, "completed_appointments"))
-        data.appointments_mom_pct = _safe_mom(data.total_appointments, prev_appointments, 5)
-
-    # AOV MoM — calculated from prev revenue / prev appointments
-    if prev_revenue > 0 and prev_appointments > 0:
-        prev_aov = prev_revenue / prev_appointments
-        data.aov_mom_pct = _safe_mom(data.aov, prev_aov, 20)
-
-    # Rebooking MoM — prior-month Appointment Stats, same measure as the gauge
-    _prev_rebook = _val_suffix(mom_results.get("prev_stats") or {},
-                               ".rebooking_rate", default=None)
-    if _prev_rebook is not None and data.rebooking_rate > 0:
-        if _prev_rebook > 1.0:
-            _prev_rebook /= 100
-        if _prev_rebook > 0.05:
-            data.rebooking_mom_pct = _safe_mom(data.rebooking_rate, _prev_rebook, 0.05)
-
-    # Prefer the Suite-basis values (paid appointments + transactions AOV)
-    # for MoM when available.
+    # Appointments MoM — paid appointments, same tile basis as the headline
     if paid_prev:
         data.appointments_mom_pct = _safe_mom(
-            data.total_appointments, paid_prev, 5)
-    _prev_tx_aov = _val_suffix(prev_rev_r or {}, "invoice_transactions_mart.aov")
-    if _prev_tx_aov and data.aov > 0:
-        data.aov_mom_pct = _safe_mom(data.aov, _prev_tx_aov, 20)
+            data.total_appointments, int(paid_prev), 5)
 
-    # Utilization MoM (from legacy Utilization query — no Standard Report equivalent)
-    prev_util_r = mom_results.get("prev_util")
-    prev_util = None
-    if prev_util_r:
-        prev_util = _val(prev_util_r, "column_b_divided_by_column_a", default=None)
-        if prev_util is not None:
-            prev_util = prev_util if prev_util <= 1.0 else prev_util / 100
-        else:
-            pa = _val(prev_util_r, "total_available_hours")
-            pt = _val(prev_util_r, "total_appointment_hours")
-            prev_util = pt / pa if pa and pa > 0 else None
+    # AOV MoM — from the AOV Last-4-Months tile (transactions-mart measure)
+    aov_map = _month_map(batch1.get("KPI Goal: AOV — Last 4 Months"),
+                         "invoice_transactions_mart.aov")
+    prev_aov = (aov_map.get(prev_key)
+                or _val_suffix(prev_rev_r or {}, "invoice_transactions_mart.aov"))
+    if prev_aov and data.aov > 0:
+        data.aov_mom_pct = _safe_mom(data.aov, prev_aov, 20)
 
     # Retail MoM — prior-month Sales Summary carries the same subtotal fields
     if prev_rev_r:
         prev_retail = _val(prev_rev_r, "subtotal__retail_product_sum")
         data.retail_revenue_mom_pct = _safe_mom(data.retail_revenue, prev_retail, 100)
 
-    # Build 4-bar comparison history (m-3, m-2, m-1, current) for revenue & AOV.
+    # Build 4-bar comparison history (m-3, m-2, m-1, current) for revenue,
+    # AOV — straight from the Last-4-Months tiles, keyed by month label.
     import calendar as _cal
     def _hist(label_month, label_year, value):
         return {
@@ -883,77 +876,33 @@ def load_from_omni(practice_name: str, month: int, year: int,
             "month": label_month, "year": label_year,
             "value": float(value) if value else 0.0,
         }
-    rev_m2_val = _val(mom_results.get("rev_m2") or {}, "net_revenue_sum")
-    rev_m3_val = _val(mom_results.get("rev_m3") or {}, "net_revenue_sum")
-    appt_m2 = int(_val(mom_results.get("appt_m2") or {}, "completed_appointments"))
-    appt_m3 = int(_val(mom_results.get("appt_m3") or {}, "completed_appointments"))
-    prev_rev_val = _val(prev_rev_r or {}, "net_revenue_sum") if prev_rev_r else 0
-    prev_aov_val = prev_revenue / prev_appointments if prev_appointments > 0 else 0
+    _hist_months = [_month_offset(month, year, k) for k in (3, 2, 1, 0)]
     data.revenue_history = [
-        _hist(pm3_month, pm3_year, rev_m3_val),
-        _hist(pm2_month, pm2_year, rev_m2_val),
-        _hist(prev_month, prev_year, prev_rev_val),
-        _hist(month, year, data.monthly_net_revenue),
+        _hist(m, y, rev_map.get(_mkey(y, m),
+                                data.monthly_net_revenue if (m, y) == (month, year) else 0))
+        for m, y in _hist_months
     ]
-
-    # Trend bars share the AOV tile's basis: transactions-mart aov rides on
-    # every Sales Summary run (m-3, m-2, m-1 and current). Fall back to
-    # net/appointments only when the measure is missing.
-    aov_m2_val = (_val_suffix(mom_results.get("rev_m2") or {}, "invoice_transactions_mart.aov")
-                  or (rev_m2_val / appt_m2 if appt_m2 > 0 else 0))
-    aov_m3_val = (_val_suffix(mom_results.get("rev_m3") or {}, "invoice_transactions_mart.aov")
-                  or (rev_m3_val / appt_m3 if appt_m3 > 0 else 0))
-    prev_aov_val = (_val_suffix(prev_rev_r or {}, "invoice_transactions_mart.aov")
-                    or prev_aov_val)
     data.aov_history = [
-        _hist(pm3_month, pm3_year, aov_m3_val),
-        _hist(pm2_month, pm2_year, aov_m2_val),
-        _hist(prev_month, prev_year, prev_aov_val),
-        _hist(month, year, data.aov),
+        _hist(m, y, aov_map.get(_mkey(y, m),
+                                data.aov if (m, y) == (month, year) else 0))
+        for m, y in _hist_months
     ]
 
     print(f"  MoM: Rev {'N/A' if data.revenue_mom_pct is None else f'{data.revenue_mom_pct:+.1%}'}, "
           f"Appts {'N/A' if data.appointments_mom_pct is None else f'{data.appointments_mom_pct:+.1%}'}, "
           f"AOV {'N/A' if data.aov_mom_pct is None else f'{data.aov_mom_pct:+.1%}'}")
 
-    # Practice utilization — will be set from staff data; fall back to legacy Utilization query
-    r = batch1.get("Utilization", {})  # may be absent from Standard Reports
-    util_pct = _val(r, "column_b_divided_by_column_a", default=None)
-    if util_pct is not None:
-        data.utilization_rate = util_pct if util_pct <= 1.0 else util_pct / 100
-    else:
-        total_avail = _val(r, "total_available_hours")
-        total_appt = _val(r, "total_appointment_hours")
-        if total_avail > 0:
-            data.utilization_rate = total_appt / total_avail
-
-    # Utilization MoM
-    if prev_util is not None:
-        data.utilization_mom_pct = _safe_mom(data.utilization_rate, prev_util, 0.05)
-
-    # Service Mix — Suite-embedded "Gross Revenue By Official Service Type"
-    # (invoice_line_items_mart.service_category). Measure per team spec:
-    # transactions-mart total_invoice_revenue split by service category.
-    r = batch1.get("Gross Revenue By Official Service Type", {})
+    # Service Mix — the dashboard's "Total Sales by Service" tile:
+    # line-items gross revenue by service_category (additive — invoice-level
+    # measures grouped by line-item dimensions would overlap across rows).
+    r = batch1.get("Total Sales by Service", {})
     svc_cats = _extract_col(r, "service_category")
-    svc_cat_revs = _extract_col(r, "total_invoice_revenue_sum")
+    svc_cat_revs = _extract_col(r, "gross_revenue_sum")
     svc_by_type: dict = {}
     for i, cat in enumerate(svc_cats):
         rev = float(svc_cat_revs[i]) if i < len(svc_cat_revs) and svc_cat_revs[i] else 0
         cat = cat or "Other"
         svc_by_type[cat] = svc_by_type.get(cat, 0) + rev
-
-    if not svc_by_type:
-        # Fallback: Service Revenue Summary grouped by service_type/order_item
-        r = batch1.get("Service Revenue Summary", {})
-        svc_types = _extract_col(r, "service_type")
-        svc_order_items = _extract_col(r, "order_item")
-        svc_revs = _extract_col(r, "sum_line_net_revenue")
-        for i, cat in enumerate(svc_types):
-            if not cat:
-                cat = (svc_order_items[i] if i < len(svc_order_items) else None) or "Other"
-            rev = float(svc_revs[i]) if i < len(svc_revs) and svc_revs[i] else 0
-            svc_by_type[cat] = svc_by_type.get(cat, 0) + rev
 
     for cat, rev in sorted(svc_by_type.items(), key=lambda x: -x[1]):
         if rev > 0:
@@ -961,370 +910,132 @@ def load_from_omni(practice_name: str, month: int, year: int,
     data.services.sort(key=lambda s: s.revenue, reverse=True)
     data.compute_service_percentages()
 
-    # Membership breakdown by type
+    # Membership breakdown by type — one Membership Breakdown tile carries
+    # name + active + new + churned + MRR per membership (plus a grouped
+    # column-total row that must be skipped).
     try:
-        pf_field, pf = _practice_filter(practice_name, medspa_id)
-        def _date_f(field_name):
-            return {"kind": "TIME_FOR_INTERVAL_DURATION", "type": "date",
-                    "ui_type": "PAST", "left_side": start_date,
-                    "right_side": duration, "is_negative": False}
+        r = batch1.get("Membership Breakdown", {})
+        mem_names = _extract_col(r, "membership_name")
+        mem_actives = _extract_col(r, "active_memberships_sum")
+        mem_news = _extract_col(r, "new_memberships_sum")
+        mem_churneds = _extract_col(r, "churned_memberships_sum")
+        mem_mrrs = _extract_col(r, "active_mrr")
+        total_markers = r.get("$omni_column_total_indicator", [])
 
-        # Active by type — keep using legacy Active Members (no per-type field in Standard Reports)
-        aq = copy.deepcopy(queries["Active Members"])
-        if not isinstance(aq.get("fields"), list):
-            aq["fields"] = []
-        mem_name_field = "dbt__moxie_client_memberships_mart.membership_name"
-        if mem_name_field not in aq["fields"]:
-            aq["fields"].append(mem_name_field)
-        active_mrr_field = "dbt__moxie_client_memberships_mart.mrr_sum"
-        if active_mrr_field not in aq["fields"]:
-            aq["fields"].append(active_mrr_field)
-        _ensure_filters(aq)[pf_field] = pf
-        active_r = _run_query(aq, api_key)
-        active_names = _extract_col(active_r, "membership_name")
-        active_counts = _extract_col(active_r, "count")
-        active_mrrs = _extract_col(active_r, "mrr_sum")
+        def _cell(col, i, cast):
+            return cast(col[i]) if i < len(col) and col[i] is not None else 0
 
-        # New by type — Standard Reports New Membership Enrollments
-        nq = copy.deepcopy(queries["New Membership Enrollments"])
-        if not isinstance(nq.get("fields"), list):
-            nq["fields"] = []
-        _ensure_filters(nq)[pf_field] = pf
-        nq["filters"]["dbt__moxie_client_memberships_mart.started_at"] = _date_f("started_at")
-        new_r = _run_query(nq, api_key)
-        new_names = _extract_col(new_r, "membership_name")
-        new_counts = _extract_col(new_r, "count")
-
-        # Churned by type — Standard Reports Cancellations + membership_name dimension
-        cq = copy.deepcopy(queries["Cancellations"])
-        if not isinstance(cq.get("fields"), list):
-            cq["fields"] = []
-        if mem_name_field not in cq["fields"]:
-            cq["fields"].append(mem_name_field)
-        _ensure_filters(cq)[pf_field] = pf
-        cq["filters"]["dbt__moxie_client_memberships_mart.canceled_at"] = _date_f("canceled_at")
-        churned_r = _run_query(cq, api_key)
-        churned_names = _extract_col(churned_r, "membership_name")
-        churned_counts = _extract_col(churned_r, "count_cancellations") or _extract_col(churned_r, "count")
-
-        # Merge into MembershipType objects
-        all_mem_names: set = set()
-        active_lookup, mrr_lookup = {}, {}
-        for i, name in enumerate(active_names):
-            if name:
-                all_mem_names.add(name)
-                active_lookup[name] = int(active_counts[i]) if i < len(active_counts) and active_counts[i] else 0
-                mrr_lookup[name] = float(active_mrrs[i]) if i < len(active_mrrs) and active_mrrs[i] else 0
-        new_lookup = {}
-        for i, name in enumerate(new_names):
-            if name:
-                all_mem_names.add(name)
-                new_lookup[name] = int(new_counts[i]) if i < len(new_counts) and new_counts[i] else 0
-        churned_lookup = {}
-        for i, name in enumerate(churned_names):
-            if name:
-                all_mem_names.add(name)
-                churned_lookup[name] = int(churned_counts[i]) if i < len(churned_counts) and churned_counts[i] else 0
-
-        for name in sorted(all_mem_names):
+        for i, name in enumerate(mem_names):
+            if not name:
+                continue
+            if i < len(total_markers) and total_markers[i] == "column_total":
+                continue
             data.membership_types.append(MembershipType(
                 name=name,
-                active=active_lookup.get(name, 0),
-                new=new_lookup.get(name, 0),
-                churned=churned_lookup.get(name, 0),
-                mrr=mrr_lookup.get(name, 0),
+                active=_cell(mem_actives, i, int),
+                new=_cell(mem_news, i, int),
+                churned=_cell(mem_churneds, i, int),
+                mrr=_cell(mem_mrrs, i, float),
             ))
         data.membership_types.sort(key=lambda m: m.active, reverse=True)
         print(f"  Membership types: {len(data.membership_types)} loaded")
     except Exception as e:
         print(f"  Warning: Could not load membership breakdown: {e}")
 
-    # ── Staff Performance (Standard Reports: fed9785d) ──
+    # ── Staff Performance — the dashboard's own per-provider tile ──
+    # One query carries name, Total Sales, Net Revenue, AOV, utilization,
+    # rebooking, and hours booked (role=provider, GFE reviewers excluded by
+    # the tile's own is_gfe_reviewer filter). Run once for the report month
+    # and once for the prior month (the tile has no month dimension, so MoM
+    # needs a second run).
     print("  Loading staff performance...")
     try:
-        def _staff_filter(q):
-            q = copy.deepcopy(q)
-            _pf_field, _pf = _practice_filter(practice_name, medspa_id)
-            _ensure_filters(q)[_pf_field] = _pf
-            return q
+        def _staff_run(start, dur):
+            q = _find_query(queries, "Staff Performance")
+            q = _add_filters(q, practice_name, start,
+                             QUERY_DATE_FIELDS.get("Staff Performance"), dur,
+                             medspa_id=medspa_id)
+            return _run_query(q, api_key)
 
-        # Staff Appointment Summary — utilization, rebooking, aov, hours per provider
-        appt_q = _staff_filter(queries["Staff Appointment Summary"])
-        appt_q["filters"]["dbt__moxie_embedded_staff_report_mart.report_date"] = {
-            "kind": "TIME_FOR_INTERVAL_DURATION", "type": "date",
-            "ui_type": "PAST", "left_side": start_date, "right_side": duration,
-            "is_negative": False,
-        }
-        appt_r = _run_query(appt_q, api_key)
-
-        # Staff sales — flat per-provider rows using the Suite staff report
-        # fields: Total Sales / Net Revenue / AOV from the transactions mart
-        # grouped by attributed provider. (The dashboard's own pivot version
-        # has subtotal rows that double-count when summed.)
-        def _flat_sales_query(base_q, left_side, right_side):
-            q = _staff_filter(base_q)
-            q["filters"]["dbt__moxie_invoices_mart.first_payment_date"] = {
-                "kind": "TIME_FOR_INTERVAL_DURATION", "type": "date",
-                "ui_type": "PAST", "left_side": left_side, "right_side": right_side,
-                "is_negative": False,
-            }
-            q["fields"] = [
-                "dbt__moxie_invoice_line_items_mart.attributed_provider_name",
-                "dbt__moxie_invoice_transactions_mart.total_invoice_revenue_sum",
-                "dbt__moxie_invoice_transactions_mart.net_revenue_sum",
-                "dbt__moxie_invoice_transactions_mart.aov",
-            ]
-            q["pivots"] = []
-            q["sorts"] = []
-            q["row_totals"] = {}
-            q["column_totals"] = {}
-            return q
-
-        sales_q = _flat_sales_query(queries["Staff Sales Summary"], start_date, duration)
-        sales_r = _run_query(sales_q, api_key)
-
-        # Per-provider utilization + hours from the Utilization topic
-        util_lookup: dict = {}
-        hours_lookup: dict = {}
-        try:
-            util_q = _staff_filter(queries["Utilization"])
-            util_q["filters"]["dbt__moxie_utilization_daily_mart.series_date"] = {
-                "kind": "TIME_FOR_INTERVAL_DURATION", "type": "date",
-                "ui_type": "PAST", "left_side": start_date, "right_side": duration,
-                "is_negative": False,
-            }
-            if not isinstance(util_q.get("fields"), list):
-                util_q["fields"] = []
-            _prov_field = "dbt__moxie_providers_mart.provider_name"
-            if _prov_field not in util_q["fields"]:
-                util_q["fields"].append(_prov_field)
-            util_r = _run_query(util_q, api_key)
-            _u_names = _extract_col(util_r, "provider_name")
-            _u_rates = _extract_col(util_r, "column_b_divided_by_column_a")
-            _u_hours = _extract_col(util_r, "total_appointment_hours")
-            for _i, _n in enumerate(_u_names):
-                if not _n:
-                    continue
-                if _i < len(_u_rates) and _u_rates[_i] is not None:
-                    _rate = float(_u_rates[_i])
-                    util_lookup[_n] = min(_rate if _rate <= 1.0 else _rate / 100, 1.0)
-                if _i < len(_u_hours) and _u_hours[_i]:
-                    hours_lookup[_n] = float(_u_hours[_i])
-        except Exception as ue:
-            print(f"  Warning: per-provider utilization query failed: {ue}")
-
-        # Build per-provider lookup from Staff Appointment Summary
-        appt_names   = _extract_col(appt_r, "provider_name")
-        appt_util    = _extract_col(appt_r, "utilization_pct")
-        appt_rebook  = _extract_col(appt_r, "rebooking_rate")
-        appt_hours_b = _extract_col(appt_r, "hours_booked_sum")
-        appt_hours_s = _extract_col(appt_r, "hours_scheduled_sum")
-        appt_aov     = _extract_col(appt_r, ".aov")  # staff-level aov
-
-        appt_lookup: dict = {}
-        for i, name in enumerate(appt_names):
-            if not name:
-                continue
-            util = float(appt_util[i]) if i < len(appt_util) and appt_util[i] is not None else None
-            if util is not None and util > 1.0:
-                util = util / 100
-            appt_lookup[name] = {
-                "util": util,
-                "rebook": float(appt_rebook[i]) if i < len(appt_rebook) and appt_rebook[i] is not None else 0,
-                "hours_booked": float(appt_hours_b[i]) if i < len(appt_hours_b) and appt_hours_b[i] else None,
-                "hours_sched": float(appt_hours_s[i]) if i < len(appt_hours_s) and appt_hours_s[i] else None,
-                "aov": float(appt_aov[i]) if i < len(appt_aov) and appt_aov[i] else None,
-            }
-
-        # Per-provider Total Sales / Net Revenue / AOV (transactions mart —
-        # same measures as the practice-level tiles, per team decision)
-        sales_names  = _extract_col(sales_r, "attributed_provider_name")
-        sales_total  = _extract_col(sales_r, "total_invoice_revenue_sum")
-        sales_net    = _extract_col(sales_r, "net_revenue_sum")
-        sales_aov    = _extract_col(sales_r, ".aov")
-
-        sales_lookup: dict = {}
-        for i, name in enumerate(sales_names):
-            if not name:
-                continue
-            sales_lookup[name] = {
-                "total": float(sales_total[i]) if i < len(sales_total) and sales_total[i] else 0,
-                "net": float(sales_net[i]) if i < len(sales_net) and sales_net[i] else 0,
-                "aov": float(sales_aov[i]) if i < len(sales_aov) and sales_aov[i] else None,
-            }
-
-        # Build StaffMember list from the sales query only — providers with
-        # attributed invoices this month. The appointment summary includes GFE
-        # reviewers and non-revenue staff, so it's used purely as enrichment.
-        all_staff_names = set(sales_lookup)
-        for name in sorted(all_staff_names):
-            appt = appt_lookup.get(name, {})
-            sales = sales_lookup.get(name, {"total": 0, "net": 0, "aov": None})
-            net_rev = sales["net"]
-            total_sales_rev = sales["total"] if sales["total"] > 0 else net_rev
-            aov_val = sales.get("aov") or appt.get("aov") or 0
-            rebook = appt.get("rebook", 0)
-            if rebook and rebook > 1.0:
-                rebook = rebook / 100
-            data.staff.append(StaffMember(
-                name=name,
-                net_revenue=net_rev,
-                gross_revenue=total_sales_rev,   # rendered as "Total Sales"
-                aov=aov_val,
-                utilization=util_lookup.get(name, appt.get("util")),
-                rebooking_rate=rebook or 0,
-                service_revenue=net_rev,
-                retail_revenue=0,
-                hours_worked=hours_lookup.get(name) or appt.get("hours_booked"),
-            ))
-
-        data.staff.sort(key=lambda s: s.gross_revenue, reverse=True)
-
-        # Practice-level utilization — weighted by provider hours
-        _staff_hours = {s.name: s.hours_worked for s in data.staff if s.hours_worked}
-        total_hours = sum(_staff_hours.values())
-        if total_hours > 0:
-            weighted_util = sum(
-                (s.utilization or 0) * _staff_hours.get(s.name, 0)
-                for s in data.staff if s.utilization is not None
-            ) / total_hours
-            if weighted_util > 0:
-                data.utilization_rate = weighted_util
-
-        # Practice-level rebooking stays on Omni's own rebooking_rate measure
-        # (Appointment Stats) — a staff-weighted blend here produced values
-        # (26.3%) that didn't match Omni's number (25%).
-
-        # ── Per-provider MoM (prior month staff queries) ──
-        try:
-            prev_appt_q = _staff_filter(queries["Staff Appointment Summary"])
-            prev_appt_q["filters"]["dbt__moxie_embedded_staff_report_mart.report_date"] = {
-                "kind": "TIME_FOR_INTERVAL_DURATION", "type": "date",
-                "ui_type": "PAST", "left_side": prev_start, "right_side": "1 months",
-                "is_negative": False,
-            }
-            prev_appt_r = _run_query(prev_appt_q, api_key)
-
-            prev_sales_q = _flat_sales_query(queries["Staff Sales Summary"],
-                                             prev_start, "1 months")
-            prev_sales_r = _run_query(prev_sales_q, api_key)
-
-            # Build prior-month lookups
-            p_appt_names   = _extract_col(prev_appt_r, "provider_name")
-            p_appt_util    = _extract_col(prev_appt_r, "utilization_pct")
-            p_appt_rebook  = _extract_col(prev_appt_r, "rebooking_rate")
-            p_appt_hours   = _extract_col(prev_appt_r, "hours_booked_sum")
-            p_appt_aov     = _extract_col(prev_appt_r, ".aov")
-
-            prev_appt_lookup: dict = {}
-            for i, name in enumerate(p_appt_names):
+        def _staff_lookup(res):
+            names = _extract_col(res, "provider_name")
+            totals = _extract_col(res, "total_sales_sum")
+            nets = _extract_col(res, "total_net_revenue_sum")
+            aovs = _extract_col(res, ".aov")
+            utils = _extract_col(res, "utilization_pct")
+            rebooks = _extract_col(res, "rebooking_rate")
+            hours = _extract_col(res, "hours_booked_sum")
+            out = {}
+            for i, name in enumerate(names):
                 if not name:
                     continue
-                util = float(p_appt_util[i]) if i < len(p_appt_util) and p_appt_util[i] is not None else None
+                def _g(col):
+                    return (float(col[i]) if i < len(col)
+                            and col[i] is not None else None)
+                util = _g(utils)
                 if util is not None and util > 1.0:
-                    util = util / 100
-                rebook = float(p_appt_rebook[i]) if i < len(p_appt_rebook) and p_appt_rebook[i] is not None else 0
+                    util /= 100
+                rebook = _g(rebooks) or 0
                 if rebook > 1.0:
-                    rebook = rebook / 100
-                prev_appt_lookup[name] = {
+                    rebook /= 100
+                out[name] = {
+                    "total": _g(totals) or 0.0,
+                    "net": _g(nets) or 0.0,
+                    "aov": _g(aovs),
                     "util": util,
                     "rebook": rebook,
-                    "hours": float(p_appt_hours[i]) if i < len(p_appt_hours) and p_appt_hours[i] else None,
-                    "aov": float(p_appt_aov[i]) if i < len(p_appt_aov) and p_appt_aov[i] else None,
+                    "hours": _g(hours),
                 }
+            return out
 
-            p_sales_names = _extract_col(prev_sales_r, "attributed_provider_name")
-            p_sales_net   = _extract_col(prev_sales_r, "net_revenue_sum")
-            p_sales_aov   = _extract_col(prev_sales_r, ".aov")
+        cur_staff = _staff_lookup(_staff_run(start_date, duration))
 
-            prev_sales_lookup: dict = {}
-            for i, name in enumerate(p_sales_names):
-                if not name:
-                    continue
-                prev_sales_lookup[name] = {
-                    "net": float(p_sales_net[i]) if i < len(p_sales_net) and p_sales_net[i] else 0,
-                    "aov": float(p_sales_aov[i]) if i < len(p_sales_aov) and p_sales_aov[i] else None,
-                }
+        # The report's staff table is a sales table: only providers with
+        # revenue this month (the tile also returns zero-revenue staff).
+        for name in sorted(cur_staff):
+            s = cur_staff[name]
+            if s["total"] <= 0 and s["net"] <= 0:
+                continue
+            data.staff.append(StaffMember(
+                name=name,
+                net_revenue=s["net"],
+                gross_revenue=s["total"] if s["total"] > 0 else s["net"],  # rendered as "Total Sales"
+                aov=s["aov"] or 0,
+                utilization=s["util"],
+                rebooking_rate=s["rebook"],
+                service_revenue=s["net"],
+                retail_revenue=0,
+                hours_worked=s["hours"],
+            ))
+        data.staff.sort(key=lambda s: s.gross_revenue, reverse=True)
 
-            # Apply MoM to each StaffMember
+        # Practice-level utilization/rebooking stay on the dashboard's own
+        # KPI tiles (parsed above) — staff-weighted blends drift from Omni's
+        # numbers (e.g. 26.3% blended vs Omni's 25% rebooking).
+
+        # ── Per-provider MoM (prior-month Staff Performance run) ──
+        try:
+            prev_staff = _staff_lookup(_staff_run(prev_start, "1 months"))
             for s in data.staff:
-                pa = prev_appt_lookup.get(s.name, {})
-                ps = prev_sales_lookup.get(s.name, {})
-                prev_gr = prev_service_lookup.get(s.name, 0)
-                prev_net = ps.get("net", 0)
-                prev_aov = ps.get("aov") or pa.get("aov")
-                s.revenue_mom_pct = _safe_mom(s.gross_revenue, prev_gr, 500)
-                s.net_revenue_mom_pct = _safe_mom(s.net_revenue, prev_net, 500)
-                s.aov_mom_pct = _safe_mom(s.aov, prev_aov, 50) if prev_aov else None
-                s.utilization_mom_pct = _safe_mom(s.utilization, pa.get("util"), 0.05)
-                s.rebooking_mom_pct = _safe_mom(s.rebooking_rate, pa.get("rebook"), 0.05)
-                prev_hrs = pa.get("hours")
-                if prev_hrs and prev_hrs > 0 and prev_gr > 500 and s.rev_per_hour:
-                    s.rev_per_hour_mom_pct = _safe_mom(s.rev_per_hour, prev_gr / prev_hrs, 10)
-
-            # Practice-level rebooking MoM comes from the prior-month
-            # Appointment Stats query (same measure as the gauge).
-
-            # Practice-level utilization MoM
-            p_total_hours = sum(
-                d["hours"] or 0 for d in prev_appt_lookup.values() if d.get("hours")
-            )
-            if p_total_hours > 0:
-                p_weighted_util = sum(
-                    (d.get("util") or 0) * (d.get("hours") or 0)
-                    for d in prev_appt_lookup.values()
-                    if d.get("util") is not None and d.get("hours")
-                ) / p_total_hours
-                if p_weighted_util > 0 and data.utilization_rate > 0:
-                    data.utilization_mom_pct = _safe_mom(data.utilization_rate, p_weighted_util, 0.05)
-
-            print(f"  Staff MoM: loaded for {sum(1 for s in data.staff if s.revenue_mom_pct is not None)} providers")
+                p = prev_staff.get(s.name)
+                if not p:
+                    continue
+                s.revenue_mom_pct = _safe_mom(s.gross_revenue, p["total"], 500)
+                s.net_revenue_mom_pct = _safe_mom(s.net_revenue, p["net"], 500)
+                s.aov_mom_pct = _safe_mom(s.aov, p["aov"], 50) if p["aov"] else None
+                s.utilization_mom_pct = _safe_mom(s.utilization, p["util"], 0.05)
+                s.rebooking_mom_pct = _safe_mom(s.rebooking_rate, p["rebook"], 0.05)
+                if p["hours"] and p["total"] > 500 and s.rev_per_hour:
+                    s.rev_per_hour_mom_pct = _safe_mom(
+                        s.rev_per_hour, p["total"] / p["hours"], 10)
+            print(f"  Staff MoM: loaded for "
+                  f"{sum(1 for s in data.staff if s.revenue_mom_pct is not None)} providers")
         except Exception as e:
             print(f"  Warning: Could not load staff MoM: {e}")
 
         print(f"  Staff: {len(data.staff)} providers loaded")
     except Exception as e:
         print(f"  Warning: Could not load staff data: {e}")
-
-    # ── Retention (separate dashboard) ──
-    print("  Loading retention...")
-    try:
-        ret_dash = _get_dashboard_queries(RETENTION_DASHBOARD_ID, api_key)
-        ret_queries = {q["name"]: q["query"] for q in ret_dash.get("queries", [])}
-
-        rq = copy.deepcopy(list(ret_queries.values())[0])
-        # This dashboard uses medspa_name_with_id filter; use CONTAINS to match
-        _ensure_filters(rq)["dbt__moxie_medspas_mart.medspa_name_with_id"] = {
-            "kind": "CONTAINS", "type": "string",
-            "values": [practice_name], "is_negative": False,
-        }
-        ret_r = _run_query(rq, api_key)
-        data.retention_180d = _val(ret_r, "pct_has_repeat_completed_appointments_180d")
-        print(f"  Retention (180d): {data.retention_180d*100:.1f}%")
-
-        # Retention MoM: query retention dashboard for previous month
-        # Note: retention is a rolling 180d metric, but we compare the value reported for each month
-        try:
-            prev_rq = copy.deepcopy(list(ret_queries.values())[0])
-            _ensure_filters(prev_rq)["dbt__moxie_medspas_mart.medspa_name_with_id"] = {
-                "kind": "CONTAINS", "type": "string",
-                "values": [practice_name], "is_negative": False,
-            }
-            # Apply date filter for prior month to any date fields present
-            for fk in list(prev_rq.get("filters", {}).keys()):
-                if "date" in fk.lower() or "time" in fk.lower() or "start" in fk.lower():
-                    prev_rq["filters"][fk] = {
-                        "kind": "TIME_FOR_INTERVAL_DURATION", "type": "date",
-                        "ui_type": "PAST", "left_side": prev_start,
-                        "right_side": "1 months", "is_negative": False,
-                    }
-            prev_ret_r = _run_query(prev_rq, api_key)
-            prev_retention = _val(prev_ret_r, "pct_has_repeat_completed_appointments_180d")
-            data.retention_mom_pct = _safe_mom(data.retention_180d, prev_retention, 0.05)
-        except Exception as e:
-            print(f"  Warning: Could not load retention MoM: {e}")
-    except Exception as e:
-        print(f"  Warning: Could not load retention data: {e}")
 
     # ── Moxie Covered Async GFE Savings (main dashboard) ──
     print("  Loading GFE savings...")
@@ -1559,12 +1270,17 @@ def load_from_omni(practice_name: str, month: int, year: int,
     except Exception as e:
         print(f"  Warning: Could not load supplies transaction data: {e}")
 
-    # ── Marketing Performance (separate dashboard) ──
+    # ── Marketing Performance ──
+    # Headline funnel metrics come from the consolidated dashboard's
+    # "Monthly Marketing Performance" tile (single aggregate row for the
+    # practice, already in batch1). The campaign-level table still comes
+    # from the marketing dashboard — the consolidated dashboard carries no
+    # per-campaign breakdown.
     print("  Loading marketing performance...")
     # Default to an empty marketing record with the lock screen on. If the
-    # dashboard lookup succeeds we'll overwrite this; if it doesn't (no row
-    # for this practice, network failure, etc.) the editor still gets a
-    # marketing block with a toggle so users can override the lock manually.
+    # tile has data we'll overwrite this; if it doesn't (no marketing for
+    # this practice, query failure, etc.) the editor still gets a marketing
+    # block with a toggle so users can override the lock manually.
     from .data_schema import MarketingData
     data.marketing = MarketingData(
         ad_spend=0, leads=0, booked=0, completed=0,
@@ -1572,165 +1288,119 @@ def load_from_omni(practice_name: str, month: int, year: int,
         show_marketing_lock_screen=True,
     )
     try:
-        mkt_dash = _get_dashboard_queries(MARKETING_DASHBOARD_ID, api_key)
-        mkt_queries = mkt_dash.get("queries", [])
-        if mkt_queries:
-            mq = copy.deepcopy(mkt_queries[0]["query"])
-            # Replace PSM filter with practice filter — use CONTAINS so name
-            # variations ('&' vs 'and', extra whitespace) still match.
-            _ensure_filters(mq)
-            mq["filters"].pop("dbt__moxie_medspas_mart.provider_success_manager_name", None)
-            if medspa_id is not None:
+        mkt_r = batch1.get("Monthly Marketing Performance", {})
+
+        def _mval(substring, default=0.0):
+            v = _val(mkt_r, substring, default=None)
+            return float(v) if v is not None else default
+
+        ad_spend = _mval("meta_spend_sum")
+        leads = int(_mval("meta_leads_sum"))
+        booked = int(_mval("meta_new_clients_booked_appointment_sum"))
+        completed = int(_mval("meta_new_clients_completed_appointment_sum"))
+        # Revenue comes directly from Omni (net revenue from new clients)
+        revenue = _mval("meta_new_clients_completed_appointment_revenue_sum")
+        # Total revenue across all clients (new + existing) attributed to marketing
+        total_rev_all = _mval("meta_completed_appointment_revenue_sum")
+
+        # ROI = new-client revenue / spend (New Client ROI — the tile's
+        # meta_roi uses all-clients revenue, which reads too generous here)
+        roi = revenue / ad_spend if ad_spend > 0 and revenue > 0 else 0
+
+        # Build a marketing record whenever any metric is non-zero so
+        # $0-spend practices that still produced leads/revenue can show
+        # the section. Lock the section by default only when every
+        # metric is zero — the editor can override either way.
+        has_any_metric = (ad_spend > 0 or leads > 0 or booked > 0 or
+                          completed > 0 or revenue > 0 or total_rev_all > 0)
+
+        if has_any_metric:
+            data.marketing = MarketingData(
+                ad_spend=ad_spend,
+                leads=leads,
+                booked=booked,
+                completed=completed,
+                revenue=round(revenue, 2),
+                total_revenue_all_clients=round(total_rev_all, 2) if total_rev_all else 0.0,
+                first_visit_roi=round(roi, 2) if roi else None,
+                lead_to_booking_rate=booked / leads if leads > 0 else None,
+                first_visit_aov=revenue / completed if completed > 0 else None,
+                show_marketing_lock_screen=False,
+            )
+            print(f"  Marketing: spend=${ad_spend:,.0f}, leads={leads}, "
+                  f"booked={booked}, completed={completed}, "
+                  f"revenue=${revenue:,.0f}, ROI={roi:.1f}x")
+        else:
+            print("  Marketing: all metrics zero — lock screen on by default")
+
+        # Campaign-level breakdown (marketing dashboard) — only meaningful
+        # when ad spend exists.
+        if ad_spend > 0:
+            try:
+                from .data_schema import CampaignData
+                mkt_dash = _get_dashboard_queries(MARKETING_DASHBOARD_ID, api_key)
+                mkt_queries = mkt_dash.get("queries", [])
+                if not mkt_queries:
+                    raise RuntimeError("marketing dashboard returned no queries")
+                cq = copy.deepcopy(mkt_queries[0]["query"])
+                _ensure_filters(cq)
+                cq["filters"].pop("dbt__moxie_medspas_mart.provider_success_manager_name", None)
                 _pf_field, _pf = _practice_filter(practice_name, medspa_id)
-                mq["filters"][_pf_field] = _pf
-            else:
-                # CONTAINS so name variations ('&' vs 'and') still match
-                mq["filters"]["dbt__moxie_medspas_mart.medspa_name"] = {
-                    "kind": "CONTAINS", "type": "string",
-                    "values": [practice_name.split()[0]],
+                cq["filters"][_pf_field] = _pf
+                cq["filters"]["dbt__marketing_medspa_performance_daily_mart.series_date"] = {
+                    "kind": "TIME_FOR_INTERVAL_DURATION", "type": "date",
+                    "ui_type": "PAST",
+                    "left_side": start_date, "right_side": duration,
                     "is_negative": False,
                 }
-            mq["filters"]["dbt__marketing_medspa_performance_daily_mart.series_date"] = {
-                "kind": "TIME_FOR_INTERVAL_DURATION", "type": "date",
-                "ui_type": "PAST",
-                "left_side": start_date, "right_side": duration,
-                "is_negative": False,
-            }
-            # Add revenue fields (not in the base dashboard query)
-            rev_field = "dbt__marketing_medspa_performance_daily_mart.meta_new_clients_completed_appointment_revenue_sum"
-            all_rev_field = "dbt__marketing_medspa_performance_daily_mart.meta_completed_appointment_revenue_sum"
-            if not isinstance(mq.get("fields"), list):
-                mq["fields"] = []
-            for extra_f in [rev_field, all_rev_field]:
-                if extra_f not in mq["fields"]:
-                    mq["fields"].append(extra_f)
-            mkt_r = _run_query(mq, api_key)
+                rev_field = ("dbt__marketing_medspa_performance_daily_mart"
+                             ".meta_new_clients_completed_appointment_revenue_sum")
+                camp_field = "dbt__marketing_medspa_performance_daily_mart.campaign_category"
+                if not isinstance(cq.get("fields"), list):
+                    cq["fields"] = []
+                for extra_f in (camp_field, rev_field):
+                    if extra_f not in cq["fields"]:
+                        cq["fields"].append(extra_f)
+                camp_r = _run_query(cq, api_key)
 
-            # Find the practice row using a normalized name comparison so
-            # punctuation / whitespace differences don't cause a miss.
-            def _norm(s):
-                import re as _re
-                return _re.sub(r"[^a-z0-9]", "", (s or "").lower())
-            target_norm = _norm(practice_name)
-            mkt_names = mkt_r.get("dbt__moxie_medspas_mart.medspa_name", [])
-            mkt_idx = next((i for i, n in enumerate(mkt_names)
-                            if n and _norm(n) == target_norm), None)
-            if mkt_idx is None:
-                print(f"  Warning: marketing dashboard had no row for "
-                      f"'{practice_name}'. Names returned: "
-                      f"{[n for n in mkt_names if n][:5]}")
+                camp_names_col = camp_r.get(camp_field, [])
+                camp_medspa = camp_r.get("dbt__moxie_medspas_mart.medspa_name", [])
+                camp_spends = camp_r.get("dbt__marketing_medspa_performance_daily_mart.meta_spend_sum", [])
+                camp_leads = camp_r.get("dbt__marketing_medspa_performance_daily_mart.meta_leads_sum", [])
+                camp_booked = camp_r.get("dbt__marketing_medspa_performance_daily_mart.meta_new_clients_booked_appointment_sum", [])
+                camp_completed = camp_r.get("dbt__marketing_medspa_performance_daily_mart.meta_new_clients_completed_appointment_sum", [])
+                camp_revenue = camp_r.get(rev_field, [])
+                camp_totals = camp_r.get("$omni_column_total_indicator", [])
 
-            if mkt_idx is not None:
-                def mkt_val(field, default=0):
-                    key = f"dbt__marketing_medspa_performance_daily_mart.{field}"
-                    vals = mkt_r.get(key, [])
-                    v = vals[mkt_idx] if mkt_idx < len(vals) else None
-                    return float(v) if v is not None else default
-
-                ad_spend = mkt_val("meta_spend_sum")
-                leads = int(mkt_val("meta_leads_sum"))
-                booked = int(mkt_val("meta_new_clients_booked_appointment_sum"))
-                completed = int(mkt_val("meta_new_clients_completed_appointment_sum"))
-                cpl = mkt_val("total_meta_cost_per_lead")
-
-                # Revenue comes directly from Omni (net revenue from new clients)
-                revenue = mkt_val("meta_new_clients_completed_appointment_revenue_sum")
-                # Total revenue across all clients (new + existing) attributed to marketing
-                total_rev_all = mkt_val("meta_completed_appointment_revenue_sum")
-
-                # ROI = revenue / spend (New Client ROI)
-                roi = revenue / ad_spend if ad_spend > 0 and revenue > 0 else 0
-
-                # Build a marketing record whenever any metric is non-zero so
-                # $0-spend practices that still produced leads/revenue can show
-                # the section. Lock the section by default only when every
-                # metric is zero — the editor can override either way.
-                has_any_metric = (ad_spend > 0 or leads > 0 or booked > 0 or
-                                  completed > 0 or revenue > 0 or total_rev_all > 0)
-
-                if has_any_metric:
-                    data.marketing = MarketingData(
-                        ad_spend=ad_spend,
-                        leads=leads,
-                        booked=booked,
-                        completed=completed,
-                        revenue=round(revenue, 2),
-                        total_revenue_all_clients=round(total_rev_all, 2) if total_rev_all else 0.0,
-                        first_visit_roi=round(roi, 2) if roi else None,
-                        lead_to_booking_rate=booked / leads if leads > 0 else None,
-                        first_visit_aov=revenue / completed if completed > 0 else None,
-                        show_marketing_lock_screen=False,
-                    )
-                    print(f"  Marketing: spend=${ad_spend:,.0f}, leads={leads}, "
-                          f"booked={booked}, completed={completed}, "
-                          f"revenue=${revenue:,.0f}, ROI={roi:.1f}x")
-                else:
-                    # Everything zero — surface a marketing record so the editor
-                    # can flip the lock toggle off if desired, but default to lock.
-                    data.marketing = MarketingData(
-                        ad_spend=0, leads=0, booked=0, completed=0,
-                        revenue=0.0, total_revenue_all_clients=0.0,
-                        show_marketing_lock_screen=True,
-                    )
-                    print("  Marketing: all metrics zero — lock screen on by default")
-
-                # Campaign-level breakdown — only meaningful when ad spend exists
-                if ad_spend > 0:
-                    try:
-                        from .data_schema import CampaignData
-                        cq = copy.deepcopy(mkt_queries[0]["query"])
-                        _ensure_filters(cq)
-                        cq["filters"].pop("dbt__moxie_medspas_mart.provider_success_manager_name", None)
-                        _pf_field, _pf = _practice_filter(practice_name, medspa_id)
-                        cq["filters"][_pf_field] = _pf
-                        cq["filters"]["dbt__marketing_medspa_performance_daily_mart.series_date"] = {
-                            "kind": "TIME_FOR_INTERVAL_DURATION", "type": "date",
-                            "ui_type": "PAST",
-                            "left_side": start_date, "right_side": duration,
-                            "is_negative": False,
-                        }
-                        camp_field = "dbt__marketing_medspa_performance_daily_mart.campaign_category"
-                        if camp_field not in cq.get("fields", []):
-                            cq["fields"].append(camp_field)
-                        if rev_field not in cq.get("fields", []):
-                            cq["fields"].append(rev_field)
-                        camp_r = _run_query(cq, api_key)
-
-                        camp_names_col = camp_r.get(camp_field, [])
-                        camp_medspa = camp_r.get("dbt__moxie_medspas_mart.medspa_name", [])
-                        camp_spends = camp_r.get("dbt__marketing_medspa_performance_daily_mart.meta_spend_sum", [])
-                        camp_leads = camp_r.get("dbt__marketing_medspa_performance_daily_mart.meta_leads_sum", [])
-                        camp_booked = camp_r.get("dbt__marketing_medspa_performance_daily_mart.meta_new_clients_booked_appointment_sum", [])
-                        camp_completed = camp_r.get("dbt__marketing_medspa_performance_daily_mart.meta_new_clients_completed_appointment_sum", [])
-                        camp_revenue = camp_r.get(rev_field, [])
-                        camp_totals = camp_r.get("$omni_column_total_indicator", [])
-
-                        campaigns = []
-                        for ci in range(len(camp_names_col)):
-                            if ci < len(camp_totals) and camp_totals[ci] == "column_total":
-                                continue
-                            cn = camp_names_col[ci] if ci < len(camp_names_col) else None
-                            cm = camp_medspa[ci] if ci < len(camp_medspa) else None
-                            if not cn or not cm or cm != practice_name:
-                                continue
-                            cs = float(camp_spends[ci]) if ci < len(camp_spends) and camp_spends[ci] else 0
-                            cl = int(camp_leads[ci]) if ci < len(camp_leads) and camp_leads[ci] else 0
-                            cb = int(camp_booked[ci]) if ci < len(camp_booked) and camp_booked[ci] else 0
-                            cc = int(camp_completed[ci]) if ci < len(camp_completed) and camp_completed[ci] else 0
-                            cr = float(camp_revenue[ci]) if ci < len(camp_revenue) and camp_revenue[ci] else 0
-                            # Only include campaigns with activity
-                            if cs > 0 or cl > 0 or cc > 0:
-                                campaigns.append(CampaignData(
-                                    campaign_name=cn, ad_spend=cs, leads=cl,
-                                    booked=cb, completed=cc, revenue=cr,
-                                ))
-                        campaigns.sort(key=lambda c: c.ad_spend, reverse=True)
-                        data.marketing.campaigns = campaigns
-                        print(f"  Campaigns: {len(campaigns)} active ({', '.join(c.campaign_name for c in campaigns)})")
-                    except Exception as e:
-                        print(f"  Warning: Could not load campaign data: {e}")
-            else:
-                print("  Marketing: no data found for this practice")
+                campaigns = []
+                for ci in range(len(camp_names_col)):
+                    if ci < len(camp_totals) and camp_totals[ci] == "column_total":
+                        continue
+                    cn = camp_names_col[ci] if ci < len(camp_names_col) else None
+                    if not cn:
+                        continue
+                    # The id filter already scopes rows to this practice; the
+                    # name check only guards mixed rows when the id was absent.
+                    cm = camp_medspa[ci] if ci < len(camp_medspa) else None
+                    if medspa_id is None and cm and cm != practice_name:
+                        continue
+                    cs = float(camp_spends[ci]) if ci < len(camp_spends) and camp_spends[ci] else 0
+                    cl = int(camp_leads[ci]) if ci < len(camp_leads) and camp_leads[ci] else 0
+                    cb = int(camp_booked[ci]) if ci < len(camp_booked) and camp_booked[ci] else 0
+                    cc = int(camp_completed[ci]) if ci < len(camp_completed) and camp_completed[ci] else 0
+                    cr = float(camp_revenue[ci]) if ci < len(camp_revenue) and camp_revenue[ci] else 0
+                    # Only include campaigns with activity
+                    if cs > 0 or cl > 0 or cc > 0:
+                        campaigns.append(CampaignData(
+                            campaign_name=cn, ad_spend=cs, leads=cl,
+                            booked=cb, completed=cc, revenue=cr,
+                        ))
+                campaigns.sort(key=lambda c: c.ad_spend, reverse=True)
+                data.marketing.campaigns = campaigns
+                print(f"  Campaigns: {len(campaigns)} active "
+                      f"({', '.join(c.campaign_name for c in campaigns)})")
+            except Exception as e:
+                print(f"  Warning: Could not load campaign data: {e}")
     except Exception as e:
         print(f"  Warning: Could not load marketing data: {e}")
 

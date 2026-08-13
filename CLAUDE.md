@@ -52,9 +52,21 @@ Key env vars (loaded from `.env` at the project root if present; never commit it
 
 ## Omni data model — hard-won quirks
 
-The loader pulls queries from the consolidated **[New Embedded] Monthly
-Business Review** dashboard (`NEW_MBR_ID = 6b24fa95`), the single source of
-truth for report metrics, plus a legacy dashboard for tier/medspa-id lookup.
+The loader pulls **everything** (metrics, tier/medspa-id lookup, GFE,
+marketing funnel) from the consolidated **[New Embedded] Monthly Business
+Review** dashboard (`NEW_MBR_ID` in `omni_loader.py`). The team iterates on
+that dashboard and republishing can mint a NEW document id (it changed
+6b24fa95 → 7c568f71 mid-migration) — `_resolve_mbr_dashboard()` falls back
+to a lookup by exact document name when the id 404s. Only two extras remain
+on separate dashboards: supplies savings and the marketing *campaign-level*
+table. The old per-report dashboards (`bfd963dd` is now literally named
+"[DO NOT USE]") are referenced only by `web/app.py`'s practice-list and
+debug endpoints.
+
+Windowed tiles (`QUERY_WINDOW_MONTHS`) return one row per month and their
+sort order varies — always key rows by 'YYYY-MM' label (`_month_map`),
+never by position.
+
 Do not "simplify" the workarounds below — each one fixed a real
 wrong-numbers-in-a-client-report bug:
 
