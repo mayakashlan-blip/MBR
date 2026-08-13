@@ -234,29 +234,18 @@ _VM_CACHE: dict = {}  # (month, year) -> (fetched_at, payload)
 _VM_CACHE_TTL = 300
 
 
-def _validated_marketing_key(month: int, year: int) -> str:
-    return f"{_monthly_key(month, year)}_validated_marketing.json"
-
-
 def _load_validated_marketing(month: int, year: int) -> dict:
-    """Return {medspa_id_str: record} for the month, or {}."""
+    """Return {medspa_id_str: record} for the month, or {}.
+
+    Stored on the monthly_assets row (validated_marketing JSONB column —
+    migration 002); Supabase Storage isn't writable with the deployed key.
+    """
     import time as _time
     hit = _VM_CACHE.get((month, year))
     if hit and _time.time() - hit[0] < _VM_CACHE_TTL:
         return hit[1]
-    payload = {}
     try:
-        if _DB_ENABLED:
-            local = _db.download_file("monthly-assets",
-                                      _validated_marketing_key(month, year),
-                                      suffix=".json")
-            with open(local) as f:
-                payload = json.load(f)
-        else:
-            path = MONTHLY_DIR / _validated_marketing_key(month, year)
-            if path.exists():
-                with open(path) as f:
-                    payload = json.load(f)
+        payload = _load_monthly_assets(month, year).get("validated_marketing") or {}
     except Exception:
         payload = {}
     _VM_CACHE[(month, year)] = (_time.time(), payload)
@@ -264,17 +253,9 @@ def _load_validated_marketing(month: int, year: int) -> dict:
 
 
 def _save_validated_marketing(month: int, year: int, practices: dict):
-    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as tmp:
-        json.dump(practices, tmp, default=str)
-        tmp_path = tmp.name
-    if _DB_ENABLED:
-        _db.upload_file("monthly-assets",
-                        _validated_marketing_key(month, year), tmp_path)
-    else:
-        shutil.copy2(tmp_path,
-                     MONTHLY_DIR / _validated_marketing_key(month, year))
-        _backup_to_git_async(
-            f"validated-marketing: {_monthly_key(month, year)}", force=True)
+    assets = _load_monthly_assets(month, year)
+    assets["validated_marketing"] = practices
+    _save_monthly_assets(month, year, assets)
     _VM_CACHE.pop((month, year), None)
 
 

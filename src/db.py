@@ -149,13 +149,14 @@ def load_monthly_assets(month: int, year: int) -> dict:
         "brand_bank_items": row.get("brand_bank_items") or [],
         "launches_file": row.get("launches_file"),
         "brand_bank_file": row.get("brand_bank_file"),
+        "validated_marketing": row.get("validated_marketing") or {},
     }
 
 
 def save_monthly_assets(month: int, year: int, assets: dict):
     sb = get_client()
     period = f"{year}-{month:02d}"
-    sb.table("monthly_assets").upsert({
+    row = {
         "period": period,
         "month": month,
         "year": year,
@@ -163,7 +164,22 @@ def save_monthly_assets(month: int, year: int, assets: dict):
         "brand_bank_items": assets.get("brand_bank_items", []),
         "launches_file": assets.get("launches_file"),
         "brand_bank_file": assets.get("brand_bank_file"),
-    }).execute()
+    }
+    if assets.get("validated_marketing") is not None:
+        row["validated_marketing"] = assets.get("validated_marketing")
+    try:
+        sb.table("monthly_assets").upsert(row).execute()
+    except Exception:
+        if "validated_marketing" not in row:
+            raise
+        # The column may not exist yet — keep launches/brand-bank saves
+        # working, then surface the missing migration loudly.
+        row.pop("validated_marketing")
+        sb.table("monthly_assets").upsert(row).execute()
+        raise RuntimeError(
+            "The validated_marketing column is missing — run "
+            "data/migrations/002_validated_marketing.sql in the Supabase "
+            "SQL Editor, then re-upload the workbook.")
 
 
 def list_all_monthly_assets() -> list:
