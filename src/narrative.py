@@ -38,11 +38,12 @@ PERFORMANCE GAUGES:
 - Retention (180D): {data.retention_180d*100:.0f}% (target: 65%)
 
 MEMBERSHIPS:
-- Active: {data.memberships_active}
+{f'''- Active: {data.memberships_active}
 - New: {data.memberships_new}
 - Cancelled: {data.memberships_cancelled}
 - Churn Rate: {membership_churn:.1f}%
-- MRR: ${data.mrr:,.0f}
+- MRR: ${data.mrr:,.0f}''' if data.memberships_active > 0 or data.memberships_new > 0 else
+"- No membership program (0 active members, $0 MRR). Do NOT praise membership health; if relevant, suggest launching a membership program as an opportunity."}
 
 CLIENT MIX:
 - New Clients: {data.new_clients} ({data.new_client_pct:.0f}%)
@@ -362,13 +363,20 @@ def _generate_rule_based(data: MBRData):
             f"meaningful margin. Consider a \"top 3 products\" protocol for your highest-volume services."
         )
 
-    # Membership paragraph
-    if membership_churn < 5:
+    # Membership paragraph — only when a membership base actually exists
+    # (0 members computes to 0% churn, which must not read as "healthy")
+    if data.memberships_active > 0 and membership_churn < 5:
         paragraphs.append(
             f"Membership health is solid: {data.memberships_active} active members, "
             f"{data.memberships_new} new adds, and only {data.memberships_cancelled} cancellations "
             f"({membership_churn:.1f}% churn). Your ${data.mrr:,.0f} MRR provides a reliable "
             f"revenue floor each month."
+        )
+    elif data.memberships_active == 0 and data.memberships_new == 0:
+        paragraphs.append(
+            "There's no active membership base yet. A simple monthly membership "
+            "(e.g. a tox or facial plan) can convert your regulars into "
+            "predictable recurring revenue and smooth out slower months."
         )
 
     data.psm_feedback = "\n\n".join(paragraphs)
@@ -488,8 +496,15 @@ def _generate_rule_based_assessments(data: MBRData):
             "text": f"Your retail-to-service ratio is {data.retail_to_service_ratio*100:.0f}% vs. the 20% benchmark. Even modest product recommendations could add $2,000+/month."
         })
 
-    # Membership
-    if membership_churn < 5:
+    # Membership — a practice with no members has nothing to praise
+    # (0 members computes to 0% churn, which must not read as "healthy")
+    if data.memberships_active == 0 and data.memberships_new == 0:
+        assessments.append({
+            "tag": "OPPORTUNITY",
+            "title": "No Membership Program Yet",
+            "text": "There are no active memberships. Launching a simple monthly plan for your most loyal clients would build recurring revenue and improve retention."
+        })
+    elif membership_churn < 5:
         assessments.append({
             "tag": "STRENGTH",
             "title": "Healthy Membership Base",
