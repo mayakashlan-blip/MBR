@@ -604,6 +604,20 @@ def load_from_omni(practice_name: str, month: int, year: int,
     def _mkey(y: int, m: int) -> str:
         return f"{y}-{m:02d}"
 
+    def _as_rate(v):
+        """Normalize a rate to fraction form.
+
+        Omni's marts return rates as fractions (0.72 = 72%), and values
+        over 1.0 are REAL — an overbooked provider runs >100% utilization
+        (Escala's Rachel Gerik: 1.145 = 114.5%, booked hours > available).
+        Only implausibly large values (>10) are treated as
+        percentage-points form and divided by 100.
+        """
+        if v is None:
+            return None
+        v = float(v)
+        return v / 100 if v > 10 else v
+
     cur_key = _mkey(year, month)
     prev_month = month - 1 if month > 1 else 12
     prev_year = year if month > 1 else year - 1
@@ -724,13 +738,11 @@ def load_from_omni(practice_name: str, month: int, year: int,
 
     # Rebooking — the dashboard's own KPI tile (2-month window → MoM too)
     rebook_map = _month_map(batch1.get("KPI: Rebooking Rate"), "rebooking_rate")
-    _rb = rebook_map.get(cur_key)
+    _rb = _as_rate(rebook_map.get(cur_key))
     if _rb is not None:
-        data.rebooking_rate = _rb if _rb <= 1.0 else _rb / 100
-    _rb_prev = rebook_map.get(prev_key)
+        data.rebooking_rate = _rb
+    _rb_prev = _as_rate(rebook_map.get(prev_key))
     if _rb_prev is not None and data.rebooking_rate > 0:
-        if _rb_prev > 1.0:
-            _rb_prev /= 100
         if _rb_prev > 0.05:
             data.rebooking_mom_pct = _safe_mom(data.rebooking_rate, _rb_prev, 0.05)
 
@@ -749,13 +761,11 @@ def load_from_omni(practice_name: str, month: int, year: int,
     # decision as rebooking — blends drift from Omni's own number).
     util_map = _month_map(batch1.get("KPI: Utilization"),
                           "column_b_divided_by_column_a")
-    _u = util_map.get(cur_key)
+    _u = _as_rate(util_map.get(cur_key))
     if _u is not None:
-        data.utilization_rate = _u if _u <= 1.0 else _u / 100
-    _u_prev = util_map.get(prev_key)
+        data.utilization_rate = _u
+    _u_prev = _as_rate(util_map.get(prev_key))
     if _u_prev is not None and data.utilization_rate > 0:
-        if _u_prev > 1.0:
-            _u_prev /= 100
         data.utilization_mom_pct = _safe_mom(data.utilization_rate, _u_prev, 0.05)
 
     # Client mix — new/existing are appointment counts (client-mix bar);
@@ -978,12 +988,10 @@ def load_from_omni(practice_name: str, month: int, year: int,
                 def _g(col):
                     return (float(col[i]) if i < len(col)
                             and col[i] is not None else None)
-                util = _g(utils)
-                if util is not None and util > 1.0:
-                    util /= 100
-                rebook = _g(rebooks) or 0
-                if rebook > 1.0:
-                    rebook /= 100
+                # Rates come back as fractions; >1.0 is real (overbooked
+                # providers exceed 100% utilization) — see _as_rate.
+                util = _as_rate(_g(utils))
+                rebook = _as_rate(_g(rebooks)) or 0
                 out[name] = {
                     "total": _g(totals) or 0.0,
                     "net": _g(nets) or 0.0,
