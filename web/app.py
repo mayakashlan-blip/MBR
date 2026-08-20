@@ -1326,7 +1326,11 @@ def _compute_parity(d, practice, month, year, medspa_id=None):
             q["row_totals"] = {}; q["column_totals"] = {}
         _ensure_filters(q)
         pf_field, pf = _practice_filter(practice, int(mid) if mid else None)
+        # Drop baked name-based test filters (e.g. the AOV tile ships with
+        # medspa_name_with_id = "The Ivy Wellness (1538)") so they never
+        # AND against our id filter.
         q["filters"].pop("dbt__moxie_medspas_mart.medspa_name", None)
+        q["filters"].pop("dbt__moxie_medspas_mart.medspa_name_with_id", None)
         q["filters"][pf_field] = pf
         if date_field:
             q["filters"][date_field] = {
@@ -1361,17 +1365,25 @@ def _compute_parity(d, practice, month, year, medspa_id=None):
     add("revenue_goal", round(d.revenue_goal, 2), round(_val(r, "revenue_goal_sum"), 2))
     add("aov", round(d.aov, 2), round(float(_aov or 0), 2))
 
-    # Paid appointments + goals (start_time_local basis — the tile's own
+    # AOV goal — must use the AOV tile's own chassis and date basis
+    # (transaction_date_et). Riding it along on the paid-appointments
+    # query (start_time_local) attributes goal months differently and
+    # produced false mismatches (Gilded Glow: $621.90 vs the tile's
+    # $646.57).
+    r = run_emb("KPI Goal: AOV",
+                ["dbt__moxie_medspa_appointment_goals_monthly_mart.aov_goal_average"],
+                f"{T}.transaction_date_et")
+    _aov_goal = next((v[0] for k, v in r.items() if k.endswith(".aov_goal_average") and v), 0)
+    add("aov_goal", round(d.aov_goal, 2), round(float(_aov_goal or 0), 2))
+
+    # Paid appointments + goal (start_time_local basis — the tile's own
     # date field, and the basis the loader's headline uses)
     r = run_emb("KPI Goal: Paid Appointments",
                 [f"{A}.paid_appointments",
-                 "dbt__moxie_medspa_appointment_goals_monthly_mart.appointment_goal_sum",
-                 "dbt__moxie_medspa_appointment_goals_monthly_mart.aov_goal_average"],
+                 "dbt__moxie_medspa_appointment_goals_monthly_mart.appointment_goal_sum"],
                 f"{A}.start_time_local")
-    _aov_goal = next((v[0] for k, v in r.items() if k.endswith(".aov_goal_average") and v), 0)
     add("paid_appointments", d.total_appointments, int(_val(r, "paid_appointments")))
     add("appointment_goal", round(d.appt_goal), round(_val(r, "appointment_goal_sum")))
-    add("aov_goal", round(d.aov_goal, 2), round(float(_aov_goal or 0), 2))
 
     # Service mix — the dashboard's own "Total Sales by Service" tile
     # (line-items gross revenue by service_category, service items only).
