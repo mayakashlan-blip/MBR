@@ -165,15 +165,18 @@ def save_monthly_assets(month: int, year: int, assets: dict):
         "launches_file": assets.get("launches_file"),
         "brand_bank_file": assets.get("brand_bank_file"),
     }
-    if assets.get("validated_marketing") is not None:
+    # Include the column only when there's actual data: an empty dict rides
+    # along on every launches/brand-bank save, and if migration 002 hasn't
+    # been run the unknown column would fail THOSE saves too.
+    if assets.get("validated_marketing"):
         row["validated_marketing"] = assets.get("validated_marketing")
     try:
         sb.table("monthly_assets").upsert(row).execute()
     except Exception:
         if "validated_marketing" not in row:
             raise
-        # The column may not exist yet — keep launches/brand-bank saves
-        # working, then surface the missing migration loudly.
+        # The column may not exist yet — save the rest, then surface the
+        # missing migration loudly (real marketing data would be lost).
         row.pop("validated_marketing")
         sb.table("monthly_assets").upsert(row).execute()
         raise RuntimeError(

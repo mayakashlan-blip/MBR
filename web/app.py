@@ -895,6 +895,14 @@ def api_save_monthly_assets():
 @app.route("/api/upload-monthly-launches", methods=["POST"])
 def api_upload_monthly_launches():
     """Upload launches PDF/image for a given month. AI-extracts features."""
+    import traceback as _tb
+    try:
+        return _handle_upload_monthly_launches()
+    except Exception as e:
+        return jsonify({"error": str(e), "traceback": _tb.format_exc()}), 500
+
+
+def _handle_upload_monthly_launches():
     month = int(request.form.get("month", 1))
     year = int(request.form.get("year", 2026))
 
@@ -933,6 +941,14 @@ def api_upload_monthly_launches():
 @app.route("/api/upload-monthly-brand-bank", methods=["POST"])
 def api_upload_monthly_brand_bank():
     """Upload brand bank image for a given month. AI-extracts items."""
+    import traceback as _tb
+    try:
+        return _handle_upload_monthly_brand_bank()
+    except Exception as e:
+        return jsonify({"error": str(e), "traceback": _tb.format_exc()}), 500
+
+
+def _handle_upload_monthly_brand_bank():
     month = int(request.form.get("month", 1))
     year = int(request.form.get("year", 2026))
     month_names = ["", "January", "February", "March", "April", "May", "June",
