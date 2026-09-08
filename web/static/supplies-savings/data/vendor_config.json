@@ -86,9 +86,38 @@
     "csv_city_field": "City",
     "csv_state_field": "State",
     "date_field": "Date",
-    "dedup_fields": ["Account Name", "Date", "Product", "Sales $"],
+    "dedup_fields": [
+      "Account Name",
+      "Date",
+      "Product",
+      "Sales $"
+    ],
     "formula": "revance",
     "cadence": "monthly",
     "active": true
+  },
+  {
+    "id": "letybo",
+    "display_name": "Letybo",
+    "active": true,
+    "formula": "generic",
+    "formula_type": "volume_pricing",
+    "match_type": "name_map",
+    "id_source": "name_map",
+    "omni_field": null,
+    "csv_join_field": "ShipToName",
+    "date_field": "ShipDate",
+    "csv_product_field": "ItemDescription",
+    "csv_qty_field": "Quantity Shipped",
+    "csv_amount_field": "TotalAmount",
+    "skip_header_rows": 0,
+    "date_format": "iso",
+    "name_map_vendor": "letybo",
+    "dedup_fields": [
+      "ShipToName",
+      "ShipDate",
+      "ItemDescription"
+    ],
+    "csv_moxie_id_field": null
   }
 ]

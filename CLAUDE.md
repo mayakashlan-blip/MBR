@@ -117,6 +117,21 @@ wrong-numbers-in-a-client-report bug:
    practice named "424 Cosmetic Dermatology" is id 1790) — ids are
    reconciled against Omni at upload time.
 
+## Supplies savings — executes Shannon's code, never re-port it
+
+`src/savings_loader.py` computes the Supplies Savings page by running
+Shannon's `calc-bundle.js` VERBATIM in headless Chromium (Playwright is
+already present for PDF export): `src/savings_harness.js` is a thin
+faithful copy of her dashboard's dispatch (calcVendor/makePeriod/
+getRebates); the bundle, vendor_config, pricing_eras, rebates, medspas
+and name_map are fetched live from shannon-hue.github.io (15-min cache,
+committed fallback under `web/static/supplies-savings/`). Transactions
+are prefiltered to the practice's identifiers (superset match) before
+being passed into the page, ~72MB → ~0.5MB. The old Python port of her
+math remains only as a fallback — do NOT extend it; historical porting
+drift caused wrong client-facing numbers (Salena Dodman, Jan 2026).
+Verify changes against her dashboard's numbers for a known practice.
+
 ## Debugging Omni queries
 
 Auth-gated endpoints (send `X-Api-Key: $MBR_API_KEY`):

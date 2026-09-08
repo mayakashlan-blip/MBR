@@ -16,12 +16,17 @@ DASHBOARD_HTML = Path(__file__).parent.parent / "web" / "static" / "supplies-sav
 # stop at March 2026, so we fetch the transaction files live (with a 15-min
 # in-memory cache) and fall back to the local copy if the network call fails.
 _REMOTE_BASE = "https://shannon-hue.github.io/supplies-savings/data"
-_REMOTE_TRANSACTION_FILES = {
-    "transactions_galderma.json",
-    "transactions_allergan.json",
-    "transactions_evolus.json",
-    "transactions_revance.json",
-    "transactions_merz.json",
+# Any transactions_*.json plus these Shannon-curated files are fetched live
+# (15-min cache, committed-copy fallback). medspas/name_map/vendor_config
+# must be live too: practices launched after our committed snapshot would
+# otherwise silently show no supplies section, and vendor_config drives
+# which transaction files exist (e.g. letybo was added after our copy).
+_REMOTE_JSON_FILES = {
+    "vendor_config.json",
+    "pricing_eras.json",
+    "rebates.json",
+    "medspas.json",
+    "name_map.json",
 }
 _REMOTE_CACHE_TTL_SECONDS = 900
 _remote_cache: dict = {}  # filename -> (fetched_at_epoch, payload)
@@ -128,11 +133,9 @@ def _get_pricing():
 
 
 def _load_json(filename):
-    # For transaction files, try Shannon's live GitHub Pages first so we get
-    # the latest vendor uploads without manual sync. Any non-transaction file
-    # (medspas, name_map, pricing_eras, etc.) is read from our local copy as
-    # before — those are stable reference data Maya's team curates.
-    if filename in _REMOTE_TRANSACTION_FILES:
+    # Try Shannon's live GitHub Pages first so we get her latest uploads and
+    # config without manual sync; fall back to the committed copy on failure.
+    if filename.startswith("transactions_") or filename in _REMOTE_JSON_FILES:
         remote = _fetch_remote_json(filename)
         if remote is not None:
             return remote
@@ -412,8 +415,127 @@ def _calc_rebates(moxie_id, bounds):
     return totals
 
 
+_HARNESS_PATH = Path(__file__).parent / "savings_harness.js"
+_APP_DIR = Path(__file__).parent.parent / "web" / "static" / "supplies-savings" / "app"
+
+
+def _fetch_remote_text(relpath: str, local_path: Path):
+    """Fetch a text file from Shannon's GitHub Pages with cache + local fallback."""
+    cached = _remote_cache.get(relpath)
+    if cached and (time.time() - cached[0]) < _REMOTE_CACHE_TTL_SECONDS:
+        return cached[1]
+    try:
+        req = urllib.request.Request(
+            f"https://shannon-hue.github.io/supplies-savings/{relpath}",
+            headers={"User-Agent": "moxie-mbr"})
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            text = resp.read().decode("utf-8")
+        _remote_cache[relpath] = (time.time(), text)
+        return text
+    except Exception as e:
+        print(f"  Supplies: remote fetch for {relpath} failed ({e}); using committed copy")
+        return local_path.read_text() if local_path.exists() else None
+
+
+def _prefilter_rows(rows: list, needles: list) -> list:
+    """Cheap SUPERSET filter so we don't ship ~70MB of every practice's
+    transactions into the browser: keep any row whose text mentions one of
+    this medspa's identifiers. False positives are fine — Shannon's bundle
+    re-filters exactly; false negatives are not, so needles include both
+    raw and zero-stripped id forms plus mapped vendor names."""
+    if not needles:
+        return rows
+    kept = []
+    for r in rows:
+        blob = str(r).lower()
+        for n in needles:
+            if n and n in blob:
+                kept.append(r)
+                break
+    return kept
+
+
+def _build_bundle_payload(medspa: dict, name_map: dict, month: int, year: int) -> dict:
+    """Assemble the computeSavings() input (bundle + config + prefiltered rows)."""
+    bundle = _fetch_remote_text("app/calc-bundle.js", _APP_DIR / "calc-bundle.js")
+    if not bundle:
+        raise RuntimeError("calc-bundle.js unavailable (remote and local)")
+    vendor_config = _load_json("vendor_config.json") or []
+    pricing_eras = _load_json("pricing_eras.json")
+    rebates = _load_json("rebates.json") or []
+
+    needles = set()
+    for key in ("id", "mk", "al", "mz", "rv", "n"):
+        v = str(medspa.get(key) or "").strip().lower()
+        if v:
+            needles.add(v)
+            needles.add(v.lstrip("0"))
+    for vendor_names in (name_map or {}).values():
+        if isinstance(vendor_names, dict):
+            for nm, mid in vendor_names.items():
+                if mid == medspa.get("id"):
+                    needles.add(str(nm).lower())
+    needles = [n for n in needles if n]
+
+    transactions = {}
+    for vc in vendor_config:
+        if vc.get("active") is False:
+            continue
+        vid = vc.get("id")
+        rows = _load_json(f"transactions_{vid}.json") or []
+        transactions[vid] = _prefilter_rows(rows, needles)
+
+    mid_rebates = [r for r in rebates
+                   if str(r.get("Medspa ID") or r.get("medspa_id") or "").strip()
+                   == str(medspa.get("id"))]
+
+    return {
+        "bundle": bundle,
+        "vendorConfig": vendor_config,
+        "pricingEras": pricing_eras,
+        "rebates": mid_rebates,
+        "nameMap": name_map,
+        "medspa": medspa,
+        "transactions": transactions,
+        "month": month,
+        "year": year,
+    }
+
+
+def _calc_via_bundle(medspa: dict, name_map: dict, month: int, year: int):
+    """Run Shannon's calc-bundle.js verbatim in headless Chromium.
+
+    Returns the harness result dict, or raises on any failure (caller
+    falls back to the legacy Python port)."""
+    payload = _build_bundle_payload(medspa, name_map, month, year)
+    harness = _HARNESS_PATH.read_text()
+
+    import asyncio
+
+    async def _run():
+        from playwright.async_api import async_playwright
+        async with async_playwright() as p:
+            browser = await p.chromium.launch()
+            try:
+                page = await browser.new_page()
+                return await page.evaluate(
+                    "(input) => { " + harness + "; return computeSavings(input); }",
+                    payload)
+            finally:
+                await browser.close()
+
+    loop = asyncio.new_event_loop()
+    try:
+        return loop.run_until_complete(_run())
+    finally:
+        loop.close()
+
+
 def load_savings_for_practice(practice_name: str, month: int, year: int) -> dict:
-    """Compute spend and savings matching Shannon's dashboard exactly."""
+    """Compute spend and savings matching Shannon's dashboard exactly.
+
+    Primary path executes her live calc-bundle.js (no port drift); the
+    legacy Python port below remains as a fallback."""
     medspas = _load_json("medspas.json")
     medspa = next((m for m in medspas if m.get("n", "").lower() == practice_name.lower()), None)
     if not medspa:
@@ -421,6 +543,28 @@ def load_savings_for_practice(practice_name: str, month: int, year: int) -> dict
 
     moxie_id = medspa.get("id")
     name_map = _load_json("name_map.json") or {}
+
+    try:
+        r = _calc_via_bundle(medspa, name_map, month, year)
+        by_vendor_3mo = [
+            {"vendor": v["label"], "spend": round(v["m3_spend"], 2),
+             "savings": round(v["m3_savings"], 2), "rebates": round(v["m3_rebates"], 2)}
+            for v in r.get("vendors", [])
+            if v["m3_spend"] > 0 or v["m3_savings"] > 0 or v["m3_rebates"] > 0
+        ]
+        by_vendor_3mo.sort(key=lambda x: -x["spend"])
+        rb = r.get("rebates") or {}
+        return {
+            "month": {"spend": r["mo"]["sp"], "savings": r["mo"]["sv"]},
+            "m3": {"spend": r["m3"]["sp"], "savings": r["m3"]["sv"]},
+            "ytd": {"spend": r["ytd"]["sp"], "savings": r["ytd"]["sv"]},
+            "all": {"spend": r["all"]["sp"], "savings": r["all"]["sv"]},
+            "by_vendor_3mo": by_vendor_3mo,
+            "rebates": {"month": 0.0, "m3": rb.get("m3", 0.0),
+                        "ytd": rb.get("ytd", 0.0), "all": rb.get("all", 0.0)},
+        }
+    except Exception as e:
+        print(f"  Supplies: bundle engine failed ({e}); using legacy Python port")
 
     # Date boundaries — matching Shannon's bounds()
     sel_end = date(year, month + 1, 1) if month < 12 else date(year + 1, 1, 1)

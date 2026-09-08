@@ -1,1 +1,463 @@
-{"allergan":[],"galderma":[],"evolus":[],"merz":[],"revance":[]}
+{
+  "allergan": [
+    {
+      "startDate": "2000-01-01",
+      "endDate": "2024-02-29",
+      "label": "Era 1 \u2014 pre Mar 2024",
+      "products": {
+        "94154": {
+          "list": 755,
+          "moxie": 551.42
+        },
+        "94155": {
+          "list": 755,
+          "moxie": 551.42
+        },
+        "94640": {
+          "list": 853,
+          "moxie": 724.71
+        },
+        "95661": {
+          "list": 770,
+          "moxie": 654.24
+        },
+        "96181": {
+          "list": 770,
+          "moxie": 654.24
+        },
+        "96183": {
+          "list": 420,
+          "moxie": 356.7
+        },
+        "96207": {
+          "list": 621,
+          "moxie": 453.46
+        },
+        "96209": {
+          "list": 621,
+          "moxie": 453.46
+        },
+        "96688": {
+          "list": 35,
+          "moxie": 29.58
+        },
+        "96689": {
+          "list": 74,
+          "moxie": 62.64
+        },
+        "98307": {
+          "list": 380,
+          "moxie": 368.6
+        },
+        "20073770": {
+          "list": 880,
+          "moxie": 748.2
+        }
+      }
+    },
+    {
+      "startDate": "2024-03-01",
+      "endDate": "2024-08-26",
+      "label": "Era 2 \u2014 Mar\u2013Aug 2024",
+      "products": {
+        "94154": {
+          "list": 781,
+          "moxie": 523.5
+        },
+        "94155": {
+          "list": 781,
+          "moxie": 523.5
+        },
+        "94640": {
+          "list": 876,
+          "moxie": 674.73
+        },
+        "95661": {
+          "list": 791,
+          "moxie": 609.12
+        },
+        "96181": {
+          "list": 791,
+          "moxie": 609.12
+        },
+        "96183": {
+          "list": 431,
+          "moxie": 332.1
+        },
+        "96207": {
+          "list": 643,
+          "moxie": 430.5
+        },
+        "96209": {
+          "list": 643,
+          "moxie": 430.5
+        },
+        "96688": {
+          "list": 36,
+          "moxie": 27.54
+        },
+        "96689": {
+          "list": 76,
+          "moxie": 58.32
+        },
+        "98307": {
+          "list": 380,
+          "moxie": 368.6
+        },
+        "20073770": {
+          "list": 905,
+          "moxie": 696.6
+        },
+        "SkinMedica": {
+          "savingsPct": 0.1364
+        },
+        "DiamondGlow": {
+          "savingsPct": 0.1364
+        }
+      }
+    },
+    {
+      "startDate": "2024-08-27",
+      "endDate": null,
+      "label": "Era 3 \u2014 Aug 2024+",
+      "products": {
+        "94154": {
+          "list": 698,
+          "moxie": 418.8
+        },
+        "94155": {
+          "list": 698,
+          "moxie": 418.8
+        },
+        "94511": {
+          "list": 131,
+          "moxie": 114.99
+        },
+        "94640": {
+          "list": 833,
+          "moxie": 541.45
+        },
+        "94847": {
+          "list": 108,
+          "moxie": 94.99
+        },
+        "95661": {
+          "list": 752,
+          "moxie": 488.8
+        },
+        "95706": {
+          "list": 1200,
+          "moxie": 1080
+        },
+        "96181": {
+          "list": 752,
+          "moxie": 488.8
+        },
+        "96183": {
+          "list": 410,
+          "moxie": 266.5
+        },
+        "96207": {
+          "list": 574,
+          "moxie": 344.4
+        },
+        "96209": {
+          "list": 574,
+          "moxie": 344.4
+        },
+        "96688": {
+          "list": 34,
+          "moxie": 22.1
+        },
+        "96689": {
+          "list": 72,
+          "moxie": 46.8
+        },
+        "97069": {
+          "list": 34,
+          "moxie": 22.1
+        },
+        "97070": {
+          "list": 72,
+          "moxie": 46.8
+        },
+        "98307": {
+          "list": 380,
+          "moxie": 368.6
+        },
+        "20073770": {
+          "list": 860,
+          "moxie": 559
+        },
+        "SkinMedica": {
+          "savingsPct": 0.1364
+        },
+        "DiamondGlow": {
+          "savingsPct": 0.1364
+        }
+      }
+    }
+  ],
+  "galderma": [
+    {
+      "startDate": "2000-01-01",
+      "endDate": "2024-03-31",
+      "label": "Era 1 \u2014 pre Apr 2024",
+      "products": {
+        "DYSPORT 300IU SDV 1/EA": {
+          "discountRate": 0.2787
+        },
+        "RESTYLANE L 1ML 1/EA": {
+          "discountRate": 0.5931
+        },
+        "RESTYLANE 1ML 1/EA": {
+          "discountRate": 0.5931
+        },
+        "RESTYLANE SILK 1ML 1/EA": {
+          "discountRate": 0.6755
+        },
+        "RESTYLANE L LYFT 1ML 1/EA": {
+          "discountRate": 0.5931
+        },
+        "RESTYLANE REFYNE W/LIDO 1ML 1/EA": {
+          "discountRate": 0.6196
+        },
+        "RESTYLANE DEFYNE W/LIDO 1ML 1/EA": {
+          "discountRate": 0.5931
+        },
+        "RESTYLANE KYSSE 0.3%+LIDO 1ML 1/EA": {
+          "discountRate": 0.5425
+        },
+        "RESTYLANE CONTOUR 0.3% + LIDO 1ML 1/EA": {
+          "discountRate": 0.5931
+        },
+        "RESTYLANE EYELIGHT 0.5ML": {
+          "discountRate": 0.5931
+        },
+        "SCULPTRA 2X367.5MGVIALS X72 US 2/PAC": {
+          "discountRate": 0.9055
+        }
+      }
+    },
+    {
+      "startDate": "2024-04-01",
+      "endDate": null,
+      "label": "Era 2 \u2014 Apr 2024+",
+      "products": {
+        "DYSPORT 300IU SDV 1/EA": {
+          "list": 622,
+          "moxie": 466.5
+        },
+        "RESTYLANE L 1ML 1/EA": {
+          "list": 344,
+          "moxie": 209.84
+        },
+        "RESTYLANE 1ML 1/EA": {
+          "list": 344,
+          "moxie": 209.84
+        },
+        "RESTYLANE SILK 1ML 1/EA": {
+          "list": 351,
+          "moxie": 200.07
+        },
+        "RESTYLANE L LYFT 1ML 1/EA": {
+          "list": 366,
+          "moxie": 219.6
+        },
+        "RESTYLANE REFYNE W/LIDO 1ML 1/EA": {
+          "list": 407,
+          "moxie": 240.13
+        },
+        "RESTYLANE DEFYNE W/LIDO 1ML 1/EA": {
+          "list": 407,
+          "moxie": 244.2
+        },
+        "RESTYLANE KYSSE 0.3%+LIDO 1ML 1/EA": {
+          "list": 425,
+          "moxie": 263.5
+        },
+        "RESTYLANE CONTOUR 0.3% + LIDO 1ML 1/EA": {
+          "list": 425,
+          "moxie": 255
+        },
+        "RESTYLANE EYELIGHT 0.5ML": {
+          "list": 255,
+          "moxie": 153
+        },
+        "SCULPTRA 2X367.5MGVIALS X72 US 2/PAC": {
+          "list": 1040,
+          "moxie": 509.6
+        }
+      }
+    }
+  ],
+  "evolus": [
+    {
+      "startDate": "2000-01-01",
+      "endDate": null,
+      "label": "Current pricing",
+      "products": {
+        "Jeuveau": {
+          "list": 610,
+          "moxie": 390
+        },
+        "Evolysse": {
+          "list": 325,
+          "moxie": 160
+        }
+      }
+    }
+  ],
+  "merz": [
+    {
+      "startDate": "2000-01-01",
+      "endDate": "2024-12-31",
+      "label": "Era 1 \u2014 pre Jan 2025",
+      "products": {
+        "Xeomin 100-U Vials": {
+          "list": 511,
+          "bogoRate": 0.8
+        },
+        "Xeomin 50 U Vials": {
+          "list": 268,
+          "bogoRate": 0.8
+        },
+        "BELOTERO Balance 1.0cc US": {
+          "list": 285,
+          "moxie": 213.75
+        },
+        "Belotero Balance Lido US 1x1.0ml": {
+          "list": 329,
+          "moxie": 246.75
+        },
+        "Belotero 1.0 Lido": {
+          "list": 329,
+          "moxie": 246.75
+        },
+        "RADIESSE (Refresh) - 2 X 1.5cc Kit": {
+          "list": 780,
+          "moxie": 468
+        },
+        "RADIESSE (+) Lidocaine (Refresh) - 2 X 1.5cc Kit": {
+          "list": 780,
+          "moxie": 468
+        },
+        "Ultherapy": {
+          "list": 2340,
+          "moxie": 1989
+        },
+        "Describe": {
+          "list": 630,
+          "moxie": 504
+        },
+        "__neocutis__": {
+          "savingsPct": 0.2
+        }
+      }
+    },
+    {
+      "startDate": "2025-01-01",
+      "endDate": null,
+      "label": "Era 2 \u2014 Jan 2025+",
+      "products": {
+        "Xeomin 100-U Vials": {
+          "list": 511,
+          "bogoRate": 1
+        },
+        "Xeomin 50 U Vials": {
+          "list": 268,
+          "bogoRate": 1
+        },
+        "BELOTERO Balance 1.0cc US": {
+          "list": 285,
+          "moxie": 213.75
+        },
+        "Belotero Balance Lido US 1x1.0ml": {
+          "list": 329,
+          "moxie": 246.75
+        },
+        "Belotero 1.0 Lido": {
+          "list": 329,
+          "moxie": 246.75
+        },
+        "RADIESSE (Refresh) - 2 X 1.5cc Kit": {
+          "list": 780,
+          "moxie": 468
+        },
+        "RADIESSE (+) Lidocaine (Refresh) - 2 X 1.5cc Kit": {
+          "list": 780,
+          "moxie": 468
+        },
+        "Ultherapy": {
+          "list": 2340,
+          "moxie": 1989
+        },
+        "Describe": {
+          "list": 630,
+          "moxie": 504
+        },
+        "__neocutis__": {
+          "savingsPct": 0.2
+        }
+      }
+    }
+  ],
+  "revance": [
+    {
+      "startDate": "2000-01-01",
+      "endDate": null,
+      "label": "Current pricing",
+      "products": {
+        "RHA2": {
+          "list": 600
+        },
+        "RHA3": {
+          "list": 600
+        },
+        "RHA4": {
+          "list": 600
+        },
+        "Redensity": {
+          "list": 600
+        },
+        "Daxxify": {
+          "list": 420
+        }
+      }
+    }
+  ],
+  "letybo": [
+    {
+      "startDate": "2000-01-01",
+      "endDate": null,
+      "label": "Era 1",
+      "products": {
+        "Letybo (letibotulinumtoxinA-wlbg) 100 units/vial 100 units/vial": {
+          "list": 400,
+          "tiers": [
+            {
+              "min": 6,
+              "max": 9,
+              "moxie": 300
+            },
+            {
+              "min": 10,
+              "max": 59,
+              "moxie": 280
+            },
+            {
+              "min": 60,
+              "max": 99,
+              "moxie": 275
+            },
+            {
+              "min": 100,
+              "max": null,
+              "moxie": 0
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
