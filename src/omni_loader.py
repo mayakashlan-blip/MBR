@@ -237,11 +237,15 @@ def _add_filters(query: dict, practice_name: str, start_date: str,
     q = copy.deepcopy(query)
     _ensure_filters(q)
     pf_field, pf_dict = _practice_filter(practice_name, medspa_id)
-    # Drop stale name-based templates so they never AND against our id filter.
-    # Dashboard queries ship with test values baked in (e.g. medspa_name_with_id
-    # = "The Ivy Wellness (1538)" on the AOV tile).
+    # Drop ALL stale practice-scoping templates so they never AND against our
+    # own filter. Dashboard queries ship with test values baked in
+    # (medspa_name_with_id = "The Ivy Wellness (1538)" on the AOV tile,
+    # medspa_id = 1568 on the Staff Performance and Total Sales by Service
+    # tiles). The medspa_id pop matters when we fall back to name filtering:
+    # left in place, the baked id ANDs with the name and returns zero rows.
     q["filters"].pop("dbt__moxie_medspas_mart.medspa_name", None)
     q["filters"].pop("dbt__moxie_medspas_mart.medspa_name_with_id", None)
+    q["filters"].pop("dbt__moxie_medspas_mart.medspa_id", None)
     q["filters"][pf_field] = pf_dict
     if date_field:
         q["filters"][date_field] = {
@@ -393,27 +397,13 @@ def load_from_omni(practice_name: str, month: int, year: int,
             s = (s or "").lower().replace("&", "and")
             return _re.sub(r"[^a-z0-9]", "", s)
 
-        tier_q = copy.deepcopy(queries.get("Medspa Name", {}))
-        if tier_q:
-            _ensure_filters(tier_q)["dbt__moxie_medspas_mart.medspa_name"] = {
-                "kind": "CONTAINS", "type": "string",
-                "values": [practice_name.split()[0]],
-                "is_negative": False,
-            }
+        tier_q_base = queries.get("Medspa Name", {})
+        if tier_q_base:
             tier_field = "dbt__moxie_medspas_mart.provider_segment_post_launch"
             name_field = "dbt__moxie_medspas_mart.medspa_name"
             id_field = "dbt__moxie_medspas_mart.medspa_id"
-            if not isinstance(tier_q.get("fields"), list):
-                tier_q["fields"] = []
-            for f in [tier_field, name_field, id_field]:
-                if f not in tier_q["fields"]:
-                    tier_q["fields"].append(f)
-            tier_q["limit"] = 50
-            tier_r = _run_query(tier_q, api_key)
-            tier_names = tier_r.get(name_field, [])
-            tiers = tier_r.get(tier_field, [])
-            ids = tier_r.get(id_field, [])
             target_norm = _norm_name(practice_name)
+            tier_names, tiers, ids = [], [], []
 
             def _pick(indices):
                 """Duplicate records can share one name (e.g. two 'Coastal Glo'
@@ -452,20 +442,53 @@ def load_from_omni(practice_name: str, month: int, year: int,
                       f"picked id {ids[best]} (${best_rev:,.0f} trailing-12mo revenue)")
                 return best
 
-            # 1. Exact normalized match
-            tier_idx = _pick([i for i, n in enumerate(tier_names)
-                              if n and _norm_name(n) == target_norm])
-            # 2. Prefix match — handles "Glow & Go" in Omni vs "Glow & Go Aesthetics" entered
-            if tier_idx is None:
-                tier_idx = _pick(
-                    [i for i, n in enumerate(tier_names)
-                     if n and len(_norm_name(n)) >= 6 and (
-                         target_norm.startswith(_norm_name(n)) or
-                         _norm_name(n).startswith(target_norm)
-                     )]
-                )
+            # Search most-specific first: the full name, then the longest
+            # word, then the first word. A first-word-only search broke
+            # "The …" practices — CONTAINS "The" matches hundreds of records
+            # and the 50-row cap dropped 'The SKNMUSE' entirely, leaving the
+            # id unresolved (and baked test filters then zeroed out tiles).
+            _words = practice_name.split()
+            _terms = []
+            for _t in ([practice_name]
+                       + ([max(_words, key=len)] if _words else [])
+                       + (_words[:1] if _words else [])):
+                if _t and _t.lower() not in [x.lower() for x in _terms]:
+                    _terms.append(_t)
+            tier_idx = None
+            for _term in _terms:
+                tier_q = copy.deepcopy(tier_q_base)
+                _ensure_filters(tier_q)[name_field] = {
+                    "kind": "CONTAINS", "type": "string",
+                    "values": [_term], "is_negative": False,
+                }
+                if not isinstance(tier_q.get("fields"), list):
+                    tier_q["fields"] = []
+                for f in [tier_field, name_field, id_field]:
+                    if f not in tier_q["fields"]:
+                        tier_q["fields"].append(f)
+                tier_q["limit"] = 50
+                tier_r = _run_query(tier_q, api_key)
+                tier_names = tier_r.get(name_field, [])
+                tiers = tier_r.get(tier_field, [])
+                ids = tier_r.get(id_field, [])
+
+                # 1. Exact normalized match
+                tier_idx = _pick([i for i, n in enumerate(tier_names)
+                                  if n and _norm_name(n) == target_norm])
+                # 2. Prefix match — handles "Glow & Go" in Omni vs
+                #    "Glow & Go Aesthetics" entered
+                if tier_idx is None:
+                    tier_idx = _pick(
+                        [i for i, n in enumerate(tier_names)
+                         if n and len(_norm_name(n)) >= 6 and (
+                             target_norm.startswith(_norm_name(n)) or
+                             _norm_name(n).startswith(target_norm)
+                         )]
+                    )
+                    if tier_idx is not None:
+                        print(f"  Prefix match: '{practice_name}' ~ '{tier_names[tier_idx]}'")
                 if tier_idx is not None:
-                    print(f"  Prefix match: '{practice_name}' ~ '{tier_names[tier_idx]}'")
+                    break
             if tier_idx is not None:
                 # Use the canonical Omni name for all downstream EQUALS filters
                 # so "&" vs "and" or other spacing differences don't cause zeros.
