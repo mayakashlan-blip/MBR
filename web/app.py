@@ -922,11 +922,12 @@ def _handle_upload_monthly_launches():
     persistent_path = _save_monthly_upload(month, year, "launches", image_path, file.filename)
 
     # AI extraction
+    analysis_error = None
     try:
         items = _analyze_launches_image(persistent_path)
     except Exception as e:
         print(f"  Warning: Could not analyze launches: {e}")
-        items = []
+        items, analysis_error = [], str(e)
 
     # Save to monthly assets
     assets = _load_monthly_assets(month, year)
@@ -935,7 +936,8 @@ def _handle_upload_monthly_launches():
     assets["launches_path"] = str(persistent_path)
     _save_monthly_assets(month, year, assets)
 
-    return jsonify({"ok": True, "launches": items, "filename": file.filename})
+    return jsonify({"ok": True, "launches": items, "filename": file.filename,
+                    "analysis_error": analysis_error})
 
 
 @app.route("/api/upload-monthly-brand-bank", methods=["POST"])
@@ -970,11 +972,12 @@ def _handle_upload_monthly_brand_bank():
     persistent_path = _save_monthly_upload(month, year, "brand_bank", image_path, file.filename)
 
     # AI extraction
+    analysis_error = None
     try:
         items = _analyze_brand_bank_image(str(persistent_path), month_names[month])
     except Exception as e:
         print(f"  Warning: Could not analyze brand bank: {e}")
-        items = []
+        items, analysis_error = [], str(e)
 
     # Save to monthly assets
     assets = _load_monthly_assets(month, year)
@@ -983,7 +986,8 @@ def _handle_upload_monthly_brand_bank():
     assets["brand_bank_path"] = str(persistent_path)
     _save_monthly_assets(month, year, assets)
 
-    return jsonify({"ok": True, "brand_bank_items": items, "filename": file.filename})
+    return jsonify({"ok": True, "brand_bank_items": items, "filename": file.filename,
+                    "analysis_error": analysis_error})
 
 
 @app.route("/api/upload-enterprise-marketing", methods=["POST"])
@@ -2296,7 +2300,8 @@ def _analyze_launches_image(image_path: str) -> list:
 
     api_key = os.environ.get("ANTHROPIC_API_KEY", "")
     if not api_key:
-        return []
+        raise RuntimeError("ANTHROPIC_API_KEY is not set on the server — "
+                           "AI extraction is disabled")
 
     suffix = Path(image_path).suffix.lower()
     links_text = ""
@@ -2387,7 +2392,7 @@ def _analyze_launches_image(image_path: str) -> list:
     try:
         return json.loads(raw)
     except json.JSONDecodeError:
-        return []
+        raise RuntimeError(f"AI returned non-JSON: {raw[:300]}")
 
 
 def _analyze_brand_bank_image(image_path: str, month_name: str) -> list:
@@ -2397,7 +2402,8 @@ def _analyze_brand_bank_image(image_path: str, month_name: str) -> list:
 
     api_key = os.environ.get("ANTHROPIC_API_KEY", "")
     if not api_key:
-        return []
+        raise RuntimeError("ANTHROPIC_API_KEY is not set on the server — "
+                           "AI extraction is disabled")
 
     suffix = Path(image_path).suffix.lower()
     content = []
@@ -2459,7 +2465,7 @@ def _analyze_brand_bank_image(image_path: str, month_name: str) -> list:
     try:
         return json.loads(raw)
     except json.JSONDecodeError:
-        return []
+        raise RuntimeError(f"AI returned non-JSON: {raw[:300]}")
 
 
 def _build_marketing_analysis(result: dict):
