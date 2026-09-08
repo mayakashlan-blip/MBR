@@ -351,13 +351,13 @@ def load_from_omni(practice_name: str, month: int, year: int,
                 queries[q["name"]] = q["query"]
     except Exception as e:
         print(f"  Warning: could not load MBR dashboard: {e}")
-    # GFE tiles must count only Moxie's GFE reviewers. Historically they
-    # shipped with a hardcoded reviewer NAME list from testing (cleared here
-    # so every practice's reviewers count); the dashboard now scopes by the
-    # is_gfe_savings_reviewer boolean instead. If a tile carries NEITHER
-    # (seen live during a half-published dashboard edit, Sep 2026 — counts
-    # ran ~2.2x high), inject the boolean filter so reports stay correct.
-    _GFE_REVIEWER_FLAG = "dbt__moxie_providers_mart.is_gfe_savings_reviewer"
+    # GFE tiles: strip ALL reviewer scoping — the loader's queries are always
+    # practice-scoped, and under a medspa_id constraint the providers join
+    # resolves to the PRACTICE's own staff, so any reviewer filter zeroes the
+    # result (verified Sep 2026: Escala July = 14 GFEs unscoped, 0 with the
+    # is_gfe_savings_reviewer boolean, regardless of topic/base_view hints or
+    # null handling). Reviewer filters only behave on org-wide views; the
+    # baked test NAME list is cleared and the boolean flag is removed.
     for _gname in ("Monthly GFE Savings", "YTD GFE Savings",
                    "Completed GFEs By Reviewer [New Flow]"):
         _gq = queries.get(_gname)
@@ -367,11 +367,7 @@ def load_from_omni(practice_name: str, month: int, year: int,
         _gf = _filters.get("dbt__moxie_providers_mart.provider_name")
         if isinstance(_gf, dict):
             _gf["values"] = []
-        if not isinstance(_gf, dict) and _GFE_REVIEWER_FLAG not in _filters:
-            _filters[_GFE_REVIEWER_FLAG] = {
-                "type": "boolean", "is_negative": False,
-                "treat_nulls_as_false": True, "ignore_if_unjoinable": True,
-            }
+        _filters.pop("dbt__moxie_providers_mart.is_gfe_savings_reviewer", None)
     # The dashboard's Total Sales by Service chart keeps a top-10 row limit
     # for display; the report wants every service category (percentages are
     # computed against practice Total Sales, so nothing may be truncated).
