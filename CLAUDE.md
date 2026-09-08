@@ -75,11 +75,18 @@ wrong-numbers-in-a-client-report bug:
    filter must be a *number*-typed EQUALS filter — string-typed values are
    rejected by Omni.
 2. **Dashboard queries ship with baked-in filters** from testing (date
-   templates, `medspa_name_with_id` values, hardcoded GFE reviewer lists).
-   For date ranges, overwrite the SAME field the query already filters on —
-   a different date field ANDs against the baked one and zeroes out
-   historical months. `QUERY_DATE_FIELDS` in `omni_loader.py` maps each query
-   to its correct field.
+   templates, `medspa_name_with_id` values, a `medspa_id=1568` on the Staff
+   Performance and Total Sales by Service tiles, hardcoded GFE reviewer
+   lists). `_add_filters` strips ALL practice-scoping filters (name,
+   name_with_id, id) before adding its own — a leftover baked id ANDed with
+   a name filter returns zero rows (The SKNMUSE, Aug 2026). For date
+   ranges, overwrite the SAME field the query already filters on — a
+   different date field ANDs against the baked one and zeroes out
+   historical months. `QUERY_DATE_FIELDS` in `omni_loader.py` maps each
+   query to its correct field.
+   The medspa-id lookup searches by full name first, then longest word,
+   then first word — a first-word-only CONTAINS breaks "The …" practices
+   (hundreds of matches, 50-row cap).
 3. **Per-type breakdowns of invoice-level measures overlap** (an invoice with
    multiple item types counts fully in every type row). Additive breakdowns
    must use the line-items mart (`dbt__moxie_invoice_line_items_mart`).
