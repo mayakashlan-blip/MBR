@@ -925,6 +925,15 @@ def load_from_omni(practice_name: str, month: int, year: int,
             data.services.append(ServiceItem(name=cat, revenue=rev))
     data.services.sort(key=lambda s: s.revenue, reverse=True)
     data.compute_service_percentages()
+    # If Sales Summary shows service revenue, the line-items query MUST have
+    # rows — an empty result here is a transient failure (usually an Omni
+    # 429), not real data. Fail loudly rather than saving a report whose
+    # Service Mix section silently vanishes (seen on The SKNMUSE, Aug 2026).
+    if not data.services and data.service_revenue > 100:
+        raise RuntimeError(
+            f"Total Sales by Service returned no rows despite "
+            f"${data.service_revenue:,.0f} service revenue — likely an Omni "
+            f"rate limit. Wait a minute and regenerate.")
 
     # Membership breakdown by type — one Membership Breakdown tile carries
     # name + active + new + churned + MRR per membership (plus a grouped
