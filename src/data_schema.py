@@ -284,6 +284,10 @@ class MBRData:
     psm_name: str = ""
     marketing_recommendations: str = ""  # AI-generated from uploaded marketing screenshot
     show_marketing_recommendations: bool = False  # toggle for Silver/Momentum/Growth tiers; default off
+    # Editor toggle: hide the Supplies Savings page for practices that order
+    # supplies outside Moxie (Revision, Alastin, weight-loss, …) where Omni
+    # savings show $0 or misleadingly low.
+    show_supplies_savings: bool = True
     show_marketing_section: bool = True  # master toggle for the entire marketing performance page
     marketing_analysis: Optional[MarketingAnalysis] = None  # structured AI analysis
     launches: list[LaunchFeature] = field(default_factory=list)  # extracted from uploaded image

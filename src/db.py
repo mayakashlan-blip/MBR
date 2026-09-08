@@ -148,16 +148,25 @@ def list_versions(session_id: str) -> list:
 
 
 def version_counts() -> dict:
-    """Return {session_id: snapshot count} across all sessions (one query)."""
+    """Return {session_id: snapshot count} across all sessions.
+
+    Paginated: Supabase caps a single select at max_rows (1000 by
+    default), which would silently undercount once snapshots pass it.
+    """
     sb = get_client()
-    result = (sb.table("session_versions").select("session_id")
-              .limit(10000).execute())
     counts: dict = {}
-    for row in result.data or []:
-        sid = row.get("session_id")
-        if sid:
-            counts[sid] = counts.get(sid, 0) + 1
-    return counts
+    page, offset = 1000, 0
+    while True:
+        result = (sb.table("session_versions").select("session_id")
+                  .range(offset, offset + page - 1).execute())
+        rows = result.data or []
+        for row in rows:
+            sid = row.get("session_id")
+            if sid:
+                counts[sid] = counts.get(sid, 0) + 1
+        if len(rows) < page:
+            return counts
+        offset += page
 
 
 def load_version(version_id: str) -> dict | None:

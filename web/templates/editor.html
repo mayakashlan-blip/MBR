@@ -433,6 +433,22 @@
       </div>
     </div>
 
+    {# ── Supplies Savings visibility ── #}
+    <div class="sidebar-section">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+        <label style="margin: 0;">Supplies Savings</label>
+        <label style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: #4A4744; cursor: pointer; font-weight: 400;">
+          <input type="checkbox" id="show-supplies-savings" {% if data.show_supplies_savings %}checked{% endif %} onchange="debounceSave()">
+          Show on report
+        </label>
+      </div>
+      <div style="font-size: 11px; color: #8C8580;">
+        Uncheck for practices that order supplies outside Moxie (Revision,
+        Alastin, weight-loss, etc.) — Omni only sees Moxie orders, so their
+        savings show $0 or misleadingly low.
+      </div>
+    </div>
+
     {# ── Version History ── #}
     <div class="sidebar-section">
       <div class="section-header" onclick="toggleSection('versions'); loadVersions();">
@@ -869,9 +885,11 @@ function collectData() {
 
   const showExecEl = document.getElementById('show-exec-summary');
   const showMktRecsEl = document.getElementById('show-mkt-recs');
+  const showSuppliesEl = document.getElementById('show-supplies-savings');
   return {
     executive_summary: document.getElementById('exec-summary').value,
     show_executive_summary: showExecEl ? showExecEl.checked : true,
+    show_supplies_savings: showSuppliesEl ? showSuppliesEl.checked : true,
     psm_feedback: document.getElementById('psm-feedback').value,
     psm_name: document.getElementById('psm-name').value,
     assessments: assessments,

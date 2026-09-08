@@ -556,6 +556,8 @@ def _apply_payload(data, payload):
     # Boolean toggles
     if "show_executive_summary" in payload:
         data.show_executive_summary = bool(payload["show_executive_summary"])
+    if "show_supplies_savings" in payload:
+        data.show_supplies_savings = bool(payload["show_supplies_savings"])
     if "show_marketing_recommendations" in payload:
         data.show_marketing_recommendations = bool(payload["show_marketing_recommendations"])
     if "show_gfe_section" in payload:
