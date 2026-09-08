@@ -1468,13 +1468,25 @@ function loadVersions() {
         list.innerHTML = '<div style="font-size:11px; color:#8C8580;">No previous versions yet. Versions are saved automatically when you edit.</div>';
         return;
       }
-      list.innerHTML = resp.versions.map(v => `
+      list.innerHTML = resp.versions.map(v => {
+        let flags = '';
+        if ('has_summary' in v) {
+          const parts = [
+            v.has_summary ? 'Summary ✓' : 'Summary —',
+            (v.assessment_count || 0) + ' cards',
+            v.has_psm ? 'PSM ✓' : 'PSM —',
+          ];
+          if (v.has_recs) parts.push('Recs ✓');
+          const rich = v.has_summary || v.has_psm || (v.assessment_count || 0) > 0;
+          flags = `<div style="font-size:10px; color:${rich ? '#1E7A46' : '#8C8580'};">${parts.join(' · ')}</div>`;
+        }
+        return `
         <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid #f0ebe6;">
-          <span style="font-size:11px; color:#4A4744;">${v.display}</span>
+          <span style="font-size:11px; color:#4A4744;">${v.display}${flags}</span>
           <button class="btn btn-secondary" style="font-size:10px; padding:2px 8px;"
                   onclick="restoreVersion('${v.filename}')">Restore</button>
         </div>
-      `).join('');
+      `;}).join('');
     })
     .catch(() => {
       document.getElementById('versions-list').innerHTML = '<div style="font-size:11px; color:#B53631;">Could not load versions.</div>';

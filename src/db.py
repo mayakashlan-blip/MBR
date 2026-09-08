@@ -112,10 +112,19 @@ def snapshot_version(session_id: str, raw_payload: dict):
 
 
 def list_versions(session_id: str) -> list:
-    """Return version list with display metadata."""
+    """Return version list with display metadata and content flags.
+
+    The flags (has_summary / assessment_count / has_psm / has_recs) let
+    someone recovering wiped narrative work spot which snapshot still
+    carries it without restoring each one to look.
+    """
     sb = get_client()
     result = (sb.table("session_versions")
-               .select("id, created_at")
+               .select("id, created_at, "
+                       "exec_summary:data->>executive_summary, "
+                       "psm:data->>psm_feedback, "
+                       "recs:data->>marketing_recommendations, "
+                       "assessments:data->assessments")
                .eq("session_id", session_id)
                .order("created_at", desc=True)
                .execute())
@@ -128,10 +137,27 @@ def list_versions(session_id: str) -> list:
                 "filename": str(row["id"]),
                 "timestamp": dt.isoformat(),
                 "display": dt.strftime("%b %d, %Y %I:%M:%S %p"),
+                "has_summary": bool((row.get("exec_summary") or "").strip()),
+                "has_psm": bool((row.get("psm") or "").strip()),
+                "has_recs": bool((row.get("recs") or "").strip()),
+                "assessment_count": len(row.get("assessments") or []),
             })
         except (ValueError, AttributeError):
             pass
     return versions
+
+
+def version_counts() -> dict:
+    """Return {session_id: snapshot count} across all sessions (one query)."""
+    sb = get_client()
+    result = (sb.table("session_versions").select("session_id")
+              .limit(10000).execute())
+    counts: dict = {}
+    for row in result.data or []:
+        sid = row.get("session_id")
+        if sid:
+            counts[sid] = counts.get(sid, 0) + 1
+    return counts
 
 
 def load_version(version_id: str) -> dict | None:

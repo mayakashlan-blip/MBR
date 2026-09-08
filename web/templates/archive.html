@@ -196,12 +196,27 @@ function loadVersionsForReport(reportId, container) {
         container.innerHTML = '<div style="font-size:11px; color:#8C8580; padding:4px 0;">No previous versions.</div>';
         return;
       }
-      container.innerHTML = versions.map((v, i) => `
+      container.innerHTML = versions.map((v, i) => {
+        // Content flags: which narrative work each snapshot still carries —
+        // lets someone recovering wiped summaries/recommendations pick the
+        // right version without restoring blindly.
+        let flags = '';
+        if ('has_summary' in v) {
+          const parts = [
+            v.has_summary ? 'Summary ✓' : 'Summary —',
+            (v.assessment_count || 0) + ' cards',
+            v.has_psm ? 'PSM ✓' : 'PSM —',
+          ];
+          if (v.has_recs) parts.push('Recs ✓');
+          const rich = v.has_summary || v.has_psm || (v.assessment_count || 0) > 0;
+          flags = `<div style="font-size:10px; color:${rich ? '#1E7A46' : '#8C8580'}; margin-top:1px;">${parts.join(' · ')}</div>`;
+        }
+        return `
         <div class="version-row">
-          <span>${v.display}${i === 0 ? ' (most recent)' : ''}</span>
+          <span>${v.display}${i === 0 ? ' (most recent)' : ''}${flags}</span>
           <button class="archive-btn" onclick="restoreVersion('${reportId}', '${v.filename}')">Restore</button>
         </div>
-      `).join('');
+      `;}).join('');
     })
     .catch(() => {
       container.innerHTML = '<div style="font-size:11px; color:#B53631; padding:4px 0;">Could not load versions.</div>';

@@ -491,6 +491,11 @@ def _list_archived_reports() -> list:
     if _DB_ENABLED:
         import calendar
         reports = []
+        try:
+            vcounts = _db.version_counts()
+        except Exception as e:
+            print(f"  Warning: could not load version counts: {e}")
+            vcounts = {}
         for row in _db.list_sessions():
             month = row.get("month") or 0
             year = row.get("year") or 0
@@ -503,7 +508,7 @@ def _list_archived_reports() -> list:
                 "month_name": month_name,
                 "period": f"{month_name} {year}" if month_name else "",
                 "created": row.get("created_at", ""),
-                "versions": 0,  # not pre-fetched; available via /api/versions/<id>
+                "versions": vcounts.get(row["id"], 0),
             })
         return reports
 
