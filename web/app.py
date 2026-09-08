@@ -380,7 +380,10 @@ def _save_session(session_id: str, sess: dict, snapshot: bool = True):
             existing = _db.load_session_raw(session_id)
             if existing:
                 _db.snapshot_version(session_id, existing)
-        _db.save_session(session_id, payload)
+        ts = _db.save_session(session_id, payload)
+        # Stamp the freshness marker so _get_session trusts this cached
+        # copy until some other worker writes a newer one.
+        sess["_db_updated_at"] = ts
         return
 
     # File-based fallback
@@ -443,9 +446,33 @@ def _load_session(session_id: str) -> dict:
 
 
 def _get_session(session_id: str) -> dict:
-    """Get session from memory, falling back to disk."""
-    if session_id in sessions:
-        return sessions[session_id]
+    """Get a session, guaranteeing freshness across gunicorn workers.
+
+    Memory is only a cache: each worker process has its own `sessions`
+    dict, so an edit saved through one worker used to be invisible to (and
+    silently overwritable by) another worker's stale copy — reported as
+    "sometimes my changes don't save". With the DB enabled, a cheap
+    updated_at check detects a newer copy and reloads it.
+    """
+    cached = sessions.get(session_id)
+    if _DB_ENABLED:
+        try:
+            remote_ts = _db.session_updated_at(session_id)
+        except Exception:
+            return cached or _load_session(session_id)
+        if remote_ts is None:
+            # No DB row (e.g. generation in progress) — memory is all we have
+            return cached
+        if cached is not None and cached.get("_db_updated_at") == remote_ts:
+            return cached
+        sess = _load_session(session_id)
+        if sess:
+            sess["_db_updated_at"] = remote_ts
+            sessions[session_id] = sess
+            return sess
+        return cached
+    if cached is not None:
+        return cached
     sess = _load_session(session_id)
     if sess:
         sessions[session_id] = sess

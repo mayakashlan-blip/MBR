@@ -35,7 +35,7 @@ def save_session(session_id: str, payload: dict):
     marketing_image_path, launches_image_path, created (ISO string)."""
     sb = get_client()
     data_dict = payload["data"]
-    sb.table("sessions").upsert({
+    result = sb.table("sessions").upsert({
         "id": session_id,
         "practice_name": data_dict.get("practice_name", ""),
         "month": data_dict.get("month"),
@@ -46,6 +46,20 @@ def save_session(session_id: str, payload: dict):
         "launches_image_path": payload.get("launches_image_path"),
         "created_at": payload.get("created"),
     }).execute()
+    return (result.data[0].get("updated_at")
+            if getattr(result, "data", None) else None)
+
+
+def session_updated_at(session_id: str):
+    """Return the session row's updated_at (ISO string), or None if absent.
+
+    Cheap single-column select used to detect when another gunicorn worker
+    (or instance) has saved a newer copy than the one cached in memory.
+    """
+    sb = get_client()
+    result = (sb.table("sessions").select("updated_at")
+              .eq("id", session_id).execute())
+    return result.data[0]["updated_at"] if result.data else None
 
 
 def load_session_raw(session_id: str) -> dict | None:
