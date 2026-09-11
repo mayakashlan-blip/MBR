@@ -351,13 +351,18 @@ def load_from_omni(practice_name: str, month: int, year: int,
                 queries[q["name"]] = q["query"]
     except Exception as e:
         print(f"  Warning: could not load MBR dashboard: {e}")
-    # GFE tiles: strip ALL reviewer scoping — the loader's queries are always
-    # practice-scoped, and under a medspa_id constraint the providers join
-    # resolves to the PRACTICE's own staff, so any reviewer filter zeroes the
-    # result (verified Sep 2026: Escala July = 14 GFEs unscoped, 0 with the
-    # is_gfe_savings_reviewer boolean, regardless of topic/base_view hints or
-    # null handling). Reviewer filters only behave on org-wide views; the
-    # baked test NAME list is cleared and the boolean flag is removed.
+    # GFE tiles must count only Moxie's GFE-savings reviewers. The
+    # submissions mart also holds practices' own in-house good-faith exams
+    # (verified Sep 2026: Oro Valley's 29 August "GFEs" were reviews by Sara
+    # Rowe / Natalie Uden — their own staff; Escala's 8 were Rachel Gerik,
+    # their injector). Without reviewer scoping those count as "Moxie
+    # Covered" savings — wrong, and it's why some practices with $0 real
+    # coverage showed values. Scope every GFE query by the
+    # is_gfe_savings_reviewer flag — it composes fine with the medspa_id
+    # filter (Coastal Glo scoped: 208 == its row in the org-wide
+    # per-practice breakdown; a practice with no Moxie-covered GFEs
+    # correctly returns 0). The old hardcoded reviewer NAME list is cleared
+    # (stale; superseded by the flag).
     for _gname in ("Monthly GFE Savings", "YTD GFE Savings",
                    "Completed GFEs By Reviewer [New Flow]"):
         _gq = queries.get(_gname)
@@ -367,7 +372,10 @@ def load_from_omni(practice_name: str, month: int, year: int,
         _gf = _filters.get("dbt__moxie_providers_mart.provider_name")
         if isinstance(_gf, dict):
             _gf["values"] = []
-        _filters.pop("dbt__moxie_providers_mart.is_gfe_savings_reviewer", None)
+        _filters["dbt__moxie_providers_mart.is_gfe_savings_reviewer"] = {
+            "type": "boolean", "is_negative": False,
+            "treat_nulls_as_false": True, "ignore_if_unjoinable": True,
+        }
     # The dashboard's Total Sales by Service chart keeps a top-10 row limit
     # for display; the report wants every service category (percentages are
     # computed against practice Total Sales, so nothing may be truncated).

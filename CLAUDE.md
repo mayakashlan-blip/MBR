@@ -87,6 +87,13 @@ wrong-numbers-in-a-client-report bug:
    The medspa-id lookup searches by full name first, then longest word,
    then first word — a first-word-only CONTAINS breaks "The …" practices
    (hundreds of matches, 50-row cap).
+   Exception to "strip all baked filters": GFE queries MUST keep reviewer
+   scoping (`is_gfe_savings_reviewer = true`, injected by the loader). The
+   submissions mart also holds practices' own in-house good-faith exams —
+   unscoped, Oro Valley's in-house reviews counted as "Moxie Covered"
+   savings. The flag composes correctly with the medspa_id filter; a
+   practice with no Moxie-covered GFEs correctly returns 0 and the report
+   hides the section.
 3. **Per-type breakdowns of invoice-level measures overlap** (an invoice with
    multiple item types counts fully in every type row). Additive breakdowns
    must use the line-items mart (`dbt__moxie_invoice_line_items_mart`).
