@@ -35,7 +35,38 @@ app.secret_key = os.urandom(24)
 
 # In-memory session store: {session_id: {"data": MBRData, "html": str, "created": datetime,
 #   "brand_bank_path": str, "marketing_image_path": str, "launches_image_path": str}}
-sessions = {}
+# Bounded LRU: each entry carries full report data plus rendered HTML
+# (several MB), and an unbounded cache OOM'd the Render instance during
+# September reporting volume. Every session is persisted on save and
+# _get_session reloads evicted ones from the DB, so eviction only costs a
+# reload + re-render.
+class _LRUSessions(dict):
+    # Plain-dict subclass, NOT OrderedDict: OrderedDict's popitem/pop route
+    # through overridden __getitem__ mid-removal and KeyError. dict methods
+    # use concrete fast paths, so only these overrides change behavior;
+    # insertion order (3.7+) provides the recency ordering.
+    MAX_ITEMS = 25
+
+    def __setitem__(self, key, value):
+        if key in self:
+            super().__delitem__(key)
+        super().__setitem__(key, value)
+        while len(self) > self.MAX_ITEMS:
+            super().__delitem__(next(iter(self)))
+
+    def __getitem__(self, key):
+        value = super().__getitem__(key)
+        super().__delitem__(key)      # refresh recency
+        super().__setitem__(key, value)
+        return value
+
+    def get(self, key, default=None):
+        if key in self:
+            return self[key]
+        return default
+
+
+sessions = _LRUSessions()
 
 # Batch job store: {job_id: {"total": N, "completed": M, "status": str, "zip_path": str, "errors": []}}
 batch_jobs = {}
