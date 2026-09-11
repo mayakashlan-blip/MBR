@@ -115,6 +115,11 @@ wrong-numbers-in-a-client-report bug:
    human corrections (`discard_edits: true` resets to pure Omni values). The
    parity check (`_compute_parity`) runs on raw Omni values *before*
    overrides are re-applied.
+   The editor autosaves its ENTIRE form, so `/api/update` and `/api/save`
+   require a `_rev` (the session's `updated_at` the tab loaded) and 409 on
+   mismatch — without this, one stale background tab re-pins every old
+   value as a manual override (it resurrected Oro Valley's corrected GFE
+   numbers within an hour). Successful saves return the new `rev`.
 9. **Enterprise marketing numbers can be agency-validated.** The compiled
    workbook ("Enterprise Reporting [Compiled] - <Month>.xlsx") uploads on
    the Monthly Assets page; `src/validated_marketing.py` parses it and
