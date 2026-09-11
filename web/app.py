@@ -743,10 +743,17 @@ def editor(session_id):
                                session_id=session_id,
                                data=None,
                                not_found=True)
+    session_rev = ""
+    if _DB_ENABLED:
+        try:
+            session_rev = _db.session_updated_at(session_id) or ""
+        except Exception:
+            session_rev = ""
     return render_template("editor.html",
                            session_id=session_id,
                            data=sess["data"],
-                           not_found=False)
+                           not_found=False,
+                           session_rev=session_rev)
 
 
 @app.route("/archive")
@@ -1881,14 +1888,18 @@ def api_update(session_id):
     sess = _get_session(session_id)
     if not sess:
         return jsonify({"error": "Session not found"}), 404
-    _apply_payload(sess["data"], request.json)
+    payload = dict(request.json or {})
+    stale = _check_session_rev(session_id, payload)
+    if stale:
+        return stale
+    _apply_payload(sess["data"], payload)
     # Remember edits so a later regeneration re-applies them instead of
     # silently wiping manual corrections (e.g. marketing data fixes).
     overrides = sess.setdefault("manual_overrides", {})
-    overrides.update(request.json or {})
+    overrides.update(payload)
     _rerender(sess)
     _save_session(session_id, sess, snapshot=False)
-    return jsonify({"ok": True})
+    return jsonify({"ok": True, "rev": _current_session_rev(session_id)})
 
 
 @app.route("/api/save/<session_id>", methods=["POST"])
@@ -1897,14 +1908,52 @@ def api_save(session_id):
     sess = _get_session(session_id)
     if not sess:
         return jsonify({"error": "Session not found"}), 404
-    _apply_payload(sess["data"], request.json)
+    payload = dict(request.json or {})
+    stale = _check_session_rev(session_id, payload)
+    if stale:
+        return stale
+    _apply_payload(sess["data"], payload)
     # Remember edits so a later regeneration re-applies them instead of
     # silently wiping manual corrections (e.g. marketing data fixes).
     overrides = sess.setdefault("manual_overrides", {})
-    overrides.update(request.json or {})
+    overrides.update(payload)
     _rerender(sess)
     _save_session(session_id, sess, snapshot=True)
-    return jsonify({"ok": True})
+    return jsonify({"ok": True, "rev": _current_session_rev(session_id)})
+
+
+def _current_session_rev(session_id: str) -> str:
+    if not _DB_ENABLED:
+        return ""
+    try:
+        return _db.session_updated_at(session_id) or ""
+    except Exception:
+        return ""
+
+
+def _check_session_rev(session_id: str, payload: dict):
+    """Reject writes from a tab that loaded an older revision of the session.
+
+    A stale editor tab autosaves its ENTIRE form — every field it loaded —
+    so one background tab can silently overwrite corrected data and pin the
+    old values as manual overrides (Oro Valley's fixed GFE numbers came
+    back that way within the hour). Editors send the session's updated_at
+    as _rev; a mismatch means the session changed after that tab loaded.
+    Returns an error response to return, or None if the write may proceed.
+    Tabs that predate this guard send no _rev and are not checked.
+    """
+    rev = payload.pop("_rev", None)
+    if not rev or not _DB_ENABLED:
+        return None
+    current = _current_session_rev(session_id)
+    if current and current != rev:
+        return jsonify({
+            "stale": True,
+            "error": "This report changed after this tab loaded it "
+                     "(another tab, a teammate, or a regeneration). "
+                     "Reload the editor to continue.",
+        }), 409
+    return None
 
 
 @app.route("/api/versions/<session_id>")

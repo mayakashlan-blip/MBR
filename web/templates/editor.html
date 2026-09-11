@@ -738,6 +738,15 @@
 
 <script>
 const SESSION_ID = '{{ session_id }}';
+// Revision of the session this tab loaded — sent with every save so the
+// server can reject writes from a tab that's gone stale (409).
+let SESSION_REV = {{ (session_rev or '') | tojson }};
+
+function handleStaleSession(resp) {
+  document.getElementById('save-indicator').textContent = 'Not saved — report changed elsewhere.';
+  alert('This report was updated somewhere else (another tab, a teammate, or a regeneration) after this tab loaded it.\n\nThe page will reload to show the latest version. Edits from this stale tab were NOT applied.');
+  window.location.reload();
+}
 let saveTimeout = null;
 let updateController = null;
 
@@ -887,6 +896,7 @@ function collectData() {
   const showMktRecsEl = document.getElementById('show-mkt-recs');
   const showSuppliesEl = document.getElementById('show-supplies-savings');
   return {
+    _rev: SESSION_REV,
     executive_summary: document.getElementById('exec-summary').value,
     show_executive_summary: showExecEl ? showExecEl.checked : true,
     show_supplies_savings: showSuppliesEl ? showSuppliesEl.checked : true,
@@ -972,9 +982,11 @@ function saveChanges() {
     body: JSON.stringify(data),
     signal: updateController.signal,
   })
-  .then(r => r.json())
-  .then(resp => {
+  .then(r => r.json().then(resp => ({status: r.status, resp})))
+  .then(({status, resp}) => {
+    if (status === 409 && resp.stale) { handleStaleSession(resp); return; }
     if (resp.ok) {
+      if (resp.rev) SESSION_REV = resp.rev;
       document.getElementById('save-indicator').textContent = 'Saved — preview updated';
       document.getElementById('preview-frame').src = '/api/preview/' + SESSION_ID + '?t=' + Date.now();
       setTimeout(() => {
@@ -1357,10 +1369,12 @@ function saveReport() {
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify(data),
   })
-  .then(r => r.json())
-  .then(resp => {
+  .then(r => r.json().then(resp => ({status: r.status, resp})))
+  .then(({status, resp}) => {
     btn.disabled = false;
+    if (status === 409 && resp.stale) { btn.textContent = 'Save'; handleStaleSession(resp); return; }
     if (resp.ok) {
+      if (resp.rev) SESSION_REV = resp.rev;
       btn.textContent = 'Saved!';
       setTimeout(() => { btn.textContent = 'Save'; }, 2000);
     } else {
